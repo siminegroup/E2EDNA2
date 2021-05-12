@@ -6,7 +6,6 @@ import numpy as np
 import MDAnalysis as mda
 import glob
 import argparse
-from pdbfixer.pdbfixer import PDBFixer, proteinResidues, dnaResidues, rnaResidues, _guessFileFormat
 from simtk.openmm.app import PDBFile
 import simtk.unit as unit
 from simtk.unit import *

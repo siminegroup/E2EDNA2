@@ -8,6 +8,8 @@ from simtk.openmm.app import *
 from simtk.unit import *
 import simtk.unit as unit
 from MDAnalysis.analysis import distances
+from pdbfixersource import PDBFixer
+
 
 
 
@@ -57,7 +59,7 @@ params['hydrogen mass'] = 1 # in amu
 params['num charges'] = 0 # number of positive charges (Na+) to add to simulation box
 params['pressure'] = 1 # atmospheres
 params['temperature'] = 300 # Kelvin
-params['ionic strength'] = 0 # mmol
+params['ionic strength'] = .163 # mmol
 params['pH'] = 7.0
 
 # paths
@@ -388,7 +390,7 @@ class binder():
 '''
 
 if __name__ == '__main__':
-    sequence = 'ATGCTAGCGA'
+    sequence = 'ATG'
     peptide = 'AAA'
     binder = binder(sequence, params)
     baseDists = binder.run() # retrieve binding score and center-of-mass time-series
