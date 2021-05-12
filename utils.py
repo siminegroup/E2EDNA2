@@ -6,12 +6,29 @@ import numpy as np
 import MDAnalysis as mda
 import glob
 import argparse
-from simtk.openmm.app import PDBFile
-import simtk.unit as unit
-from simtk.unit import *
-from simtk.openmm import *
-from simtk.openmm.app import *
 import matplotlib.pyplot as plt
+from PeptideBuilder import Geometry
+import PeptideBuilder
+import Bio.PDB
+
+def buildPeptide(sequence):
+    '''
+    construct a peptide sequence pdb file
+    :param sequence:
+    :return:
+    '''
+    #resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
+    #PDBdir = "PDBs"
+    structure = PeptideBuilder.initialize_res(sequence[0])
+    for i in range(1,len(sequence)):
+        geo = Geometry.geometry(sequence[i])
+        PeptideBuilder.add_residue(structure, geo)
+
+    PeptideBuilder.add_terminal_OXT(structure)
+
+    out = Bio.PDB.PDBIO()
+    out.set_structure(structure)
+    out.save('peptide.pdb')
 
 
 def combinePDB(file1, file2):
@@ -22,7 +39,12 @@ def combinePDB(file1, file2):
     :param file2:
     :return:
     '''
-
+    filenames = [file1,file2]
+    with open('combined.pdb','w') as outfile:
+        for fname in filenames:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
 
 
 def get_input():

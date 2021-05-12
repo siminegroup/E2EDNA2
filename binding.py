@@ -4,13 +4,11 @@ import re
 from seqfold import dg, fold
 from utils import *
 from simtk.openmm import *
-from simtk.openmm.app import *
 from simtk.unit import *
 import simtk.unit as unit
+from simtk.openmm.app import *
 from MDAnalysis.analysis import distances
 from pdbfixersource import PDBFixer
-
-
 
 
 '''
@@ -18,17 +16,16 @@ script which accepts a DNA sequence and an analyte, and returns the binding affi
 
 To-Do:
 ==> testing
-==> upgrade peptide source
-    > incorporate protonation
+==> peptide placement
 ==> check peptide fold
 ==> analysis
-    -> fold
     -> binding
+==> confirm peptide capping and structure
 '''
 
 
 params = {}
-params['device'] = 'local' # 'local' or 'cluster'
+params['device'] = 'cluster' # 'local' or 'cluster'
 params['platform'] = 'CUDA' # no alternative at the moment
 params['platform precision'] = 'single'
 
@@ -40,11 +37,11 @@ elif params['device'] == 'local':
 # Simulation parameters
 params['force field'] = 'AMBER' # this does nothing
 params['equilibration time'] = 0.01 # equilibration time in nanoseconds
-params['sampling time'] = 0.1 # sampling time in nanoseconds
+params['sampling time'] = 0.05 # sampling time in nanoseconds
 params['time step'] = 2.0 # in fs
 params['print step'] = 1 # printout step in ps - want there to be more than 2 and less than 100 total frames in any trajectory
 
-params['box offset'] = 1.0 # nm
+params['box offset'] = 1.0 # nanometers
 params['barostat interval'] = 25
 params['friction'] = 1.0 # /picosecond
 params['nonbonded method'] = PME
@@ -56,11 +53,10 @@ params['constraint tolerance'] = 1e-6
 params['hydrogen mass'] = 1 # in amu
 
 # physical params
-params['num charges'] = 0 # number of positive charges (Na+) to add to simulation box
 params['pressure'] = 1 # atmospheres
 params['temperature'] = 300 # Kelvin
 params['ionic strength'] = .163 # mmol
-params['pH'] = 7.0
+params['pH'] = 7.0 # simulation will automatically protonate the peptide up to this pH
 
 # paths
 if params['device'] == 'local':
@@ -185,18 +181,20 @@ class binder():
 
 
         if self.checkpoints < 4:  # if we have the secondary structure
-            # fold it!
+            # build the sequence-analyte complex
             print("Preparing Box")
-            self.PrepPDB('sequence.pdb')
+            buildPeptide(peptide) # build the peptide
+            combinePDB('sequence.pdb','peptide.pdb') # combine pdb files
+            self.PrepPDB('combined.pdb') # add periodic box and appropriate protons
             writeCheckpoint("Box Solvated")
 
 
         if self.checkpoints < 5: # run MD
             print('Running Dynamics')
-            self.runMD('sequence_processed.pdb')
+            self.runMD('combined_processed.pdb')
             writeCheckpoint('Complex Sampled')
 
-            baseDists = self.analyzeTrajectory('sequence_processed.pdb','trajectory.dcd')
+            baseDists = self.analyzeTrajectory('combined_processed.pdb','trajectory.dcd')
 
             return baseDists
 
@@ -383,6 +381,8 @@ class binder():
 
         # we also need a function which processes the energies spat out by the trajectory thingy
 
+        # we can also automate free energy analsyis
+
         return baseDists
 
 '''
@@ -390,8 +390,8 @@ class binder():
 '''
 
 if __name__ == '__main__':
-    sequence = 'ATG'
-    peptide = 'AAA'
+    sequence = 'CGCTTTGCG'
+    peptide = 'YQTQTNSPRRAR'
     binder = binder(sequence, params)
     baseDists = binder.run() # retrieve binding score and center-of-mass time-series
 
