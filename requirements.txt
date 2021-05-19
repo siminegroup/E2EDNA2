@@ -1,0 +1,65 @@
+biopython @ file:///C:/ci/biopython_1600333875752/work
+brotlipy==0.7.0
+cairocffi @ file:///home/conda/feedstock_root/build_artifacts/cairocffi_1608498260428/work
+CairoSVG @ file:///home/conda/feedstock_root/build_artifacts/cairosvg_1609948826329/work
+certifi==2020.6.20
+cffi @ file:///C:/ci/cffi_1606255208697/work
+cftime @ file:///C:/ci/cftime_1610890402236/work
+click @ file:///home/linux1/recipes/ci/click_1610990599742/work
+cryptography @ file:///C:/ci/cryptography_1601046905460/work
+cssselect2==0.2.1
+cycler==0.10.0
+decorator @ file:///home/ktietz/src/ci/decorator_1611930055503/work
+defusedxml @ file:///home/ktietz/src/ci_mi/defusedxml_1612808095953/work
+Flask @ file:///home/ktietz/src/ci/flask_1611932660458/work
+GridDataFormats==0.5.0
+gsd @ file:///D:/bld/gsd_1605120600529/work
+idna @ file:///tmp/build/80754af9/idna_1593446292537/work
+itsdangerous @ file:///home/ktietz/src/ci/itsdangerous_1611932585308/work
+Jinja2 @ file:///tmp/build/80754af9/jinja2_1612213139570/work
+joblib @ file:///tmp/build/80754af9/joblib_1607970656719/work
+kiwisolver @ file:///C:/ci/kiwisolver_1612282606037/work
+lxml @ file:///C:/ci/lxml_1606498900999/work
+MarkupSafe==1.1.1
+matplotlib @ file:///C:/ci/matplotlib-base_1603355780617/work
+MDAnalysis @ file:///D:/bld/mdanalysis_1604270850471/work
+mkl-fft==1.2.0
+mkl-random==1.1.1
+mkl-service==2.3.0
+mmtf-python==1.1.2
+msgpack @ file:///C:/ci/msgpack-python_1612287368835/work
+netCDF4==1.5.3
+networkx @ file:///tmp/build/80754af9/networkx_1598376031484/work
+numpy @ file:///C:/ci/numpy_and_numpy_base_1603466732592/work
+olefile==0.46
+OpenMM==7.5.0
+OpenMM-Setup @ file:///home/conda/feedstock_root/build_artifacts/openmm-setup_1607694576678/work
+pandas @ file:///C:/ci/pandas_1611171485393/work
+pdbfixer @ file:///Users/jeffreywagner/miniconda3/envs/build/conda-bld/pdbfixer_1605294233265/work
+PeptideBuilder==1.1.0
+Pillow @ file:///C:/ci/pillow_1609786840597/work
+pycairo @ file:///C:/ci/pycairo_1593108952636/work
+pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
+pyOpenSSL @ file:///tmp/build/80754af9/pyopenssl_1594392929924/work
+pyparsing @ file:///home/linux1/recipes/ci/pyparsing_1610983426697/work
+PySocks==1.7.1
+python-dateutil @ file:///home/ktietz/src/ci/python-dateutil_1611928101742/work
+pytz @ file:///tmp/build/80754af9/pytz_1612215392582/work
+reportlab==3.5.60
+scikit-learn @ file:///C:/ci/scikit-learn_1598377018496/work
+scipy @ file:///C:/ci/scipy_1604596260408/work
+seaborn @ file:///tmp/build/80754af9/seaborn_1608578541026/work
+seqfold==0.7.7
+sip==4.19.13
+six @ file:///C:/ci/six_1605187374963/work
+SQLAlchemy @ file:///C:/ci/sqlalchemy_1612467807278/work
+svgutils==0.3.1
+threadpoolctl @ file:///tmp/tmp9twdgx9k/threadpoolctl-2.1.0-py3-none-any.whl
+tinycss2==1.0.2
+tornado @ file:///C:/ci/tornado_1606942392901/work
+tqdm @ file:///tmp/build/80754af9/tqdm_1611857934208/work
+urllib3 @ file:///tmp/build/80754af9/urllib3_1603305693037/work
+webencodings==0.5.1
+Werkzeug @ file:///home/ktietz/src/ci/werkzeug_1611932622770/work
+win-inet-pton==1.1.0
+wincertstore==0.2

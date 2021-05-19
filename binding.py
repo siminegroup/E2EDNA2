@@ -8,6 +8,7 @@ from simtk.unit import *
 import simtk.unit as unit
 from simtk.openmm.app import *
 from MDAnalysis.analysis import distances
+import MDAnalysis.analysis.nuclinfo as nuclinfo
 from pdbfixersource import PDBFixer
 
 
@@ -17,15 +18,21 @@ script which accepts a DNA sequence and an analyte, and returns the binding affi
 To-Do:
 ==> testing
 ==> peptide placement
-==> check peptide fold
-==> analysis
-    -> binding
-==> confirm peptide capping and structure
+==> check / enforce peptide fold
+==> binding and energy analysis
+==> print summary output
+==> need a way to coarsen u.trajectory and also remove waters
+
+Features
+==> query and automate multiple 2ndary structure sampling, incorporating free energy predictions
+==> automate secondary structure analysis
+==> automate 3D structure selection
+==> automate docking
 '''
 
 
 params = {}
-params['device'] = 'cluster' # 'local' or 'cluster'
+params['device'] = 'local' # 'local' or 'cluster'
 params['platform'] = 'CUDA' # no alternative at the moment
 params['platform precision'] = 'single'
 
@@ -71,13 +78,14 @@ elif params['device'] == 'cluster':
     params['mmb template'] = 'lib/commands.template.dat'
 
 # structure files
-params['analyte pdb'] = 'lib/peptide/peptide.pdb'
+params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not used
 
 
 class binder():
-    def __init__(self,sequence,params):
+    def __init__(self,sequence,peptide,params):
         self.params = params
         self.sequence = sequence
+        self.peptide = peptide
 
         self.setup()
         self.getCheckpoint()
@@ -183,8 +191,11 @@ class binder():
         if self.checkpoints < 4:  # if we have the secondary structure
             # build the sequence-analyte complex
             print("Preparing Box")
-            buildPeptide(peptide) # build the peptide
-            combinePDB('sequence.pdb','peptide.pdb') # combine pdb files
+            if self.peptide == False: # if we're going without the peptide
+                os.rename('sequence.pdb','combined.pdb')
+            else:
+                buildPeptide(self.peptide) # build the peptide
+                combinePDB('sequence.pdb','peptide.pdb') # combine pdb files
             self.PrepPDB('combined.pdb') # add periodic box and appropriate protons
             writeCheckpoint("Box Solvated")
 
@@ -193,7 +204,7 @@ class binder():
             print('Running Dynamics')
             self.runMD('combined_processed.pdb')
             writeCheckpoint('Complex Sampled')
-
+            cleanTrajectory('combined_processed.pdb','trajectory.dcd')
             baseDists = self.analyzeTrajectory('combined_processed.pdb','trajectory.dcd')
 
             return baseDists
@@ -361,27 +372,49 @@ class binder():
 
         #base-base distances
         # identify DNA residues
-
         # compute and collate all their center-of-geometry distances
         baseDists = np.zeros((len(u.trajectory),len(self.sequence),len(self.sequence)))
+        pairDists = np.zeros_like(baseDists) # matrix of watson-crick distances
         tt = 0
         for ts in u.trajectory:
             dnaResidues = u.segments[0]
             posMat = np.zeros((len(self.sequence),3))
             for i in range(len(self.sequence)):
                 posMat[i] = dnaResidues.residues[i].atoms.center_of_geometry()
+                for j in range(len(self.sequence)):
+                    if np.abs(i-j) > 3 and (i > j):
+                        pairDists[tt,i,j] = nuclinfo.wc_pair(u,i+1,j+1,seg1='A',seg2='A') # also do WC base-pair distances (can set to only follow secondary structure prediction)
+                    else:
+                        pairDists[tt,i,j] = np.nan
 
             baseDists[tt,:,:] = distances.distance_array(posMat,posMat,box=u.dimensions)
             tt += 1
 
-        # we could then go on to analyze e.g., the closest bases, and see if their identites or stable
+        # track closest non-neighbour base (most likely pair)
+        for tt in range(len(baseDists)):
+            for i in range(len(self.sequence)):
+                closestBase = np.argmax(baseDists[tt,i,:])
+
+
         # or look at global reorganization - though in 3D this may be substantial
 
-        # when we get the analyte - we can do something very similar here
+        if self.peptide != False: # if we have an analyte
+            # compute analyte configuration
+            if u.segments.n_segments == 4: # if we have an analyte
+                analyteDists = np.zeros((len(u.trajectory),len(self.peptide),len(self.peptide)))
+                tt = 0
+                for ts in u.trajectory:
+                    analyteResidues = u.segments[1]
+                    posMat = np.zeros((len(self.peptide),3))
+                    for i in range(len(self.peptide)):
+                        posMat[i] = analyteResidues.residues[i].atoms.center_of_geometry()
+
+                    analyteDists[tt,:,:] = distances.distance_array(posMat,posMat,box=u.dimensions)
+                    tt += 1
 
         # we also need a function which processes the energies spat out by the trajectory thingy
 
-        # we can also automate free energy analsyis
+        # we can also automate free energy analysis
 
         return baseDists
 
@@ -391,8 +424,8 @@ class binder():
 
 if __name__ == '__main__':
     sequence = 'CGCTTTGCG'
-    peptide = 'YQTQTNSPRRAR'
-    binder = binder(sequence, params)
+    peptide = False#'YQTQTNSPRRAR'
+    binder = binder(sequence,peptide, params)
     baseDists = binder.run() # retrieve binding score and center-of-mass time-series
 
     #os.chdir('C:/Users\mikem\Desktop/tinkerruns\clusterTests/fullRuns/run36')

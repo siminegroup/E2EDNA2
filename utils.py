@@ -151,15 +151,21 @@ def writeCheckpoint(text):
     f.close()
 
 
-def evaluateBinding(trajectory):
+
+
+
+def cleanTrajectory(structure,trajectory):
     '''
-    evaluate the docking trajectory to determine whether the DNA binds to the analyte
-    :param trajectory:
+    remove water, salt from trajectory input
+    :param structure: pdb input for initial structure template
+    :param trajectory: dcd trajectory file
     :return:
     '''
-    u = mda.Universe(trajectory)  # load up the trajectory for analysis
-    # do
-    # some
-    # analysis
-
-    return 1
+    u = mda.Universe(structure,trajectory) # load up trajectory
+    goodStuff = u.segments[:-2].atoms # cut out salts and solvent
+    # write template
+    goodStuff.write("cleanComplex.pdb")
+    # and write trajectory
+    with mda.Writer("cleanTrajectory.dcd", goodStuff.n_atoms) as W:
+        for ts in u.trajectory:
+            W.write(goodStuff)
