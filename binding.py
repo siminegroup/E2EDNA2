@@ -17,17 +17,18 @@ script which accepts a DNA sequence and an analyte, and returns the binding affi
 
 To-Do:
 ==> testing
-==> peptide placement
 ==> check / enforce peptide fold
-==> binding and energy analysis
-==> print summary output
-==> need a way to coarsen u.trajectory and also remove waters
+:==:>> analysis
+    ==> energy profile analysis
+    ==> print summary output
+        -> analysis outputs
+        -> simulation ns/day, frames, time-step, total time, sequence and analyte
 
 Features
 ==> query and automate multiple 2ndary structure sampling, incorporating free energy predictions
-==> automate secondary structure analysis
-==> automate 3D structure selection
-==> automate docking
+==> automate docking (lightdock?)
+==> multiple metastable state sampling
+==> automatic equilibration detection and convergence
 '''
 
 
@@ -45,7 +46,7 @@ elif params['device'] == 'local':
 params['force field'] = 'AMBER' # this does nothing
 params['equilibration time'] = 0.01 # equilibration time in nanoseconds
 params['sampling time'] = 0.05 # sampling time in nanoseconds
-params['time step'] = 2.0 # in fs
+params['time step'] = 3.0 # in fs
 params['print step'] = 1 # printout step in ps - want there to be more than 2 and less than 100 total frames in any trajectory
 
 params['box offset'] = 1.0 # nanometers
@@ -57,13 +58,13 @@ params['ewald error tolerance'] = 5e-4
 params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
-params['hydrogen mass'] = 1 # in amu
+params['hydrogen mass'] = 4.0 # in amu
 
 # physical params
 params['pressure'] = 1 # atmospheres
-params['temperature'] = 300 # Kelvin
+params['temperature'] = 310 # Kelvin
 params['ionic strength'] = .163 # mmol
-params['pH'] = 7.0 # simulation will automatically protonate the peptide up to this pH
+params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
 
 # paths
 if params['device'] == 'local':
@@ -188,27 +189,33 @@ class binder():
             writeCheckpoint("Folded Sequence")
 
 
-        if self.checkpoints < 4:  # if we have the secondary structure
-            # build the sequence-analyte complex
-            print("Preparing Box")
-            if self.peptide == False: # if we're going without the peptide
-                os.rename('sequence.pdb','combined.pdb')
-            else:
-                buildPeptide(self.peptide) # build the peptide
-                combinePDB('sequence.pdb','peptide.pdb') # combine pdb files
-            self.PrepPDB('combined.pdb') # add periodic box and appropriate protons
-            writeCheckpoint("Box Solvated")
-
-
-        if self.checkpoints < 5: # run MD
-            print('Running Dynamics')
-            self.runMD('combined_processed.pdb')
+        if self.checkpoints < 4: # run MD
+            print('Running Free Aptamer Dynamics')
+            self.prepPDB('sequence.pdb',MMBCORRECTION=True) # add periodic box and appropriate protons
+            self.runMD('sequence_processed.pdb')
+            os.rename('trajectory.dcd','Aptamer.dcd')
+            os.rename('sequence_processed.pdb','Aptamer.pdb')
+            cleanTrajectory('aptamer.pdb','aptamer.dcd') # make a trajectory without waters and ions and stuff
+            aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb','cleanaptamer.dcd',False)
             writeCheckpoint('Complex Sampled')
-            cleanTrajectory('combined_processed.pdb','trajectory.dcd')
-            baseDists = self.analyzeTrajectory('combined_processed.pdb','trajectory.dcd')
 
-            return baseDists
 
+        if (self.checkpoints < 5) and (self.peptide != False): # run MD on the complexed structure
+            print('Running Binding Simulation')
+            buildPeptide(self.peptide)
+            combinePDB('repStructure.pdb','peptide.pdb') # this is where we would implement a docker
+            self.prepPDB('combined.pdb',MMBCORRECTION=False) # doesn't count the peptide!!
+            self.runMD('combined_processed.pdb') # would be nice here to have an option to change the paramters for the binding run - or make it adaptive based on feedback from the run
+            os.rename('trajectory.dcd','complex.dcd')
+            os.rename('combined_processed.pdb','complex.pdb')
+            cleanTrajectory('complex.pdb','complex.dcd')
+            bindingDict = self.analyzeTrajectory('cleancomplex.pdb','cleancomplex.dcd',True)
+
+
+        if self.peptide != False:
+            return [aptamerDict,bindingDict]
+        else:
+            return aptamerDict
 
 #=======================================================
 # =======================================================
@@ -267,13 +274,14 @@ class binder():
         os.rename('frame.pdb','sequence.pdb')
 
 
-    def PrepPDB(self, file):
+    def prepPDB(self, file, MMBCORRECTION=False):
         '''
         soak pdb file in water box
         :param file:
         :return:
         '''
-        replaceText(file, '*', "'") # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
+        if MMBCORRECTION:
+            replaceText(file, '*', "'") # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
         fixer = PDBFixer(filename=file)
         padding, boxSize, boxVectors = None, None, None
         geompadding = float(self.params['box offset']) * unit.nanometer
@@ -357,7 +365,7 @@ class binder():
         simulation.step(steps)
 
 
-    def analyzeTrajectory(self,structure,trajectory):
+    def analyzeTrajectory(self,structure,trajectory,analyte):
         '''
         analyze trajectory for aptamer fold + analyte binding information
         :param trajectory:
@@ -369,64 +377,58 @@ class binder():
         1) folding info (base-base distances)
         2) binding info (analyte-base distances)
         '''
+        # SLOW
+        baseWC = dnaBasePairDist(u,sequence) # watson-crick base pairing distances (H-bonding)
+        # FAST
+        baseDists = dnaBaseCOGDist(u,sequence) # base-base center-of-geometry distances
+        # SLOW
+        baseAngles = dnaBaseDihedrals(u,sequence) # base-base dihedrals
 
-        #base-base distances
-        # identify DNA residues
-        # compute and collate all their center-of-geometry distances
-        baseDists = np.zeros((len(u.trajectory),len(self.sequence),len(self.sequence)))
-        pairDists = np.zeros_like(baseDists) # matrix of watson-crick distances
-        tt = 0
-        for ts in u.trajectory:
-            dnaResidues = u.segments[0]
-            posMat = np.zeros((len(self.sequence),3))
-            for i in range(len(self.sequence)):
-                posMat[i] = dnaResidues.residues[i].atoms.center_of_geometry()
-                for j in range(len(self.sequence)):
-                    if np.abs(i-j) > 3 and (i > j):
-                        pairDists[tt,i,j] = nuclinfo.wc_pair(u,i+1,j+1,seg1='A',seg2='A') # also do WC base-pair distances (can set to only follow secondary structure prediction)
-                    else:
-                        pairDists[tt,i,j] = np.nan
+        # 2D structure analysis
+        # 2D structure analysis
+        pairingTrajectory = getPairs(baseWC)
+        secondaryStructure = analyzeSecondaryStructure(pairingTrajectory)  # find equilibrium secondary structure
+        predictedConfig = np.zeros(len(sequence))
+        for i in range(1, len(predictedConfig) + 1):
+            if i in self.pairList:
+                ind1, ind2 = np.where(self.pairList == i)
+                if ind2 == 0:
+                    predictedConfig[self.pairList[ind1][0][0]-1] = self.pairList[ind1][0][1]
+                    predictedConfig[self.pairList[ind1][0][1]-1] = self.pairList[ind1][0][0]
 
-            baseDists[tt,:,:] = distances.distance_array(posMat,posMat,box=u.dimensions)
-            tt += 1
+        predictionError = getSecondaryStructureDistance([np.asarray(secondaryStructure), predictedConfig])[0,1]  # compare to predicted structure
+        print('Secondary Structure Prediction error = %.2f'%predictionError)
 
-        # track closest non-neighbour base (most likely pair)
-        for tt in range(len(baseDists)):
-            for i in range(len(self.sequence)):
-                closestBase = np.argmax(baseDists[tt,i,:])
+        # 3D structure analysis
+        representativeIndex = isolateRepresentativeStructure(baseAngles)
+        # save this structure as a separate file
+        extractFrame(structure, trajectory, representativeIndex)
 
+        if analyte != False: # if we have an analyte
+            bindingInfo = bindingAnalysis(u,self.peptide, self.sequence) # look for contacts between analyte and aptamer
 
-        # or look at global reorganization - though in 3D this may be substantial
-
-        if self.peptide != False: # if we have an analyte
-            # compute analyte configuration
-            if u.segments.n_segments == 4: # if we have an analyte
-                analyteDists = np.zeros((len(u.trajectory),len(self.peptide),len(self.peptide)))
-                tt = 0
-                for ts in u.trajectory:
-                    analyteResidues = u.segments[1]
-                    posMat = np.zeros((len(self.peptide),3))
-                    for i in range(len(self.peptide)):
-                        posMat[i] = analyteResidues.residues[i].atoms.center_of_geometry()
-
-                    analyteDists[tt,:,:] = distances.distance_array(posMat,posMat,box=u.dimensions)
-                    tt += 1
 
         # we also need a function which processes the energies spat out by the trajectory thingy
 
-        # we can also automate free energy analysis
+        analysisDict = {} # compile our results
+        analysisDict['2nd structure error'] = predictionError
+        analysisDict['predicted 2nd structure'] = predictedConfig
+        analysisDict['actual 2nd structure'] = secondaryStructure
+        analysisDict['representative structure index'] = representativeIndex
+        if analyte != False:
+            analysisDict['aptamer-analyte binding'] = bindingInfo
 
-        return baseDists
+        return analysisDict
 
 '''
 ==============================================================
 '''
 
 if __name__ == '__main__':
-    sequence = 'CGCTTTGCG'
-    peptide = False#'YQTQTNSPRRAR'
+    sequence = 'CGCTTTGCG'#'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
+    peptide = False #'YQT'#'YQTQTNSPRRAR'
     binder = binder(sequence,peptide, params)
-    baseDists = binder.run() # retrieve binding score and center-of-mass time-series
+    bindingOutput = binder.run() # retrieve binding score and center-of-mass time-series
 
     #os.chdir('C:/Users\mikem\Desktop/tinkerruns\clusterTests/fullRuns/run36')
     #comProfile, bindingScore = evaluateBinding('complex_sampling.arc') # normally done inside the run loop
