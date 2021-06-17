@@ -17,6 +17,8 @@ import scipy.spatial as spatial
 from sklearn.decomposition import PCA
 from MDAnalysis.analysis.base import AnalysisBase
 from MDAnalysis.lib.distances import calc_bonds
+from MDAnalysis.analysis.dihedrals import Dihedral
+import time
 
 
 def buildPeptide(sequence):
@@ -37,6 +39,16 @@ def buildPeptide(sequence):
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
     out.save('peptide.pdb')
+
+
+class Timer:
+    def __enter__(self):
+        self.start = time.time()
+        return self
+
+    def __exit__(self,*args):
+        self.end = time.time()
+        self.interval = self.end - self.start
 
 
 def combinePDB(file1, file2):
@@ -240,12 +252,13 @@ def dnaBaseCOGDist(u,sequence):
 
     return baseDists
 
+
 def dnaBaseDihedrals(u,sequence):
-    angles = np.zeros((len(u.trajectory),len(sequence),7))
+    angles = np.zeros((len(u.trajectory),len(sequence)-3,7))
     tt = 0
     for ts in u.trajectory:
         for j in range(2,len(sequence)-1):
-            angles[tt,j,:] = nuclinfo.tors(u,seg="A",i=j)
+            angles[tt,j-2,:] = nuclinfo.tors(u,seg="A",i=j)
 
         tt += 1
 
@@ -265,7 +278,8 @@ def getPairs(wcDist):
 
     return pairedBases
 
-def trajectoryPCA(n_components,trajectory):
+
+def trajectoryPCA(n_components,trajectory,transform):
     '''
     do PCA on some trajectory with pre-selected features
     :param n_components:
@@ -276,9 +290,13 @@ def trajectoryPCA(n_components,trajectory):
     model = pca1.fit(trajectory.reshape(len(trajectory),int(trajectory.shape[-1]*trajectory.shape[-2])))
     components = model.components_
     eigenvalues = pca1.explained_variance_ratio_
-    reducedTrajectory = model.transform(trajectory.reshape(len(trajectory),int(trajectory.shape[-1]*trajectory.shape[-2])))
+    if transform == True:
+        reducedTrajectory = model.transform(trajectory.reshape(len(trajectory),int(trajectory.shape[-1]*trajectory.shape[-2])))
+    else:
+        reducedTrajectory = 0
 
     return components, eigenvalues, reducedTrajectory
+
 
 def do_kdtree(trajectory,coordinates):
     '''
@@ -293,10 +311,15 @@ def do_kdtree(trajectory,coordinates):
 
 
 def getSecondaryStructureDistance(configs):
+    '''
+    normalized binary base pairing distance between sequences of equal length
+    :param configs:
+    :return:
+    '''
     configDistance = np.zeros((len(configs),len(configs)))
+    nBases = len(configs[0])
     for i in range(len(configs)):
-        for j in range(len(configs)):
-            configDistance[i,j] = np.sum(configs[i] != configs[j]) / len(configs[0]) # normalized binary distance
+        configDistance[i,:] = np.sum(configs[i] != configs,axis=1) / nBases # normalized binary distance
     return configDistance
 
 
@@ -335,6 +358,30 @@ def analyzeSecondaryStructure(pairingTrajectory):
     bestStructure = configs[np.argmax(counter)]
     return bestStructure
 
+
+def doTrajectoryDimensionalityReduction(trajectory):
+    '''
+    automatically generate dimension-reduced trajectory using PCA
+    :param trajectory:
+    :return:
+    '''
+    converged = False
+    nComponents = 10
+    while converged == False:  # add components until some threshold, then take components greater than the average
+        components, eigenvalues, reducedTrajectory = trajectoryPCA(nComponents, trajectory, False)  # do it with a bunch of components, then re-do it with only the necessary number
+        totVariance = np.sum(eigenvalues)
+        if totVariance > 0.85:
+            converged = True
+        else:
+            nComponents += 1
+
+    # we want there to be a gap in this spectrum, or at least, to neglect only the small contributions
+    n_components = min(5, np.sum(eigenvalues > np.average(eigenvalues)))  # with the threshold above, this removes some of the variation from having too many components
+    components, eigenvalues, reducedTrajectory = trajectoryPCA(n_components, trajectory, True)
+
+    return n_components, reducedTrajectory
+
+
 def isolateRepresentativeStructure(trajectory):
     '''
     use PCA to identify collective variables
@@ -342,20 +389,19 @@ def isolateRepresentativeStructure(trajectory):
     :param trajectory:
     :return:
     '''
-    components, eigenvalues, reducedTrajectory = trajectoryPCA(10, trajectory)  # do it with a bunch of components, then re-do it with only the necessary number
-    # we want there to be a gap in this spectrum, or at least, to neglect only the small contributions
-    n_components = np.sum(np.abs(np.diff(eigenvalues)) > np.mean(np.abs(np.diff(eigenvalues))))  # this is kindof a hack - we can code better logic later
-    components, eigenvalues, reducedTrajectory = trajectoryPCA(n_components, trajectory)
+    n_components, reducedTrajectory = doTrajectoryDimensionalityReduction(trajectory)
+    # find minima in the space of collective variables
+    converged = False
+    binList = np.logspace(6, 1, 6)
+    ind = 0
+    while converged == False:  # if there are too many bins this crashes
+        nbins = int(binList[ind] ** (1 / n_components))  # this is sometimes too large, hence, try-except
+        ind += 1
+        probs, bins = np.histogramdd(reducedTrajectory, bins=nbins)  # multidimensional probability histogram
+        converged = True
 
-    #find minima in the space of collective variables
-    try:
-        nbins = int(1e5 ** (1 / n_components)) # this is sometimes too large, hence, try-except
-        probs, bins = np.histogramdd(reducedTrajectory, bins=nbins)  # multidimensional probability histogram
-    except:
-        nbins = int(1e3 ** (1 / n_components)) # much smaller - should always work but may impact prediction quality
-        probs, bins = np.histogramdd(reducedTrajectory, bins=nbins)  # multidimensional probability histogram
     # smooth it out and take the diverse maxima - compare relative probability
-    sigma = 5 # should automate width-setting for this
+    sigma = nbins / 20 # automate sigma to dimension size
     smoothProbs = ndimage.gaussian_filter(probs, sigma)
     bestTransformedStructureIndex = np.unravel_index(smoothProbs.argmax(), smoothProbs.shape)
 
@@ -374,7 +420,7 @@ def isolateRepresentativeStructure(trajectory):
     # find structures in the reduced trajectory with these coordinates
     representativeIndex = do_kdtree(reducedTrajectory, transformedCoordinates)
 
-    return representativeIndex
+    return representativeIndex, reducedTrajectory
 
 
 def bindingAnalysis(u,peptide,sequence):
@@ -446,3 +492,82 @@ def wcTrajAnalysis(u):
     :param u:
     :return:
     '''
+    n_bases = u.residues.n_residues
+    atomIndices1 = np.zeros((n_bases,n_bases))
+    atomIndices2 = np.zeros_like(atomIndices1)
+    # identify relevant atoms for WC distance calculation
+    for i in range(1,n_bases + 1):
+        for j in range(1,n_bases + 1):
+            if u.select_atoms(" resid {0!s} ".format(i)).resnames[0] in ["DC", "DT", "U", "C", "T", "CYT", "THY", "URA"]:
+                a1, a2 = "N3", "N1"
+            if u.select_atoms(" resid {0!s} ".format(i)).resnames[0] in ["DG", "DA", "A", "G", "ADE", "GUA"]:
+                a1, a2 = "N1", "N3"
+            atoms = u.select_atoms("(resid {0!s} and name {1!s}) or (resid {2!s} and name {3!s}) ".format(i, a1, j, a2))
+            atomIndices1[i-1,j-1]=atoms[0].id # bond-mate 1
+            if i == j:
+                atomIndices2[i-1,j-1]=atoms[0].id # if it's the same base, we want the resulting distance to always be zero
+            else:
+                atomIndices2[i-1,j-1]=atoms[1].id # bond-mate 2
+
+    # make a flat list of every combination
+    bonds = [mda.AtomGroup(atomIndices1.flatten(),u),mda.AtomGroup(atomIndices2.flatten(),u)]
+    na = atomDistances(bonds).run()
+    traj = na.results.reshape(u.trajectory.n_frames,n_bases,n_bases)
+
+    return traj
+
+
+def nucleicDihedrals(u):
+    '''
+    use analysis.dihedral to quickly compute dihedral angles for a given DNA sequence
+    :param u:
+    :return: dihderals
+    '''
+    n_bases = u.residues.n_residues
+    seg = "A"
+    a,b,g,d,e,z,c = [[],[],[],[],[],[],[]]
+    for i in range(2,n_bases-1): # cutoff end bases to ensure we always have 4 atoms for every dihedral unit
+        a.append(u.select_atoms(" atom {0!s} {1!s} O3\' ".format(seg, i - 1),
+                                  " atom {0!s} {1!s} P  ".format(seg, i),
+                                  " atom {0!s} {1!s} O5\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C5\' ".format(seg, i)))
+
+        b.append(u.select_atoms(" atom {0!s} {1!s} P    ".format(seg, i),
+                                  " atom {0!s} {1!s} O5\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C5\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C4\' ".format(seg, i)))
+
+        g.append(u.select_atoms(" atom {0!s} {1!s} O5\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C5\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C4\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C3\' ".format(seg, i)))
+
+        d.append(u.select_atoms(" atom {0!s} {1!s} C5\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C4\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C3\' ".format(seg, i),
+                                  " atom {0!s} {1!s} O3\' ".format(seg, i)))
+
+        e.append(u.select_atoms(" atom {0!s} {1!s} C4\' ".format(seg, i),
+                                  " atom {0!s} {1!s} C3\' ".format(seg, i),
+                                  " atom {0!s} {1!s} O3\' ".format(seg, i),
+                                  " atom {0!s} {1!s} P    ".format(seg, i + 1)))
+
+        z.append(u.select_atoms(" atom {0!s} {1!s} C3\' ".format(seg, i),
+                                  " atom {0!s} {1!s} O3\' ".format(seg, i),
+                                  " atom {0!s} {1!s} P    ".format(seg, i + 1),
+                                  " atom {0!s} {1!s} O5\' ".format(seg, i + 1)))
+
+        #c.append(u.select_atoms(" atom {0!s} {1!s} O4\' ".format(seg, i), # doesn't always get 4 atoms
+        #                          " atom {0!s} {1!s} C1\' ".format(seg, i),
+        #                          " atom {0!s} {1!s} N9 ".format(seg, i),
+        #                          " atom {0!s} {1!s} C4  ".format(seg, i)))
+
+    atomList = [a,b,g,d,e,z]
+
+    dihedrals = np.zeros((u.trajectory.n_frames,len(a),6)) # initialize combined trajectory
+    for i in range(len(atomList)): # for each type of dihedral, compute the trajectory for all bases
+        analysis = Dihedral(atomList[i])
+        analysis.run()
+        dihedrals[:,:,i] = analysis.angles
+
+    return dihedrals % 360 # convert from -180:180 to 0:360 basis

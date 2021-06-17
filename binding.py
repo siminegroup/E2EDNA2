@@ -4,11 +4,8 @@ import re
 from seqfold import dg, fold
 from utils import *
 from simtk.openmm import *
-from simtk.unit import *
 import simtk.unit as unit
 from simtk.openmm.app import *
-from MDAnalysis.analysis import distances
-import MDAnalysis.analysis.nuclinfo as nuclinfo
 from pdbfixersource import PDBFixer
 
 
@@ -17,18 +14,18 @@ script which accepts a DNA sequence and an analyte, and returns the binding affi
 
 To-Do:
 ==> testing
-==> check / enforce peptide fold
-:==:>> analysis
-    ==> energy profile analysis
+==> docking
+==> add back PCA to 2nd structure, instead of clustering
+==> auto-equilibration
+    ==> need to implement checkpointing
+==> multi-state comparision in 2d and 3d
+==:>> analysis
     ==> print summary output
-        -> analysis outputs
-        -> simulation ns/day, frames, time-step, total time, sequence and analyte
+        
+==> WC pairing tools don't agree but I can't find the error - in any case at short range they seem to be pretty close
 
-Features
-==> query and automate multiple 2ndary structure sampling, incorporating free energy predictions
-==> automate docking (lightdock?)
-==> multiple metastable state sampling
-==> automatic equilibration detection and convergence
+Notes
+==> implicit solvent - amber10 codes don't agree
 '''
 
 
@@ -44,14 +41,16 @@ elif params['device'] == 'local':
 
 # Simulation parameters
 params['force field'] = 'AMBER' # this does nothing
+params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), 'implicit' (runs on amber 10 - not working)
 params['equilibration time'] = 0.01 # equilibration time in nanoseconds
 params['sampling time'] = 0.05 # sampling time in nanoseconds
+params['auto sampling'] = True # 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
 params['time step'] = 3.0 # in fs
 params['print step'] = 1 # printout step in ps - want there to be more than 2 and less than 100 total frames in any trajectory
 
 params['box offset'] = 1.0 # nanometers
 params['barostat interval'] = 25
-params['friction'] = 1.0 # /picosecond
+params['friction'] = 1.0 # 1/picosecond
 params['nonbonded method'] = PME
 params['nonbonded cutoff'] = 1.0 # nanometers
 params['ewald error tolerance'] = 5e-4
@@ -82,7 +81,7 @@ elif params['device'] == 'cluster':
 params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not used
 
 
-class binder():
+class opendna():
     def __init__(self,sequence,peptide,params):
         self.params = params
         self.sequence = sequence
@@ -170,42 +169,46 @@ class binder():
     def run(self):
         '''
         run the binding simulation end-to-end
-        consult checkpoints to not repeat prior outputs
+        consult checkpoints to not repeat prior steps
         :return:
         '''
-        # get secondary structure
-        print("Get Secondary Structure")
-        if os.path.exists("pre_fold.pdb"):  # if we have a pre-folded structure, do nothing
-            pass
-        else:
+        if self.checkpoints < 2:
             self.ssString, self.pairList = self.getSecondaryStructure(sequence)
-        writeCheckpoint("Got Secondary Structure")
 
 
         if self.checkpoints < 3:  # if we have the secondary structure
-            # fold it!
-            print("Folding Sequence")
             self.foldSequence(sequence, self.pairList)
-            writeCheckpoint("Folded Sequence")
 
 
         if self.checkpoints < 4: # run MD
-            print('Running Free Aptamer Dynamics')
-            self.prepPDB('sequence.pdb',MMBCORRECTION=True) # add periodic box and appropriate protons
-            self.runMD('sequence_processed.pdb')
+            print('Running free aptamer dynamics')
+
+            if self.params['water model'] != 'implicit':
+                self.prepPDB('sequence.pdb',MMBCORRECTION=True) # add periodic box and appropriate protons
+                dict = self.autoMD('sequence_processed.pdb')
+                aa = 1
+                #self.runMD('sequence_processed.pdb')
+            else:
+                self.runMD('sequence.pdb')
+
+            print('Free aptamer simulation speed %.1f'%self.ns_per_day+' ns/day')
             os.rename('trajectory.dcd','Aptamer.dcd')
             os.rename('sequence_processed.pdb','Aptamer.pdb')
             cleanTrajectory('aptamer.pdb','aptamer.dcd') # make a trajectory without waters and ions and stuff
             aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb','cleanaptamer.dcd',False)
-            writeCheckpoint('Complex Sampled')
+            writeCheckpoint('Free Aptamer Sampled')
 
 
         if (self.checkpoints < 5) and (self.peptide != False): # run MD on the complexed structure
             print('Running Binding Simulation')
             buildPeptide(self.peptide)
             combinePDB('repStructure.pdb','peptide.pdb') # this is where we would implement a docker
-            self.prepPDB('combined.pdb',MMBCORRECTION=False) # doesn't count the peptide!!
-            self.runMD('combined_processed.pdb') # would be nice here to have an option to change the paramters for the binding run - or make it adaptive based on feedback from the run
+            if self.params['water model'] != 'implicit':
+                self.prepPDB('combined.pdb',MMBCORRECTION=False) # doesn't count the peptide!!
+                self.runMD('combined_processed.pdb') # would be nice here to have an option to change the paramters for the binding run - or make it adaptive based on feedback from the run
+            else:
+                self.runMD('combined.pdb')
+            print('Binding complex simulation speed %.1f' % self.ns_per_day + ' ns/day')
             os.rename('trajectory.dcd','complex.dcd')
             os.rename('combined_processed.pdb','complex.pdb')
             cleanTrajectory('complex.pdb','complex.dcd')
@@ -218,8 +221,8 @@ class binder():
             return aptamerDict
 
 #=======================================================
-# =======================================================
-# =======================================================
+#=======================================================
+#=======================================================
 
 
     def getSecondaryStructure(self, sequence):
@@ -229,25 +232,31 @@ class binder():
         :param sequence:
         :return: a dot-bracket string and list of paired bases (assuming single-strand DNA aptamer)
         '''
-        temperature = 37.0
-        dg(sequence, temp=temperature) # get energy of the structure
-        #print(round(sum(s.e for s in structs), 2)) # predicted energy of the final structure
+        print("Get Secondary Structure")
+        if os.path.exists("pre_fold.pdb"):  # if we have a pre-folded structure, do nothing
+            pass
+        else:
+            temperature = 37.0
+            dg(sequence, temp=temperature) # get energy of the structure
+            #print(round(sum(s.e for s in structs), 2)) # predicted energy of the final structure
 
-        structs = fold(sequence) # identify structural features
-        desc = ["."] * len(sequence)
-        pairList = []
-        for s in structs:
-            pairList.append(s.ij[0])
-            pairList[-1]# list of bound pairs indexed from 1
-            if len(s.ij) == 1:
-                i, j = s.ij[0]
-                desc[i] = "("
-                desc[j] = ")"
+            structs = fold(sequence) # identify structural features
+            desc = ["."] * len(sequence)
+            pairList = []
+            for s in structs:
+                pairList.append(s.ij[0])
+                pairList[-1]# list of bound pairs indexed from 1
+                if len(s.ij) == 1:
+                    i, j = s.ij[0]
+                    desc[i] = "("
+                    desc[j] = ")"
 
-        ssString = "".join(desc)
-        pairList = np.asarray(pairList) + 1
+            ssString = "".join(desc)
+            pairList = np.asarray(pairList) + 1
 
-        return ssString, pairList
+            return ssString, pairList
+
+        writeCheckpoint("Got Secondary Structure")
 
 
     def foldSequence(self, sequence, pairList):
@@ -258,6 +267,7 @@ class binder():
         :return:
         '''
         # write pair list as forces to the MMB command file
+        print("Folding Sequence")
         comFile = 'commands.fold.dat'  # name of command file
         copyfile('commands.template.dat', comFile)  # make command file
         replaceText(comFile, 'SEQUENCE', sequence)
@@ -272,6 +282,7 @@ class binder():
         # run fold
         os.system(self.params['mmb'] + ' -c ' + comFile + ' > outfiles/fold.out')
         os.rename('frame.pdb','sequence.pdb')
+        writeCheckpoint("Folded Sequence")
 
 
     def prepPDB(self, file, MMBCORRECTION=False):
@@ -304,21 +315,25 @@ class binder():
         '''
 
         pdb = PDBFile(structure)
-        forcefield = ForceField('amber14-all.xml', 'amber14/tip3p.xml')
+        waterModel = self.params['water model']
+        if waterModel != 'implicit':
+            forcefield = ForceField('amber14-all.xml', 'amber14/' + waterModel + '.xml')
+        else:
+            forcefield = ForceField('amber10.xml','amber10_obc.xml')
 
         # System Configuration
         nonbondedMethod = self.params['nonbonded method']
-        nonbondedCutoff = self.params['nonbonded cutoff'] * nanometer
+        nonbondedCutoff = self.params['nonbonded cutoff'] * unit.nanometer
         ewaldErrorTolerance = self.params['ewald error tolerance']
         constraints = self.params['constraints']
         rigidWater = self.params['rigid water']
         constraintTolerance = self.params['constraint tolerance']
-        hydrogenMass = self.params['hydrogen mass'] * amu
+        hydrogenMass = self.params['hydrogen mass'] * unit.amu
 
         # Integration Options
-        dt = self.params['time step'] / 1000 * picoseconds
-        temperature = self.params['temperature'] * kelvin
-        friction = self.params['friction'] / picosecond
+        dt = self.params['time step'] / 1000 * unit.picoseconds
+        temperature = self.params['temperature'] * unit.kelvin
+        friction = self.params['friction'] / unit.picosecond
 
         # Simulation Options
         steps = int(self.params['sampling time'] * 1e6 // self.params['time step']) # number of steps
@@ -348,12 +363,16 @@ class binder():
         simulation = Simulation(topology, system, integrator, platform, platformProperties)
         simulation.context.setPositions(positions)
 
-        # Minimize and Equilibrate
-        print('Performing energy minimization...')
-        simulation.minimizeEnergy()
-        print('Equilibrating...')
-        simulation.context.setVelocitiesToTemperature(temperature)
-        simulation.step(equilibrationSteps)
+
+        if not os.path.exists('state.chk'):
+            # Minimize and Equilibrate
+            print('Performing energy minimization...')
+            simulation.minimizeEnergy()
+            print('Equilibrating...')
+            simulation.context.setVelocitiesToTemperature(temperature)
+            simulation.step(equilibrationSteps)
+        else:
+            simulation.loadCheckpoint('state.chk')
 
         # Simulate
         print('Simulating...')
@@ -362,7 +381,32 @@ class binder():
         simulation.reporters.append(dataReporter)
         simulation.reporters.append(checkpointReporter)
         simulation.currentStep = 0
-        simulation.step(steps)
+        with Timer() as md_time:
+            simulation.step(steps)
+
+        simulation.saveCheckpoint('state.chk')
+
+
+        self.ns_per_day = (steps * dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds/unit.day)
+
+
+    def autoMD(self,structure):
+        '''
+        run MD until 'equilibration', then sample
+        :param structure:
+        :return:
+        '''
+        self.runMD(structure)
+        self.runMD(structure)
+        cleanTrajectory(structure,'trajectory.dcd')
+        runDict = self.analyzeTrajectory('clean'+structure,'cleantrajectory.dcd',False)
+        pcTrajectory = runDict['RC trajectories']
+        # see if we're equilibrated in the PC basis - see if there's any net slope - if there is a big slope we're not equilibrated AND/OR not sampling enough
+        slopes = np.zeros(pcTrajectory.shape[-1])
+        for i in range(len(slopes)):
+            slopes[i] = np.abs(np.polyfit(np.arange(len(pcTrajectory)),pcTrajectory[:,i],1)[0])
+
+        return runDict
 
 
     def analyzeTrajectory(self,structure,trajectory,analyte):
@@ -377,14 +421,13 @@ class binder():
         1) folding info (base-base distances)
         2) binding info (analyte-base distances)
         '''
-        # SLOW
-        baseWC = dnaBasePairDist(u,sequence) # watson-crick base pairing distances (H-bonding)
-        # FAST
-        baseDists = dnaBaseCOGDist(u,sequence) # base-base center-of-geometry distances
-        # SLOW
-        baseAngles = dnaBaseDihedrals(u,sequence) # base-base dihedrals
+        #baseWC1 = dnaBasePairDist(u,sequence) # watson-crick base pairing distances (H-bonding) SLOW
+        #baseAngles = dnaBaseDihedrals(u,sequence) # base-base backbone dihedrals # slow, old
 
-        # 2D structure analysis
+        baseWC = wcTrajAnalysis(u) # watson-crick base pairing distances (H-bonding) FAST but some errors
+        baseDists = dnaBaseCOGDist(u,sequence) # FAST, base-base center-of-geometry distances
+        baseAngles = nucleicDihedrals(u) # FAST, new, omits 'chi' angle between ribose and base
+
         # 2D structure analysis
         pairingTrajectory = getPairs(baseWC)
         secondaryStructure = analyzeSecondaryStructure(pairingTrajectory)  # find equilibrium secondary structure
@@ -400,7 +443,9 @@ class binder():
         print('Secondary Structure Prediction error = %.2f'%predictionError)
 
         # 3D structure analysis
-        representativeIndex = isolateRepresentativeStructure(baseAngles)
+        representativeIndex, pcTrajectory = isolateRepresentativeStructure(baseAngles)
+
+
         # save this structure as a separate file
         extractFrame(structure, trajectory, representativeIndex)
 
@@ -410,10 +455,12 @@ class binder():
 
         # we also need a function which processes the energies spat out by the trajectory thingy
 
+
         analysisDict = {} # compile our results
         analysisDict['2nd structure error'] = predictionError
         analysisDict['predicted 2nd structure'] = predictedConfig
         analysisDict['actual 2nd structure'] = secondaryStructure
+        analysisDict['RC trajectories'] = pcTrajectory
         analysisDict['representative structure index'] = representativeIndex
         if analyte != False:
             analysisDict['aptamer-analyte binding'] = bindingInfo
@@ -425,10 +472,10 @@ class binder():
 '''
 
 if __name__ == '__main__':
-    sequence = 'CGCTTTGCG'#'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
+    sequence = 'CGCTTTGCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
     peptide = False #'YQT'#'YQTQTNSPRRAR'
-    binder = binder(sequence,peptide, params)
-    bindingOutput = binder.run() # retrieve binding score and center-of-mass time-series
+    opendna = opendna(sequence,peptide, params)
+    opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
 
     #os.chdir('C:/Users\mikem\Desktop/tinkerruns\clusterTests/fullRuns/run36')
     #comProfile, bindingScore = evaluateBinding('complex_sampling.arc') # normally done inside the run loop
