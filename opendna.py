@@ -9,78 +9,6 @@ from simtk.openmm.app import *
 from pdbfixersource import PDBFixer
 
 
-'''
-script which accepts a DNA sequence and an analyte, and returns the binding affinity
-
-To-Do:
-==> testing
-==> docking
-==> add back PCA to 2nd structure, instead of clustering
-==> auto-equilibration
-    ==> need to implement checkpointing
-==> multi-state comparision in 2d and 3d
-==:>> analysis
-    ==> print summary output
-        
-==> WC pairing tools don't agree but I can't find the error - in any case at short range they seem to be pretty close
-
-Notes
-==> implicit solvent - amber10 codes don't agree
-'''
-
-
-params = {}
-params['device'] = 'local' # 'local' or 'cluster'
-params['platform'] = 'CUDA' # no alternative at the moment
-params['platform precision'] = 'single'
-
-if params['device'] == 'cluster':
-    params['run num'] = get_input()
-elif params['device'] == 'local':
-    params['run num'] = 0 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
-
-# Simulation parameters
-params['force field'] = 'AMBER' # this does nothing
-params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), 'implicit' (runs on amber 10 - not working)
-params['equilibration time'] = 0.01 # equilibration time in nanoseconds
-params['sampling time'] = 0.05 # sampling time in nanoseconds
-params['auto sampling'] = True # 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
-params['time step'] = 3.0 # in fs
-params['print step'] = 1 # printout step in ps - want there to be more than 2 and less than 100 total frames in any trajectory
-
-params['box offset'] = 1.0 # nanometers
-params['barostat interval'] = 25
-params['friction'] = 1.0 # 1/picosecond
-params['nonbonded method'] = PME
-params['nonbonded cutoff'] = 1.0 # nanometers
-params['ewald error tolerance'] = 5e-4
-params['constraints'] = HBonds
-params['rigid water'] = True
-params['constraint tolerance'] = 1e-6
-params['hydrogen mass'] = 4.0 # in amu
-
-# physical params
-params['pressure'] = 1 # atmospheres
-params['temperature'] = 310 # Kelvin
-params['ionic strength'] = .163 # mmol
-params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
-
-# paths
-if params['device'] == 'local':
-    params['workdir'] = 'C:/Users\mikem\Desktop/mmruns'
-    params['mmb'] = 'C:/Users/mikem/Desktop/Installer.2_14.Windows/MMB.2_14.exe'
-    params['mmb params'] = 'lib/parameters.csv'
-    params['mmb template'] = 'lib/commands.template.dat'
-elif params['device'] == 'cluster':
-    params['workdir'] = '/home/kilgourm/scratch/mmruns' # specify your working directory here
-    params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
-    params['mmb params'] = 'lib/parameters.csv'
-    params['mmb template'] = 'lib/commands.template.dat'
-
-# structure files
-params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not used
-
-
 class opendna():
     def __init__(self,sequence,peptide,params):
         self.params = params
@@ -106,7 +34,7 @@ class opendna():
 
             # copy MMB params
             copyfile(self.params['mmb params'], self.workDir + '/parameters.csv')
-            copyfile(params['mmb template'], self.workDir + '/commands.template.dat')
+            copyfile(self.params['mmb template'], self.workDir + '/commands.template.dat')
 
         else:
             self.workDir = self.params['workdir'] + '/' + 'run%d' %self.params['run num']
@@ -114,6 +42,7 @@ class opendna():
         # move to working dr
         os.chdir(self.workDir)
 
+        os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir'] # export the path to the MMB library
 
     def makeNewWorkingDirectory(self):    # make working directory
         '''
@@ -173,11 +102,11 @@ class opendna():
         :return:
         '''
         if self.checkpoints < 2:
-            self.ssString, self.pairList = self.getSecondaryStructure(sequence)
+            self.ssString, self.pairList = self.getSecondaryStructure(self.sequence)
 
 
         if self.checkpoints < 3:  # if we have the secondary structure
-            self.foldSequence(sequence, self.pairList)
+            self.foldSequence(self.sequence, self.pairList)
 
 
         if self.checkpoints < 4: # run MD
@@ -185,9 +114,8 @@ class opendna():
 
             if self.params['water model'] != 'implicit':
                 self.prepPDB('sequence.pdb',MMBCORRECTION=True) # add periodic box and appropriate protons
-                dict = self.autoMD('sequence_processed.pdb')
-                aa = 1
-                #self.runMD('sequence_processed.pdb')
+                #dict = self.autoMD('sequence_processed.pdb') #auto convergence - in progress
+                self.runMD('sequence_processed.pdb')
             else:
                 self.runMD('sequence.pdb')
 
@@ -338,7 +266,7 @@ class opendna():
         # Simulation Options
         steps = int(self.params['sampling time'] * 1e6 // self.params['time step']) # number of steps
         equilibrationSteps = int(self.params['equilibration time'] * 1e6 // self.params['time step'])
-        if self.params['platform'] == 'CUDA': # no alternative at the moment
+        if self.params['platform'] == 'CUDA': # 'CUDA' or 'cpu'
             platform = Platform.getPlatformByName('CUDA')
             if self.params['platform precision'] == 'single':
                 platformProperties = {'Precision': 'single'}
@@ -360,7 +288,10 @@ class opendna():
         system = forcefield.createSystem(topology, nonbondedMethod=nonbondedMethod, nonbondedCutoff=nonbondedCutoff, constraints=constraints, rigidWater=rigidWater, ewaldErrorTolerance=ewaldErrorTolerance, hydrogenMass=hydrogenMass)
         integrator = LangevinMiddleIntegrator(temperature, friction, dt)
         integrator.setConstraintTolerance(constraintTolerance)
-        simulation = Simulation(topology, system, integrator, platform, platformProperties)
+        if self.params['platform'] == 'CUDA':
+            simulation = Simulation(topology, system, integrator, platform, platformProperties)
+        elif self.params['platform'] == 'CPU':
+            simulation = Simulation(topology, system, integrator, platform)
         simulation.context.setPositions(positions)
 
 
@@ -385,7 +316,6 @@ class opendna():
             simulation.step(steps)
 
         simulation.saveCheckpoint('state.chk')
-
 
         self.ns_per_day = (steps * dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds/unit.day)
 
@@ -425,13 +355,13 @@ class opendna():
         #baseAngles = dnaBaseDihedrals(u,sequence) # base-base backbone dihedrals # slow, old
 
         baseWC = wcTrajAnalysis(u) # watson-crick base pairing distances (H-bonding) FAST but some errors
-        baseDists = dnaBaseCOGDist(u,sequence) # FAST, base-base center-of-geometry distances
+        baseDists = dnaBaseCOGDist(u,self.sequence) # FAST, base-base center-of-geometry distances
         baseAngles = nucleicDihedrals(u) # FAST, new, omits 'chi' angle between ribose and base
 
         # 2D structure analysis
         pairingTrajectory = getPairs(baseWC)
         secondaryStructure = analyzeSecondaryStructure(pairingTrajectory)  # find equilibrium secondary structure
-        predictedConfig = np.zeros(len(sequence))
+        predictedConfig = np.zeros(len(self.sequence))
         for i in range(1, len(predictedConfig) + 1):
             if i in self.pairList:
                 ind1, ind2 = np.where(self.pairList == i)
@@ -466,33 +396,4 @@ class opendna():
             analysisDict['aptamer-analyte binding'] = bindingInfo
 
         return analysisDict
-
-'''
-==============================================================
-'''
-
-if __name__ == '__main__':
-    sequence = 'CGCTTTGCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
-    peptide = False #'YQT'#'YQTQTNSPRRAR'
-    opendna = opendna(sequence,peptide, params)
-    opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
-
-    #os.chdir('C:/Users\mikem\Desktop/tinkerruns\clusterTests/fullRuns/run36')
-    #comProfile, bindingScore = evaluateBinding('complex_sampling.arc') # normally done inside the run loop
-    '''
-    timeEq, potEq, kinEq = getEnergy()
-    timeSa, potSa, kinSa = getEnergy()
-
-    outputs = {}
-    outputs['time equil'] = timeEq
-    outputs['pot equil'] = potEq
-    outputs['kin equil'] = kinEq
-    outputs['time sampling'] = timeSa
-    outputs['pot sampling'] = potSa
-    outputs['kin sampling'] = kinSa
-    outputs['binding score'] = bindingScore
-    outputs['com profile'] = comProfile
-    outputs['params'] = params
-    np.save('bindingOutputs', outputs) # unpack with load then outputs.item()
-    '''
 
