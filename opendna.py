@@ -2,6 +2,7 @@
 from shutil import copyfile
 import re
 from seqfold import dg, fold
+from secondaryStructureScripts import *
 from utils import *
 from simtk.openmm import *
 import simtk.unit as unit
@@ -164,23 +165,10 @@ class opendna():
         if os.path.exists("pre_fold.pdb"):  # if we have a pre-folded structure, do nothing
             pass
         else:
-            temperature = 37.0
-            dg(sequence, temp=temperature) # get energy of the structure
-            #print(round(sum(s.e for s in structs), 2)) # predicted energy of the final structure
-
-            structs = fold(sequence) # identify structural features
-            desc = ["."] * len(sequence)
-            pairList = []
-            for s in structs:
-                pairList.append(s.ij[0])
-                pairList[-1]# list of bound pairs indexed from 1
-                if len(s.ij) == 1:
-                    i, j = s.ij[0]
-                    desc[i] = "("
-                    desc[j] = ")"
-
-            ssString = "".join(desc)
-            pairList = np.asarray(pairList) + 1
+            if self.params['secondary structure engine'] == 'seqfold':
+                ssString, pairList = getSeqfoldStructure(sequence, self.params['temperature']) # seqfold guess
+            elif self.params['secondary structure engine'] == 'NUPACK':
+                ssString, pairList = getNupackStructure(sequence,self.params['temperature'],self.params['ionic strength']) # NUPACK guess
 
             return ssString, pairList
 

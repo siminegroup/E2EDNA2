@@ -15,7 +15,6 @@ To-Do:
     ==> need to implement checkpointing
 ==> multi-state comparision in 2d and 3d
 ==> implicit solvent - amber10 codes don't agree
-==> sub seqfold for NUPACK
 ==> add docker
 '''
 
@@ -31,6 +30,7 @@ elif params['device'] == 'local':
     params['run num'] = 0 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
 
 # Simulation parameters
+params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible
 params['force field'] = 'AMBER' # this does nothing
 params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), 'implicit' (runs on amber 10 - not working)
 params['equilibration time'] = 0.001 # equilibration time in nanoseconds
@@ -79,7 +79,7 @@ params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not use
 '''
 
 if __name__ == '__main__':
-    sequence = 'CGTTTCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
+    sequence = 'CGCTTTGCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
     peptide = False #'YQT'#'YQTQTNSPRRAR'
     opendna = opendna(sequence,peptide, params)
     opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
