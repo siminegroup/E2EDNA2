@@ -107,7 +107,6 @@ class opendna():
             self.ssString, self.pairList = self.getSecondaryStructure(self.sequence)
 
 
-
         if self.checkpoints < 2:  # if we have the secondary structure
             self.foldSequence(self.sequence, self.pairList)
             writeCheckpoint("Folded Sequence")
@@ -133,24 +132,24 @@ class opendna():
 
 
         if (self.checkpoints < 4) and (self.peptide != False): # run MD on the complexed structure
-            print('Running Binding Simulation')
+            print('Docking')
             buildPeptide(self.peptide)
 
             lightDock('repStructure.pdb', 'peptide.pdb',self.params) # get optimal docked structure
             copyfile('top/top_1.pdb','complex_0.pdb')
 
+            print('Running Binding Simulation')
             if self.params['water model'] != 'implicit':
-                self.prepPDB('complex_1.pdb',MMBCORRECTION=False,waterBox=True)
+                self.prepPDB('complex_0.pdb',MMBCORRECTION=False,waterBox=True)
             else:
-                self.prepPDB('complex_1.pdb',MMBCORRECTION=False,waterBox=False)
+                self.prepPDB('complex_0.pdb',MMBCORRECTION=False,waterBox=False)
 
-            self.runMD('complex_1_processed.pdb') # would be nice here to have an option to change the paramters for the binding run - or make it adaptive based on feedback from the run
+            self.runMD('complex_0_processed.pdb') # would be nice here to have an option to change the paramters for the binding run - or make it adaptive based on feedback from the run
             print('Binding complex simulation speed %.1f' % self.ns_per_day + ' ns/day')
             os.rename('trajectory.dcd','complex.dcd')
-            os.rename('complex_1_processed.pdb','complex.pdb')
-            cleanTrajectory('complex.pdb','complex.dcd')
-            bindingDict = self.analyzeTrajectory('cleancomplex.pdb','cleancomplex.dcd',True)
-
+            os.rename('complex_0_processed.pdb','complextraj.pdb')
+            cleanTrajectory('complex.pdb','complextraj.dcd')
+            bindingDict = self.analyzeTrajectory('cleancomplex.pdb','cleancomplextraj.dcd',True)
 
         if self.peptide != False:
             return [aptamerDict,bindingDict]
@@ -203,9 +202,17 @@ class opendna():
             filledString = 'baseInteraction A {} WatsonCrick A {} WatsonCrick Cis'.format(pairList[i,0], pairList[i,1])
             addLine(comFile, filledString, lineNum + 1)
 
-        # run fold
-        os.system(self.params['mmb'] + ' -c ' + comFile + ' > outfiles/fold.out')
-        os.rename('frame.pdb','sequence.pdb')
+        # run fold - sometimes this errors for no known reason - keep trying till it works
+        Result = None
+        attempts = 0
+        while (Result == None) and (attempts < 100):
+            try:
+                attempts += 1
+                os.system(self.params['mmb'] + ' -c ' + comFile + ' > outfiles/fold.out')
+                os.rename('frame.pdb','sequence.pdb')
+                Result = 1
+            except:
+                pass
 
 
     def prepPDB(self, file, MMBCORRECTION=False, waterBox=True):
@@ -222,7 +229,13 @@ class opendna():
         geompadding = float(self.params['box offset']) * unit.nanometer
         padding = geompadding
 
-        fixer.addMissingHydrogens(pH=self.params['pH'])
+        fixer.findMissingResidues()
+        fixer.findMissingAtoms()
+        fixer.addMissingAtoms() # may need to optimize bonding here
+
+        fixer.addMissingHydrogens(pH=self.params['pH']) # add missing hydrogens
+
+
         if waterBox == True:
             ionicStrength = float(self.params['ionic strength']) * unit.molar  # not implemented
             positiveIon = 'Na+'  # params['positiveion']+'+'
@@ -299,7 +312,7 @@ class opendna():
         simulation.context.setPositions(positions)
 
 
-        if not os.path.exists('state.chk'):
+        if not os.path.exists(structure.split('.')[0] + '_state.chk'):
             # Minimize and Equilibrate
             print('Performing energy minimization...')
             simulation.minimizeEnergy()
@@ -307,7 +320,7 @@ class opendna():
             simulation.context.setVelocitiesToTemperature(temperature)
             simulation.step(equilibrationSteps)
         else:
-            simulation.loadCheckpoint('state.chk')
+            simulation.loadCheckpoint(structure.split('.')[0] + '_state.chk')
 
         # Simulate
         print('Simulating...')
@@ -317,9 +330,9 @@ class opendna():
         simulation.reporters.append(checkpointReporter)
         simulation.currentStep = 0
         with Timer() as md_time:
-            simulation.step(steps)
+            simulation.step(steps) # run the dynamics
 
-        simulation.saveCheckpoint('state.chk')
+        simulation.saveCheckpoint(structure.split('.')[0] + '_state.chk')
 
         self.ns_per_day = (steps * dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds/unit.day)
 
@@ -381,7 +394,6 @@ class opendna():
 
         # 3D structure analysis
         representativeIndex, pcTrajectory = isolateRepresentativeStructure(baseAngles)
-
 
         # save this structure as a separate file
         extractFrame(structure, trajectory, representativeIndex)

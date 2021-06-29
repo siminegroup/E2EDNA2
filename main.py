@@ -9,11 +9,11 @@ script which accepts a DNA sequence and an analyte, and returns the binding affi
 
 To-Do:
 ==> auto-equilibration
-    ==> we can pretty straightforwardly do trajectory combination and writing in openmm
 ==> multi-state comparision in 2d and 3d w clustering
 ==> implicit solvent - ambertools prmtop required
-==> add docker - need final formatting piece
 ==> MMB re-folding when error
+==> outputs & analysis polish
+==> to cluster
 '''
 
 
@@ -25,7 +25,7 @@ params['platform precision'] = 'single' # only relevant for 'CUDA'
 if params['device'] == 'cluster':
     params['run num'] = get_input()
 elif params['device'] == 'local':
-    params['run num'] = 101 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
+    params['run num'] = 0 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
 
 # Simulation parameters
 params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible
@@ -34,7 +34,7 @@ params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), 'implicit' (runs o
 params['equilibration time'] = 0.001 # equilibration time in nanoseconds
 params['sampling time'] = 0.01 # sampling time in nanoseconds
 params['auto sampling'] = False # NON FUNCTIONAL 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
-params['time step'] = 3.0 # in fs
+params['time step'] = 2.0 # in fs
 params['print step'] = 0.1 # printout step in ps
 
 params['box offset'] = 1.0 # nanometers
@@ -46,7 +46,7 @@ params['ewald error tolerance'] = 5e-4
 params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
-params['hydrogen mass'] = 4.0 # in amu
+params['hydrogen mass'] = 1.0 # in amu
 params['N docked structures'] = 5  # number of docked structures to output from the docker
 
 # physical params
@@ -96,7 +96,7 @@ params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not use
 
 if __name__ == '__main__':
     sequence = 'CGCTTTTTGCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
-    peptide = 'YQT'#'YQTQTNSPRRAR'
+    peptide = 'YQTPR'#'YQTQTNSPRRAR'
     opendna = opendna(sequence,peptide, params)
-    #opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
-
+    opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
+    np.save('opendnaOutput',opendnaOutput) # save outputs

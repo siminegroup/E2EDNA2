@@ -37,7 +37,7 @@ def buildPeptide(peptide):
         geo = Geometry.geometry(peptide[i])
         PeptideBuilder.add_residue(structure, geo)
 
-    PeptideBuilder.add_terminal_OXT(structure) # OPENMM NEEDS THIS BUT LIGHTDOCK HATES IT
+    #PeptideBuilder.add_terminal_OXT(structure) # OPENMM NEEDS THIS BUT LIGHTDOCK HATES IT
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
@@ -286,13 +286,14 @@ def dnaBasePairDist(u,sequence):
 
 
 def dnaBaseCOGDist(u):
-    baseDists = np.zeros((len(u.trajectory),u.residues,u.residues)) # matrix of watson-crick distances
+    nbases = u.segments[0].residues.n_residues
+    baseDists = np.zeros((len(u.trajectory),nbases,nbases)) # matrix of watson-crick distances
     tt = 0
     for ts in u.trajectory:
         dnaResidues = u.segments[0]
-        posMat = np.zeros((u.residues, 3))
+        posMat = np.zeros((nbases, 3))
 
-        for i in range(u.residues):
+        for i in range(nbases):
             posMat[i] = dnaResidues.residues[i].atoms.center_of_geometry()
 
         baseDists[tt, :, :] = distances.distance_array(posMat, posMat, box=u.dimensions)
@@ -489,6 +490,8 @@ def bindingAnalysis(u,peptide,sequence):
     :param u:
     :return:
     '''
+    contactCutoff = 5  # Angstroms - distance within which we say there is a 'contact'
+
     # identify base-analyte distances
     if u.segments.n_segments == 2:  # if we have an analyte
         pepNucDists = np.zeros((len(u.trajectory), len(peptide), len(sequence)))  # distances between peptides and nucleotiedes
@@ -508,7 +511,6 @@ def bindingAnalysis(u,peptide,sequence):
             tt += 1
 
         # identify contacts
-        contactCutoff = 10 # distance within which we say there is a 'contact'
         contacts = []
         for i in range(len(pepNucDists)):
             contacts.append(np.argwhere(pepNucDists[i] < contactCutoff))
@@ -552,7 +554,7 @@ def wcTrajAnalysis(u):
     :param u:
     :return:
     '''
-    n_bases = u.residues.n_residues
+    n_bases = u.segments[0].residues.n_residues
     atomIndices1 = np.zeros((n_bases,n_bases))
     atomIndices2 = np.zeros_like(atomIndices1)
     # identify relevant atoms for WC distance calculation
@@ -583,7 +585,7 @@ def nucleicDihedrals(u):
     :param u:
     :return: dihderals
     '''
-    n_bases = u.residues.n_residues
+    n_bases = u.segments[0].residues.n_residues
     seg = "A"
     a,b,g,d,e,z,c = [[],[],[],[],[],[],[]]
     for i in range(2,n_bases-1): # cutoff end bases to ensure we always have 4 atoms for every dihedral unit
@@ -800,3 +802,4 @@ def checkTrajConvergence(topology,trajectory):
         converged = 1
 
     return converged
+

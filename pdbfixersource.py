@@ -1128,7 +1128,7 @@ class PDBFixer(object):
             radii = {'H':0.198, 'Li':0.203, 'C':0.340, 'N':0.325, 'O':0.299, 'F':0.312, 'Na':0.333, 'Mg':0.141,
                      'P':0.374, 'S':0.356, 'Cl':0.347, 'K':0.474, 'Br':0.396, 'Rb':0.527, 'I':0.419, 'Cs':0.605}
         else:
-            forcefield = app.ForceField(os.path.join(os.path.dirname(__file__), 'soft.xml'))
+            forcefield = app.ForceField(os.path.join(os.path.dirname(__file__), 'lib/soft.xml'))
 
         # The Topology may contain residues for which the ForceField does not have a template.
         # If so, we need to create new templates for them.
