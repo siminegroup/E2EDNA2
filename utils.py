@@ -732,8 +732,8 @@ def lightDock(aptamer, analyte, params):
     params['glowworms'] = 300 # number of glowworms per swarm
     params['steps'] = 200 # number of steps per docking run
 
-    killH(aptamer)
-    addH(analyte,params['pH'])
+    killH(aptamer) # DNA needs to be deprotonated
+    addH(analyte,params['pH']) # peptide needs to be protonated
 
     aptamer2 = aptamer.split('.')[0] + "_noH.pdb"
     analyte2 = analyte.split('.')[0] + "_H.pdb"
@@ -750,9 +750,6 @@ def lightDock(aptamer, analyte, params):
         os.chdir('swarm_%d'%i)
         os.system(params['lgd generate path'] + ' ../' + aptamer2 + ' ../' + analyte2 + ' gso_%d'%params['steps'] + '.out' + ' %d'%params['glowworms'] + ' > /dev/null 2> /dev/null; >> generate_lightdock.list') # generate configurations
         os.system(params['lgd cluster path'] + ' gso_%d'%params['steps'] + '.out >> cluster_lightdock.list') # cluster glowworms
-        #os.system(params['anthony py'] + ' -c 8 generate_lightdock.list')
-        #os.system(params['anthony py'] + ' -c 8 cluster_lightdock.list')
-
         os.chdir('../')
 
 
@@ -763,6 +760,8 @@ def lightDock(aptamer, analyte, params):
     os.mkdir('top')
     os.system('mv top*.pdb top/') # collect top structures (clustering currently dubiously working)
 
+    # would be nice to optionally report ranks as well
+
 
 def appendTrajectory(topology,original,new):
     '''
@@ -770,7 +769,7 @@ def appendTrajectory(topology,original,new):
     '''
     trajectories = [original, new]
     u = mda.Universe(topology, trajectories)
-    with mda.Writer(original, u.n_atoms) as W:
+    with mda.Writer('combinedTraj.dcd', u.atoms.n_atoms) as W:
         for ts in u.trajectory:
             W.write(u)
 
@@ -780,7 +779,7 @@ def checkTrajConvergence(topology,trajectory):
     analyze the trajectory to see if it's converged
     '''
     converged = 0
-    cutoff = 1e-3
+    cutoff = 1e-2
 
     u = mda.Universe(topology,trajectory)
 
@@ -789,7 +788,7 @@ def checkTrajConvergence(topology,trajectory):
     baseAngles = nucleicDihedrals(u)  # FAST, new, omits 'chi' angle between ribose and base
     pairingTrajectory = getPairs(baseWC)
 
-    mixedTrajectory = np.concatenate((baseDists, baseAngles, pairingTrajectory),axis=1) # mix up all our info
+    mixedTrajectory = np.concatenate((baseDists.reshape(len(baseDists),int(baseDists.shape[-2] * baseDists.shape[-1])), baseAngles.reshape(len(baseAngles),int(baseAngles.shape[-2]*baseAngles.shape[-1])), pairingTrajectory),axis=1) # mix up all our info
 
     representativeIndex, pcTrajectory = isolateRepresentativeStructure(mixedTrajectory) # do dimensionality reduction
 
@@ -800,6 +799,8 @@ def checkTrajConvergence(topology,trajectory):
     combinedSlope = np.average(slopes)
     if combinedSlope < cutoff: # the average magnitude of sloped should be below some cutoff`
         converged = 1
+
+    print('PCA slope average is %.4f'%combinedSlope)
 
     return converged
 

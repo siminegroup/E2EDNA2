@@ -104,52 +104,23 @@ class opendna():
         :return:
         '''
         if True:#self.checkpoints < 2:
-            self.ssString, self.pairList = self.getSecondaryStructure(self.sequence)
+            self.ssString, self.pairList = self.getSecondaryStructure(self.sequence) # this is free - do it every time
 
 
         if self.checkpoints < 2:  # if we have the secondary structure
             self.foldSequence(self.sequence, self.pairList)
-            writeCheckpoint("Folded Sequence")
 
 
         if self.checkpoints < 3: # run MD
-            print('Running free aptamer dynamics')
-
-            if self.params['water model'] != 'implicit':
-                self.prepPDB('sequence.pdb',MMBCORRECTION=True,waterBox=True) # add periodic box and appropriate protons
-                #dict = self.autoMD('sequence_processed.pdb') #auto convergence - in progress
-                self.runMD('sequence_processed.pdb')
-            else:
-                self.prepPDB('sequence.pdb',MMBCORRECTION=True,waterBox=False) # add periodic box and appropriate protons
-                self.runMD('sequence.pdb')
-
-            print('Free aptamer simulation speed %.1f'%self.ns_per_day+' ns/day')
-            os.rename('trajectory.dcd','Aptamer.dcd')
-            os.rename('sequence_processed.pdb','Aptamer.pdb')
-            cleanTrajectory('aptamer.pdb','aptamer.dcd') # make a trajectory without waters and ions and stuff
-            aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb','cleanaptamer.dcd',False)
-            writeCheckpoint('Free Aptamer Sampled')
+            aptamerDict = self.freeAptamerDynamics('sequence.pdb')
 
 
         if (self.checkpoints < 4) and (self.peptide != False): # run MD on the complexed structure
-            print('Docking')
-            buildPeptide(self.peptide)
+            self.runDocking('repStructure.pdb','peptide.pdb')
 
-            lightDock('repStructure.pdb', 'peptide.pdb',self.params) # get optimal docked structure
-            copyfile('top/top_1.pdb','complex_0.pdb')
 
-            print('Running Binding Simulation')
-            if self.params['water model'] != 'implicit':
-                self.prepPDB('complex_0.pdb',MMBCORRECTION=False,waterBox=True)
-            else:
-                self.prepPDB('complex_0.pdb',MMBCORRECTION=False,waterBox=False)
-
-            self.runMD('complex_0_processed.pdb') # would be nice here to have an option to change the paramters for the binding run - or make it adaptive based on feedback from the run
-            print('Binding complex simulation speed %.1f' % self.ns_per_day + ' ns/day')
-            os.rename('trajectory.dcd','complex.dcd')
-            os.rename('complex_0_processed.pdb','complextraj.pdb')
-            cleanTrajectory('complex.pdb','complextraj.dcd')
-            bindingDict = self.analyzeTrajectory('cleancomplex.pdb','cleancomplextraj.dcd',True)
+        if (self.checkpoints < 5) and (self.peptide != False):  # run MD on the complexed structure
+            bindingDict = self.bindingDynamics('complex_0.pdb')
 
         if self.peptide != False:
             return [aptamerDict,bindingDict]
@@ -213,6 +184,7 @@ class opendna():
                 Result = 1
             except:
                 pass
+        writeCheckpoint("Folded Sequence")
 
 
     def prepPDB(self, file, MMBCORRECTION=False, waterBox=True):
@@ -245,7 +217,73 @@ class opendna():
         PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
 
-    def runMD(self,structure):
+    def freeAptamerDynamics(self,aptamer):
+        '''
+        run molecular dynamics
+        do relevant analysis
+        :param structure:
+        :return:
+        '''
+        structureName = aptamer.split('.')[0]
+        print('Running free aptamer dynamics')
+        self.prepPDB(aptamer, MMBCORRECTION=True, waterBox=True)  # add periodic box and appropriate protons
+        processedAptamer = aptamer.split('.')[0] + '_processed.pdb'
+        self.autoMD(processedAptamer)  # do MD - automatically converge to equilibrium sampling
+
+        print('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day') # print speed
+
+        os.rename(structureName + '_complete_trajectory.dcd', 'aptamer.dcd') # rename
+        os.rename(processedAptamer, 'aptamer.pdb')
+
+        cleanTrajectory('aptamer.pdb', 'aptamer.dcd')  # make a trajectory without waters and ions and stuff
+        aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb', 'cleanaptamer.dcd', False)
+
+        writeCheckpoint('Free aptamer sampling complete')
+
+        return aptamerDict
+
+
+    def runDocking(self, aptamer, peptide):
+        '''
+        use LightDock to run docking and isolate good structures
+        '''
+        print('Docking')
+        buildPeptide(self.peptide)
+
+        lightDock(aptamer, peptide, self.params)  # get optimal docked structure
+        copyfile('top/top_1.pdb', 'complex_0.pdb')
+
+        writeCheckpoint('Docking complete')
+
+
+    def bindingDynamics(self, complex):
+        '''
+        run molecular dynamics
+        do relevant analysis
+        :param structure:
+        :return:
+        '''
+        structureName = complex.split('.')[0]
+        print('Running Binding Simulation')
+        self.prepPDB(complex, MMBCORRECTION=False, waterBox=True)
+        processedComplex = complex.split('.')[0] + '_processed.pdb'
+
+        self.autoMD(processedComplex)  # do MD - automatically converge to equilibrium sampling
+
+        print('Complex simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
+
+        os.rename(structureName + '_complete_trajectory.dcd', 'complex.dcd')
+        os.rename(processedComplex, 'complextraj.pdb')
+
+        cleanTrajectory('complex.pdb', 'complextraj.dcd')
+        bindingDict = self.analyzeTrajectory('cleancomplex.pdb', 'cleancomplextraj.dcd', True)
+
+        writeCheckpoint('Complex sampling complete')
+
+        return bindingDict
+
+
+    def openmmDynamics(self,structure):
         '''
         run OpenMM dynamics
         minimize, equilibrate, and sample
@@ -254,17 +292,13 @@ class opendna():
         '''
 
         pdb = PDBFile(structure)
+        structureName = structure.split('.')[0]
         waterModel = self.params['water model']
-        if waterModel != 'implicit':
-            forcefield = ForceField('amber14-all.xml', 'amber14/' + waterModel + '.xml')
-        else:
-            forcefield = ForceField('amber10.xml','amber10_obc.xml')
+        forcefield = ForceField('amber14-all.xml', 'amber14/' + waterModel + '.xml')
+
 
         # System Configuration
-        if self.params['water model'] != 'implicit':
-            nonbondedMethod = self.params['nonbonded method']
-        else:
-            nonbondedMethod = CutoffNonPeriodic
+        nonbondedMethod = self.params['nonbonded method']
         nonbondedCutoff = self.params['nonbonded cutoff'] * unit.nanometer
         ewaldErrorTolerance = self.params['ewald error tolerance']
         constraints = self.params['constraints']
@@ -290,19 +324,16 @@ class opendna():
             platform = Platform.getPlatformByName('CPU')
 
         reportSteps = int(self.params['print step'] * 1000 / self.params['time step']) # report step in ps, time step in fs
-        dcdReporter = DCDReporter('trajectory.dcd', reportSteps)
+        dcdReporter = DCDReporter(structureName + '_trajectory.dcd', reportSteps)
         #pdbReporter = PDBReporter('trajectory.pdb', reportSteps)
         dataReporter = StateDataReporter('log.txt', reportSteps, totalSteps=steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')
-        checkpointReporter = CheckpointReporter('checkpoint.chk', 10000)
+        checkpointReporter = CheckpointReporter(structure.split('.')[0] + '_state.chk', 10000)
 
         # Prepare the Simulation
         print('Building system...')
         topology = pdb.topology
         positions = pdb.positions
-        if self.params['water model'] != 'implicit':
-            system = forcefield.createSystem(topology, nonbondedMethod=nonbondedMethod, nonbondedCutoff=nonbondedCutoff, constraints=constraints, rigidWater=rigidWater, ewaldErrorTolerance=ewaldErrorTolerance, hydrogenMass=hydrogenMass)
-        else:
-            system = forcefield.createSystem(topology, nonbondedMethod=nonbondedMethod, constraints=constraints, rigidWater=rigidWater, ewaldErrorTolerance=ewaldErrorTolerance, hydrogenMass=hydrogenMass)
+        system = forcefield.createSystem(topology, nonbondedMethod=nonbondedMethod, nonbondedCutoff=nonbondedCutoff, constraints=constraints, rigidWater=rigidWater, ewaldErrorTolerance=ewaldErrorTolerance, hydrogenMass=hydrogenMass)
         integrator = LangevinMiddleIntegrator(temperature, friction, dt)
         integrator.setConstraintTolerance(constraintTolerance)
         if self.params['platform'] == 'CUDA':
@@ -344,19 +375,27 @@ class opendna():
         :param structure:
         :return:
         '''
+        maxIter = 10 # some maximum number of allowable iterations
+        structureName = structure.split('.')[0]
         if self.params['auto sampling'] == False: # just run MD once
-            self.runMD(structure)
-        elif self.params['auto sampling'] == True: # run until we detect equilibration, then sample
+            self.openmmDynamics(structure)
+        elif self.params['auto sampling'] == True: # run until we detect equilibration
             converged = 0
             iter = 0
-            while converged == 0:
+            while (converged == 0) and (iter < maxIter):
                 iter += 1
-                self.runMD(structure)
+                self.openmmDynamics(structure)
+                time.sleep(20) # let .dcd file settle down
 
                 if iter > 1: # if we have multiple trajectory segments, combine them
-                    appendTrajectory(structure,'trajectory-1.dcd','trajectory.dcd')
+                    appendTrajectory(structure,structureName + '_trajectory-1.dcd',structureName + '_trajectory.dcd')
+                    os.rename('combinedTraj.dcd',structureName + '_trajectory-1.dcd')
+                else:
+                    os.rename(structureName + '_trajectory.dcd',structureName + '_trajectory-1.dcd')
 
-                converged = checkTrajConvergence(structure,'trajectory-1.dcd')
+                converged = checkTrajConvergence(structure,structureName + '_trajectory-1.dcd')
+
+            os.rename(structureName + '_trajectory-1.dce', structureName + '_complete_trajectory.dcd') # we'll consider the full trajectory as 'sampling'
 
 
     def analyzeTrajectory(self,structure,trajectory,analyte):

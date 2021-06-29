@@ -8,11 +8,10 @@ from simtk.openmm.app import *
 script which accepts a DNA sequence and an analyte, and returns the binding affinity
 
 To-Do:
-==> auto-equilibration
+==> auto-equilibration - done, just need a choice of when to sample (easily set!)
 ==> multi-state comparision in 2d and 3d w clustering
 ==> implicit solvent - ambertools prmtop required
-==> MMB re-folding when error
-==> outputs & analysis polish
+==> outputs & analysis - reduce binding to c-number
 ==> to cluster
 '''
 
@@ -30,12 +29,12 @@ elif params['device'] == 'local':
 # Simulation parameters
 params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible
 params['force field'] = 'AMBER' # this does nothing
-params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), 'implicit' (runs on amber 10 - not working)
-params['equilibration time'] = 0.001 # equilibration time in nanoseconds
-params['sampling time'] = 0.01 # sampling time in nanoseconds
-params['auto sampling'] = False # NON FUNCTIONAL 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
+params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), other explicit models easy to add
+params['equilibration time'] = 0.01 # initial equilibration time in nanoseconds
+params['sampling time'] = 0.01 # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
+params['auto sampling'] = True # NON FUNCTIONAL 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
 params['time step'] = 2.0 # in fs
-params['print step'] = 0.1 # printout step in ps
+params['print step'] = 1 # printout step in ps
 
 params['box offset'] = 1.0 # nanometers
 params['barostat interval'] = 25
@@ -77,17 +76,16 @@ elif params['device'] == 'cluster':
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
     params['mmb params'] = 'lib/parameters.csv'
     params['mmb template'] = 'lib/commands.template.dat'
-    params['setup path'] = 'xx/lightdock3_setup.py'
-    params['lightdock path'] = 'xx/lightdock3.py'
-    params['lgd generate path'] = 'xx/lgd_generate_conformations.py'
-    params['lgd cluster path'] = 'xx/lgd_cluster_bsas.py'
-    params['anthony py'] = 'xx/ant_thony.py'
-    params['lgd rank'] = 'xx/lgd_rank.py'
-    params['lgd top'] = 'xx/lgd_top.py'
-
+    params['setup path'] = '~/lightDock_scripts/lightdock3_setup.py'
+    params['lightdock path'] = '~/lightDock_scripts/lightdock3.py'
+    params['lgd generate path'] = '~/lightDock_scripts/lgd_generate_conformations.py'
+    params['lgd cluster path'] = '~/lightDock_scripts/lgd_cluster_bsas.py'
+    params['anthony py'] = '~/lightDock_scripts/ant_thony.py'
+    params['lgd rank'] = '~/lightDock_scripts/lgd_rank.py'
+    params['lgd top'] = '~/lightDock_scripts/lgd_top.py'
 
 # structure files
-params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not used
+params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional static analyte - currently not used
 
 
 '''
@@ -95,8 +93,8 @@ params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not use
 '''
 
 if __name__ == '__main__':
-    sequence = 'CGCTTTTTGCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
-    peptide = 'YQTPR'#'YQTQTNSPRRAR'
+    sequence = 'GCCCTTTCGGA' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
+    peptide = 'NNSPRR'#'YQTQTNSPRRAR'
     opendna = opendna(sequence,peptide, params)
     opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
     np.save('opendnaOutput',opendnaOutput) # save outputs
