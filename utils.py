@@ -12,6 +12,7 @@ import PeptideBuilder
 import Bio.PDB
 import MDAnalysis.analysis.nuclinfo as nuclinfo
 from MDAnalysis.analysis import distances
+import simtk.openmm.app as app
 import scipy.ndimage as ndimage
 import scipy.spatial as spatial
 from sklearn.decomposition import PCA
@@ -19,9 +20,11 @@ from MDAnalysis.analysis.base import AnalysisBase
 from MDAnalysis.lib.distances import calc_bonds
 from MDAnalysis.analysis.dihedrals import Dihedral
 import time
+from shutil import copyfile
 
 
-def buildPeptide(sequence):
+
+def buildPeptide(peptide):
     '''
     construct a peptide sequence pdb file
     :param sequence:
@@ -29,12 +32,12 @@ def buildPeptide(sequence):
     '''
     #resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
     #PDBdir = "PDBs"
-    structure = PeptideBuilder.initialize_res(sequence[0])
-    for i in range(1,len(sequence)):
-        geo = Geometry.geometry(sequence[i])
+    structure = PeptideBuilder.initialize_res(peptide[0])
+    for i in range(1,len(peptide)):
+        geo = Geometry.geometry(peptide[i])
         PeptideBuilder.add_residue(structure, geo)
 
-    PeptideBuilder.add_terminal_OXT(structure)
+    PeptideBuilder.add_terminal_OXT(structure) # OPENMM NEEDS THIS BUT LIGHTDOCK HATES IT
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
@@ -54,7 +57,7 @@ class Timer:
 def combinePDB(file1, file2):
     '''
     combine 2 pdb files into one
-    ### actually for this one I think we may defer entirely to the docker
+    some special formatting for MDA outputs in particular
     :param file1:
     :param file2:
     :return:
@@ -105,6 +108,17 @@ def findLine(file, string):
         raise ValueError("String not found in file!")
 
 
+def readFinalLines(file,lines):
+    # return the final N lines of a text file
+    f = open(file,'r')
+    text = f.read()
+    f.close()
+    text = text.split('\n')
+    finalLines = text[-(lines + 1):]
+
+    return finalLines
+
+
 def replaceText(file, old_string, new_string):
     # search and replace text in a file, then save the new version
     f = open(file, 'r')
@@ -113,6 +127,40 @@ def replaceText(file, old_string, new_string):
     text = text.replace(old_string, new_string)
     f = open(file, 'w')
     f.write(text)
+    f.close()
+
+
+def extractPeptide(file):
+    '''
+    if ssDNA and peptide are concatenated, unlabelled in a PDB, extract the peptide, if it's second
+    also extracts the DNA - given it's a lightdock complex file
+    '''
+    proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'THR', 'TYR', 'ARG', 'ASP', 'GLN', 'GLY', 'ILE', 'LYS', 'PHE', 'SER', 'TRP', 'VAL']
+
+    f = open(file, 'r')
+    text = f.read()
+    f.close()
+    text = text.split('\n')
+
+    proteins = []
+    lineInd = 1
+    for line in text:
+        for string in proteinResidues:
+            if string in line:
+                proteins.append(lineInd)  # index from 1
+                break
+        lineInd += 1
+
+    out = [text[i-1] for i in proteins]
+    out = "\n".join(out)
+    f = open('extractedPeptide.pdb','w')
+    f.write(out)
+    f.close()
+
+    out2 = text[:proteins[0]-1]
+    out2 = "\n".join(out2)
+    f = open('extractedAptamer.pdb','w')
+    f.write(out2)
     f.close()
 
 
@@ -237,14 +285,14 @@ def dnaBasePairDist(u,sequence):
     return pairDists
 
 
-def dnaBaseCOGDist(u,sequence):
-    baseDists = np.zeros((len(u.trajectory),len(sequence),len(sequence))) # matrix of watson-crick distances
+def dnaBaseCOGDist(u):
+    baseDists = np.zeros((len(u.trajectory),u.residues,u.residues)) # matrix of watson-crick distances
     tt = 0
     for ts in u.trajectory:
         dnaResidues = u.segments[0]
-        posMat = np.zeros((len(sequence), 3))
+        posMat = np.zeros((u.residues, 3))
 
-        for i in range(len(sequence)):
+        for i in range(u.residues):
             posMat[i] = dnaResidues.residues[i].atoms.center_of_geometry()
 
         baseDists[tt, :, :] = distances.distance_array(posMat, posMat, box=u.dimensions)
@@ -266,11 +314,17 @@ def dnaBaseDihedrals(u,sequence):
 
 
 def getPairs(wcDist):
+    '''
+    identify bases which are paired according to their WC hydrogen bond lengths
+    note - it's possible to have multiple bases paired to one in this algo -
+    TO-DO
+    post-processing cleanup step where we see what the next closest base is for multi-paired setups
+    '''
     trajTime = len(wcDist)
     seqLen = wcDist.shape[-1]
     pairedBases = np.zeros((trajTime,seqLen))
     for tt in range(trajTime):
-        pairMat = wcDist[tt] + np.eye(seqLen) * 20
+        pairMat = wcDist[tt] + np.eye(seqLen) * 20 # add 20 on the diagonal so it's never counted as the 'nearest neighbour' to itself
         for i in range(wcDist.shape[-1]):
             nearestNeighbour = np.argmin(pairMat[i,:])
             if wcDist[tt,i,nearestNeighbour] < 3.3: # if we're within a hydrogen bond length, count it as a pair
@@ -287,11 +341,14 @@ def trajectoryPCA(n_components,trajectory,transform):
     :return: the principal components, their relative contributions, the original trajectory in PC basis
     '''
     pca1 = PCA(n_components=n_components)
-    model = pca1.fit(trajectory.reshape(len(trajectory),int(trajectory.shape[-1]*trajectory.shape[-2])))
+    if trajectory.ndim ==3: # convert to 2D, if necessary
+        trajectory = trajectory.reshape(len(trajectory),int(trajectory.shape[-1]*trajectory.shape[-2]))
+
+    model = pca1.fit(trajectory)
     components = model.components_
     eigenvalues = pca1.explained_variance_ratio_
     if transform == True:
-        reducedTrajectory = model.transform(trajectory.reshape(len(trajectory),int(trajectory.shape[-1]*trajectory.shape[-2])))
+        reducedTrajectory = model.transform(trajectory)
     else:
         reducedTrajectory = 0
 
@@ -331,6 +388,7 @@ def analyzeSecondaryStructure(pairingTrajectory):
     :param trajectory:
     :return:
     '''
+    ''' # might be useful for clustering
     configs = []
     counter = []
     for tt in range(len(pairingTrajectory)):  # find the equilibrium secondary structure
@@ -346,17 +404,19 @@ def analyzeSecondaryStructure(pairingTrajectory):
 
             if found == 0:  # if we don't find it, enumerate a new possible state
                 configs.append(pairingTrajectory[tt])
-                counter.append(0)
+                counter.append(1)
 
     # compute a distance metric between all the seen configs
     configDistance = getSecondaryStructureDistance(configs)
-
-    # identify the most common structures
-    # in the future: combine structures with small distances
-    # and highlight strongly different structures which nevertheless appear
-
     bestStructure = configs[np.argmax(counter)]
-    return bestStructure
+
+    '''
+    #n_components, reducedTrajectory = doTrajectoryDimensionalityReduction(pairingTrajectory)
+    representativeIndex, reducedTrajectory = isolateRepresentativeStructure(pairingTrajectory) # do PCA and multidimensional binning to find free energy minimum
+    # alternatively we can do  clustering
+    # and highlight different structures which nevertheless appear
+
+    return pairingTrajectory[representativeIndex] # return representative structure
 
 
 def doTrajectoryDimensionalityReduction(trajectory):
@@ -571,3 +631,172 @@ def nucleicDihedrals(u):
         dihedrals[:,:,i] = analysis.angles
 
     return dihedrals % 360 # convert from -180:180 to 0:360 basis
+
+
+def numbers2letters(sequences): #Tranforming letters to numbers:
+    '''
+    Converts numerical values to ATGC-format
+    :param sequences: numerical DNA sequences to be converted
+    :return: DNA sequences in ATGC format
+    '''
+    if type(sequences) != np.ndarray:
+        sequences = np.asarray(sequences)
+
+    my_seq=["" for x in range(len(sequences))]
+    row=0
+    for j in range(len(sequences)):
+        seq = sequences[j,:]
+        assert type(seq) != str, 'Function inputs must be a list of equal length strings'
+        for i in range(len(sequences[0])):
+            na = seq[i]
+            if na==0:
+                my_seq[row]+='A'
+            elif na==1:
+                my_seq[row]+='T'
+            elif na==2:
+                my_seq[row]+='C'
+            elif na==3:
+                my_seq[row]+='G'
+        row+=1
+    return my_seq
+
+
+def killH(structure):
+    '''
+    use simTk modeller to delete all atoms with 'H' in the name
+    '''
+    pdb = app.PDBFile(structure)
+    topology = pdb.topology
+    positions = pdb.positions
+    modeller = app.Modeller(topology,positions)
+    modeller.delete(atom for atom in topology.atoms() if "H" in atom.name)
+    app.PDBFile.writeFile(modeller.topology,modeller.positions,open(structure.split('.')[0] + '_noH.pdb','w'))
+
+
+def changeSegment(structure,oldSeg,newSeg):
+    '''
+    change the segment ID for all molecule(s) in a pdb file
+    '''
+    replaceText(structure, ' ' + oldSeg + ' ', ' ' + newSeg + ' ')
+
+
+def addH(structure, pH):
+    '''
+    protonate a given structure
+    :param file:
+    :return:
+    '''
+    pdb = app.PDBFile(structure)
+    topology = pdb.topology
+    positions = pdb.positions
+    modeller = app.Modeller(topology,positions)
+    modeller.addHydrogens(pH=pH)
+    app.PDBFile.writeFile(modeller.topology,modeller.positions,open(structure.split('.')[0] + '_H.pdb','w'))
+
+
+def recenterPDB(structure):
+    pdb = app.PDBFile(structure)
+    topology = pdb.topology
+    positions = pdb.positions
+    modeller = app.Modeller(topology, positions)
+    app.PDBFile.writeFile(modeller.topology, modeller.positions, open(structure.split('.')[0] + '_recentered.pdb','w'))
+
+
+def getMoleculeSize(structure):
+    '''
+    use MDAnalysis to determine the cubic xyz dimensions for a given molecule
+    '''
+    u = mda.Universe(structure)
+    positions = u.atoms.positions
+    dimensions = np.zeros(3)
+    for i in range(3):
+        dimensions[i] = np.ptp(positions[:,i])
+
+    return dimensions
+
+
+def lightDock(aptamer, analyte, params):
+    '''
+    setup lightdock run, do the run, generate output models, hierarchical clustering and final concatenation of results
+    '''
+    # identify aptamer size
+    dimensions = getMoleculeSize(aptamer)
+    # compute surface area of rectangular prism with no offset
+    surfaceArea = 2 * (dimensions[0]*dimensions[1] + dimensions[1]*dimensions[2] + dimensions[2]*dimensions[1]) # in angstroms
+    # compute number of swarms which cover this surface area - swarms are spheres 2 nm in diameter - this is only approximately the right number of swarms, since have no offset, and are using a rectangle
+    nSwarms = np.ceil(surfaceArea / (np.pi * 10 ** 2))
+
+    params['swarms'] = int(nSwarms) # number of glowworm swarms
+    params['glowworms'] = 300 # number of glowworms per swarm
+    params['steps'] = 200 # number of steps per docking run
+
+    killH(aptamer)
+    addH(analyte,params['pH'])
+
+    aptamer2 = aptamer.split('.')[0] + "_noH.pdb"
+    analyte2 = analyte.split('.')[0] + "_H.pdb"
+    changeSegment(analyte2,'A','B')
+
+    # run setup
+    os.system(params['setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']) + ' >> lightdockSetup.out')
+
+    # run docking
+    os.system(params['lightdock path'] + ' setup.json ' + str(params['steps']) + ' -s dna >> lightdockRun.out')
+
+    # generate docked structures and cluster them
+    for i in range(params['swarms']):
+        os.chdir('swarm_%d'%i)
+        os.system(params['lgd generate path'] + ' ../' + aptamer2 + ' ../' + analyte2 + ' gso_%d'%params['steps'] + '.out' + ' %d'%params['glowworms'] + ' > /dev/null 2> /dev/null; >> generate_lightdock.list') # generate configurations
+        os.system(params['lgd cluster path'] + ' gso_%d'%params['steps'] + '.out >> cluster_lightdock.list') # cluster glowworms
+        #os.system(params['anthony py'] + ' -c 8 generate_lightdock.list')
+        #os.system(params['anthony py'] + ' -c 8 cluster_lightdock.list')
+
+        os.chdir('../')
+
+
+    os.system(params['lgd rank'] + ' %d' % params['swarms'] + ' %d' % params['steps']) # rank the clustered docking setups
+
+    # generate top structures
+    os.system(params['lgd top'] + ' ' + aptamer2 + ' ' + analyte2 + ' rank_by_scoring.list %d'%params['N docked structures'])
+    os.mkdir('top')
+    os.system('mv top*.pdb top/') # collect top structures (clustering currently dubiously working)
+
+
+def appendTrajectory(topology,original,new):
+    '''
+    use mda to combine old and new MD trajectory files
+    '''
+    trajectories = [original, new]
+    u = mda.Universe(topology, trajectories)
+    with mda.Writer(original, u.n_atoms) as W:
+        for ts in u.trajectory:
+            W.write(u)
+
+
+def checkTrajConvergence(topology,trajectory):
+    '''
+    analyze the trajectory to see if it's converged
+    '''
+    converged = 0
+    cutoff = 1e-3
+
+    u = mda.Universe(topology,trajectory)
+
+    baseWC = wcTrajAnalysis(u)  # watson-crick base pairing distances (H-bonding) FAST but some errors
+    baseDists = dnaBaseCOGDist(u)  # FAST, base-base center-of-geometry distances
+    baseAngles = nucleicDihedrals(u)  # FAST, new, omits 'chi' angle between ribose and base
+    pairingTrajectory = getPairs(baseWC)
+
+    mixedTrajectory = np.concatenate((baseDists, baseAngles, pairingTrajectory),axis=1) # mix up all our info
+
+    representativeIndex, pcTrajectory = isolateRepresentativeStructure(mixedTrajectory) # do dimensionality reduction
+
+    slopes = np.zeros(pcTrajectory.shape[-1])
+    for i in range(len(slopes)):
+        slopes[i] = np.abs(np.polyfit(np.arange(len(pcTrajectory)),pcTrajectory[:,i],1)[0])
+
+    combinedSlope = np.average(slopes)
+    if combinedSlope < cutoff: # the average magnitude of sloped should be below some cutoff`
+        converged = 1
+
+    return converged

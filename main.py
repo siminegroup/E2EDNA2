@@ -8,26 +8,24 @@ from simtk.openmm.app import *
 script which accepts a DNA sequence and an analyte, and returns the binding affinity
 
 To-Do:
-==> testing
-==> docking
-==> add back PCA to 2nd structure, instead of clustering
 ==> auto-equilibration
-    ==> need to implement checkpointing
-==> multi-state comparision in 2d and 3d
-==> implicit solvent - amber10 codes don't agree
-==> add docker
+    ==> we can pretty straightforwardly do trajectory combination and writing in openmm
+==> multi-state comparision in 2d and 3d w clustering
+==> implicit solvent - ambertools prmtop required
+==> add docker - need final formatting piece
+==> MMB re-folding when error
 '''
 
 
 params = {}
 params['device'] = 'local' # 'local' or 'cluster'
 params['platform'] = 'CPU' # 'CUDA' or 'CPU'
-params['platform precision'] = 'single'
+params['platform precision'] = 'single' # only relevant for 'CUDA'
 
 if params['device'] == 'cluster':
     params['run num'] = get_input()
 elif params['device'] == 'local':
-    params['run num'] = 0 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
+    params['run num'] = 101 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
 
 # Simulation parameters
 params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible
@@ -35,9 +33,9 @@ params['force field'] = 'AMBER' # this does nothing
 params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), 'implicit' (runs on amber 10 - not working)
 params['equilibration time'] = 0.001 # equilibration time in nanoseconds
 params['sampling time'] = 0.01 # sampling time in nanoseconds
-params['auto sampling'] = False # 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
+params['auto sampling'] = False # NON FUNCTIONAL 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
 params['time step'] = 3.0 # in fs
-params['print step'] = 1 # printout step in ps - want there to be more than 2 and less than 100 total frames in any trajectory
+params['print step'] = 0.1 # printout step in ps
 
 params['box offset'] = 1.0 # nanometers
 params['barostat interval'] = 25
@@ -49,12 +47,14 @@ params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
 params['hydrogen mass'] = 4.0 # in amu
+params['N docked structures'] = 5  # number of docked structures to output from the docker
 
 # physical params
 params['pressure'] = 1 # atmospheres
 params['temperature'] = 310 # Kelvin
 params['ionic strength'] = .163 # mmol
 params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
+
 
 # paths
 if params['device'] == 'local':
@@ -63,12 +63,28 @@ if params['device'] == 'local':
     params['mmb'] = '/mnt/c/Users/mikem/Desktop/software/Installer.2_14.Linux64/MMB.2_14.Linux64'#'C:/Users/mikem/Desktop/Installer.2_14.Windows/MMB.2_14.exe'
     params['mmb params'] = 'lib/parameters.csv'
     params['mmb template'] = 'lib/commands.template.dat'
+    params['setup path'] = '/home/mkilgour/miniconda3/bin/lightdock3_setup.py'
+    params['lightdock path'] = '/home/mkilgour/miniconda3/bin/lightdock3.py'
+    params['lgd generate path'] = '/home/mkilgour/miniconda3/bin/lgd_generate_conformations.py'
+    params['lgd cluster path'] = '/home/mkilgour/miniconda3/bin/lgd_cluster_bsas.py'
+    params['anthony py'] = '/home/mkilgour/miniconda3/bin/ant_thony.py'
+    params['lgd rank'] = '/home/mkilgour/miniconda3/bin/lgd_rank.py'
+    params['lgd top'] = '/home/mkilgour/miniconda3/bin/lgd_top.py'
+
 elif params['device'] == 'cluster':
     params['workdir'] = '/home/kilgourm/scratch/mmruns' # specify your working directory here
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/'#'C:/Users/mikem/Desktop/Installer.2_14.Windows/MMB.2_14.exe'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
     params['mmb params'] = 'lib/parameters.csv'
     params['mmb template'] = 'lib/commands.template.dat'
+    params['setup path'] = 'xx/lightdock3_setup.py'
+    params['lightdock path'] = 'xx/lightdock3.py'
+    params['lgd generate path'] = 'xx/lgd_generate_conformations.py'
+    params['lgd cluster path'] = 'xx/lgd_cluster_bsas.py'
+    params['anthony py'] = 'xx/ant_thony.py'
+    params['lgd rank'] = 'xx/lgd_rank.py'
+    params['lgd top'] = 'xx/lgd_top.py'
+
 
 # structure files
 params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not used
@@ -79,27 +95,8 @@ params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional - currently not use
 '''
 
 if __name__ == '__main__':
-    sequence = 'CGCTTTGCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
-    peptide = False #'YQT'#'YQTQTNSPRRAR'
+    sequence = 'CGCTTTTTGCG' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
+    peptide = 'YQT'#'YQTQTNSPRRAR'
     opendna = opendna(sequence,peptide, params)
-    opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
-
-    #os.chdir('C:/Users\mikem\Desktop/tinkerruns\clusterTests/fullRuns/run36')
-    #comProfile, bindingScore = evaluateBinding('complex_sampling.arc') # normally done inside the run loop
-    '''
-    timeEq, potEq, kinEq = getEnergy()
-    timeSa, potSa, kinSa = getEnergy()
-
-    outputs = {}
-    outputs['time equil'] = timeEq
-    outputs['pot equil'] = potEq
-    outputs['kin equil'] = kinEq
-    outputs['time sampling'] = timeSa
-    outputs['pot sampling'] = potSa
-    outputs['kin sampling'] = kinSa
-    outputs['binding score'] = bindingScore
-    outputs['com profile'] = comProfile
-    outputs['params'] = params
-    np.save('bindingOutputs', outputs) # unpack with load then outputs.item()
-    '''
+    #opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
 

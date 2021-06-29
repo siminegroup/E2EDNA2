@@ -725,7 +725,6 @@ class PDBFixer(object):
             self.topology = modeller.topology
             self.positions = modeller.positions
 
-
     def applyMutations(self, mutations, chain_id):
         """Apply a list of amino acid substitutions to make a mutant protein.
 
@@ -808,7 +807,6 @@ class PDBFixer(object):
             modeller.delete(deleteAtoms)
             self.topology = modeller.topology
             self.positions = modeller.positions
-
 
     def findMissingAtoms(self):
         """Find heavy atoms that are missing from the structure.
