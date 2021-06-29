@@ -164,15 +164,6 @@ def extractPeptide(file):
     f.close()
 
 
-def removetwo(target):
-    if os.path.exists(target + "_2"):
-        os.remove(target)  # delete original
-        os.rename(target + "_2", target)  # append updated
-    else:
-        print("No _2 structure was made!")
-        raise ValueError
-
-
 def copyLine(file, line_number):
     # copy a line of text from a file and return it
     f = open(file, 'r')
@@ -730,7 +721,7 @@ def lightDock(aptamer, analyte, params):
 
     params['swarms'] = int(nSwarms) # number of glowworm swarms
     params['glowworms'] = 300 # number of glowworms per swarm
-    params['steps'] = 200 # number of steps per docking run
+
 
     killH(aptamer) # DNA needs to be deprotonated
     addH(analyte,params['pH']) # peptide needs to be protonated
@@ -743,17 +734,17 @@ def lightDock(aptamer, analyte, params):
     os.system(params['setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']) + ' >> lightdockSetup.out')
 
     # run docking
-    os.system(params['lightdock path'] + ' setup.json ' + str(params['steps']) + ' -s dna >> lightdockRun.out')
+    os.system(params['lightdock path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna >> lightdockRun.out')
 
     # generate docked structures and cluster them
     for i in range(params['swarms']):
         os.chdir('swarm_%d'%i)
-        os.system(params['lgd generate path'] + ' ../' + aptamer2 + ' ../' + analyte2 + ' gso_%d'%params['steps'] + '.out' + ' %d'%params['glowworms'] + ' > /dev/null 2> /dev/null; >> generate_lightdock.list') # generate configurations
-        os.system(params['lgd cluster path'] + ' gso_%d'%params['steps'] + '.out >> cluster_lightdock.list') # cluster glowworms
+        os.system(params['lgd generate path'] + ' ../' + aptamer2 + ' ../' + analyte2 + ' gso_%d'%params['docking steps'] + '.out' + ' %d'%params['glowworms'] + ' > /dev/null 2> /dev/null; >> generate_lightdock.list') # generate configurations
+        os.system(params['lgd cluster path'] + ' gso_%d'%params['docking steps'] + '.out >> cluster_lightdock.list') # cluster glowworms
         os.chdir('../')
 
 
-    os.system(params['lgd rank'] + ' %d' % params['swarms'] + ' %d' % params['steps']) # rank the clustered docking setups
+    os.system(params['lgd rank'] + ' %d' % params['swarms'] + ' %d' % params['docking steps']) # rank the clustered docking setups
 
     # generate top structures
     os.system(params['lgd top'] + ' ' + aptamer2 + ' ' + analyte2 + ' rank_by_scoring.list %d'%params['N docked structures'])
@@ -774,7 +765,7 @@ def appendTrajectory(topology,original,new):
             W.write(u)
 
 
-def checkTrajConvergence(topology,trajectory):
+def checkTrajPCASlope(topology,trajectory):
     '''
     analyze the trajectory to see if it's converged
     '''
@@ -797,10 +788,8 @@ def checkTrajConvergence(topology,trajectory):
         slopes[i] = np.abs(np.polyfit(np.arange(len(pcTrajectory)),pcTrajectory[:,i],1)[0])
 
     combinedSlope = np.average(slopes)
-    if combinedSlope < cutoff: # the average magnitude of sloped should be below some cutoff`
-        converged = 1
 
     print('PCA slope average is %.4f'%combinedSlope)
 
-    return converged
+    return combinedSlope
 

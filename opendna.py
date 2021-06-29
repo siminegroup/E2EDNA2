@@ -78,13 +78,6 @@ class opendna():
             f.close()
             self.checkpoints = len([m.start() for m in re.finditer('\n', text)])
 
-            if self.checkpoints == 1:
-                self.checkpoint = 'initialized'
-            elif self.checkpoints == 2:
-                self.checkpoint = 'something else'
-                '''
-                and so on
-                '''
 
             print("Resuming Run #%d"%int(self.params['run num']))
 
@@ -111,11 +104,11 @@ class opendna():
             self.foldSequence(self.sequence, self.pairList)
 
 
-        if self.checkpoints < 3: # run MD
+        if self.checkpoints < 3: # run MD on the free aptamer
             aptamerDict = self.freeAptamerDynamics('sequence.pdb')
 
 
-        if (self.checkpoints < 4) and (self.peptide != False): # run MD on the complexed structure
+        if (self.checkpoints < 4) and (self.peptide != False): # find docking configurations for the complexed structure
             self.runDocking('repStructure.pdb','peptide.pdb')
 
 
@@ -150,7 +143,7 @@ class opendna():
 
             return ssString, pairList
 
-        writeCheckpoint("Got Secondary Structure")
+        #writeCheckpoint("Got Secondary Structure")
 
 
     def foldSequence(self, sequence, pairList):
@@ -232,11 +225,11 @@ class opendna():
 
         print('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day') # print speed
 
-        os.rename(structureName + '_complete_trajectory.dcd', 'aptamer.dcd') # rename
+        os.rename(structureName + '_processed_complete_trajectory.dcd', 'aptamertraj.dcd') # rename
         os.rename(processedAptamer, 'aptamer.pdb')
 
-        cleanTrajectory('aptamer.pdb', 'aptamer.dcd')  # make a trajectory without waters and ions and stuff
-        aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb', 'cleanaptamer.dcd', False)
+        cleanTrajectory('aptamer.pdb', 'aptamertraj.dcd')  # make a trajectory without waters and ions and stuff
+        aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb', 'cleanaptamertraj.dcd', False)
 
         writeCheckpoint('Free aptamer sampling complete')
 
@@ -272,8 +265,8 @@ class opendna():
 
         print('Complex simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
 
-        os.rename(structureName + '_complete_trajectory.dcd', 'complex.dcd')
-        os.rename(processedComplex, 'complextraj.pdb')
+        os.rename(structureName + '_processed_complete_trajectory.dcd', 'complextraj.dcd')
+        os.rename(processedComplex, 'complex.pdb')
 
         cleanTrajectory('complex.pdb', 'complextraj.dcd')
         bindingDict = self.analyzeTrajectory('cleancomplex.pdb', 'cleancomplextraj.dcd', True)
@@ -375,7 +368,8 @@ class opendna():
         :param structure:
         :return:
         '''
-        maxIter = 10 # some maximum number of allowable iterations
+        maxIter = self.params['max autoMD iterations'] # some maximum number of allowable iterations
+        cutoff = self.params['autoMD convergence cutoff']
         structureName = structure.split('.')[0]
         if self.params['auto sampling'] == False: # just run MD once
             self.openmmDynamics(structure)
@@ -393,9 +387,12 @@ class opendna():
                 else:
                     os.rename(structureName + '_trajectory.dcd',structureName + '_trajectory-1.dcd')
 
-                converged = checkTrajConvergence(structure,structureName + '_trajectory-1.dcd')
+                combinedSlope = checkTrajPCASlope(structure,structureName + '_trajectory-1.dcd')
 
-            os.rename(structureName + '_trajectory-1.dce', structureName + '_complete_trajectory.dcd') # we'll consider the full trajectory as 'sampling'
+                if combinedSlope < cutoff:  # the average magnitude of sloped should be below some cutoff`
+                    converged = 1
+
+            os.rename(structureName + '_trajectory-1.dcd', structureName + '_complete_trajectory.dcd') # we'll consider the full trajectory as 'sampling'
 
 
     def analyzeTrajectory(self,structure,trajectory,analyte):

@@ -9,10 +9,13 @@ script which accepts a DNA sequence and an analyte, and returns the binding affi
 
 To-Do:
 ==> auto-equilibration - done, just need a choice of when to sample (easily set!)
+==> auto-binding - cut off simulation if the analyte floats away
 ==> multi-state comparision in 2d and 3d w clustering
 ==> implicit solvent - ambertools prmtop required
 ==> outputs & analysis - reduce binding to c-number
 ==> to cluster
+==> check on checkpointing
+==> dcd file keeps not existing
 '''
 
 
@@ -27,7 +30,7 @@ elif params['device'] == 'local':
     params['run num'] = 0 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
 
 # Simulation parameters
-params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible
+params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible - will become the default/only option
 params['force field'] = 'AMBER' # this does nothing
 params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), other explicit models easy to add
 params['equilibration time'] = 0.01 # initial equilibration time in nanoseconds
@@ -35,6 +38,11 @@ params['sampling time'] = 0.01 # sampling time in nanoseconds - in auto-sampling
 params['auto sampling'] = True # NON FUNCTIONAL 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
 params['time step'] = 2.0 # in fs
 params['print step'] = 1 # printout step in ps
+params['max autoMD iterations'] = 5 # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
+params['autoMD convergence cutoff'] = 1e-2 # how small should average of PCA slopes be to count as 'converged'
+params['docking steps'] = 100 # number of steps for docking simulations
+params['N docked structures'] = 5  # number of docked structures to output from the docker
+
 
 params['box offset'] = 1.0 # nanometers
 params['barostat interval'] = 25
@@ -46,7 +54,6 @@ params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
 params['hydrogen mass'] = 1.0 # in amu
-params['N docked structures'] = 5  # number of docked structures to output from the docker
 
 # physical params
 params['pressure'] = 1 # atmospheres
@@ -96,5 +103,5 @@ if __name__ == '__main__':
     sequence = 'GCCCTTTCGGA' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
     peptide = 'NNSPRR'#'YQTQTNSPRRAR'
     opendna = opendna(sequence,peptide, params)
-    opendnaOutput = opendna.run() # retrieve binding score and center-of-mass time-series
+    opendnaOutput = opendna.run() # retrive binding information (eventually this should become a normalized c-number)
     np.save('opendnaOutput',opendnaOutput) # save outputs

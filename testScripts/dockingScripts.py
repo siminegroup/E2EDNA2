@@ -65,7 +65,7 @@ def lightDock(aptamer, analyte):
 
     params['swarms'] = int(nSwarms) # number of glowworm swarms
     params['glowworms'] = 300 # number of glowworms per swarm
-    params['steps'] = 200 # number of steps per docking run
+    params['docking steps'] = 200 # number of steps per docking run
     params['N docked structures'] = 5 # number of docked structures to output
 
     killH(aptamer)
@@ -79,20 +79,20 @@ def lightDock(aptamer, analyte):
     os.system(params['setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']))
 
     # run docking
-    os.system(params['lightdock path'] + ' setup.json ' + str(params['steps']) + ' -s dna')
+    os.system(params['lightdock path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna')
 
     # generate docked structures and cluster them
     for i in range(params['swarms']):
         os.chdir('swarm_%d'%i)
-        os.system(params['lgd generate path'] + ' ../' + aptamer2 + ' ../' + analyte2 + ' gso_%d'%params['steps'] + '.out' + ' %d'%params['steps'] + ' > /dev/null 2> /dev/null; >> generate_lightdock.list') # generate configurations
-        os.system(params['lgd cluster path'] + ' gso_%d'%params['steps'] + '.out >> cluster_lightdock.list') # cluster glowworms
+        os.system(params['lgd generate path'] + ' ../' + aptamer2 + ' ../' + analyte2 + ' gso_%d'%params['docking steps'] + '.out' + ' %d'%params['docking steps'] + ' > /dev/null 2> /dev/null; >> generate_lightdock.list') # generate configurations
+        os.system(params['lgd cluster path'] + ' gso_%d'%params['docking steps'] + '.out >> cluster_lightdock.list') # cluster glowworms
         # os.system(params['anthony py'] + ' generate_lightdock.list')
         # os.system(params['anthony py'] + ' cluster_lightdock.list')
 
         os.chdir('../')
 
 
-    os.system(params['lgd rank'] + ' %d' % params['swarms'] + ' %d' % params['steps']) # rank the clustered docking setups
+    os.system(params['lgd rank'] + ' %d' % params['swarms'] + ' %d' % params['docking steps']) # rank the clustered docking setups
 
     # generate top structures
     os.system(params['lgd top'] + ' ' + aptamer2 + ' ' + analyte2 + ' rank_by_scoring.list %d'%params['N docked structures'])
