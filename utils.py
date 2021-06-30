@@ -20,8 +20,9 @@ from MDAnalysis.analysis.base import AnalysisBase
 from MDAnalysis.lib.distances import calc_bonds
 from MDAnalysis.analysis.dihedrals import Dihedral
 import time
+from nupack import *
+from seqfold import dg, fold
 from shutil import copyfile
-
 
 
 def buildPeptide(peptide):
@@ -117,6 +118,17 @@ def readFinalLines(file,lines):
     finalLines = text[-(lines + 1):]
 
     return finalLines
+
+
+def readInitialLines(file,lines):
+    # return the final N lines of a text file
+    f = open(file,'r')
+    text = f.read()
+    f.close()
+    text = text.split('\n')
+    initialLines = text[:lines]
+
+    return initialLines
 
 
 def replaceText(file, old_string, new_string):
@@ -220,7 +232,8 @@ def appendLine(file, string):
     f.close()
 
 
-def writeCheckpoint(text):
+def \
+        writeCheckpoint(text):
     '''
     write some output to the checkpoint file
     :return:
@@ -247,7 +260,7 @@ def cleanTrajectory(structure,trajectory):
             W.write(goodStuff)
 
 
-def extractFrame(structure,trajectory,frame):
+def extractFrame(structure,trajectory,frame,outFileName):
     '''
     saves a given trajectory frame as a separate pdb file
     :param structure: pdb input for initial structure template
@@ -256,9 +269,9 @@ def extractFrame(structure,trajectory,frame):
     :return:
     '''
     u = mda.Universe(structure,trajectory) # load up trajectory
-    u.trajectory[frame] # this indexes the trajectory up to the desired frame
-    atoms = u.atoms
-    atoms.write("repStructure.pdb")
+    u.trajectory[frame] # this indexes the trajectory up to the desired frame (weird syntax, I think)
+    atoms = u.segments[:-2].atoms # omit solvent and salts (if any exist)
+    atoms.write(outFileName)
 
 
 def dnaBasePairDist(u,sequence):
@@ -751,7 +764,12 @@ def lightDock(aptamer, analyte, params):
     os.mkdir('top')
     os.system('mv top*.pdb top/') # collect top structures (clustering currently dubiously working)
 
-    # would be nice to optionally report ranks as well
+
+    topScores = readInitialLines('rank_by_scoring.list',params['N docked structures'] + 1)[1:]
+    for i in range(len(topScores)):
+        topScores[i] = float(topScores[i].split(' ')[-1]) # get the last number, which is the score
+
+    return topScores
 
 
 def appendTrajectory(topology,original,new):
@@ -793,3 +811,98 @@ def checkTrajPCASlope(topology,trajectory):
 
     return combinedSlope
 
+
+def doNupackAnalysis(sequence,temperature,ionicStrength):
+    R = 0.0019872 # ideal gas constant in kcal/mol/K
+    gap = R * temperature
+    A = Strand(sequence, name='A')
+    comp = Complex([A], name='AA')
+    set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp]))
+    model1 = Model(material='dna', celsius = temperature - 273, sodium= ionicStrength)
+    results = complex_analysis(set1, model=model1, compute=['pfunc', 'mfe','subopt','pairs'], options={'energy_gap':gap})
+    cout = results[comp]
+    prob = np.exp(-cout.mfe[0].energy/R/temperature)/float(cout.pfunc) # probability - energy/partition function
+    ssString = cout.mfe[0].structure
+    # look at suboptimal structures
+    subopts = cout.subopt
+    subStrings, subProbs, subEns, subStack, subProbs = [[],[],[],[],[]]
+    for subopt in subopts:
+        subProbs.append(np.exp(-subopt.energy/R/temperature)/float(cout.pfunc))
+
+    ssString = str(ssString)
+    pairList = ssToList(ssString)
+
+    # extra analysis
+    nPairs = ssString.count('(') # number of pairs
+    pairFrac = 2 * nPairs / len(sequence) # fraction of paired bases
+
+    nPins = 0 # number of distinct hairpins
+    indA = 0
+    for j in range(len(sequence)):
+        if ssString[j] == '(':
+            indA += 1
+        elif ssString[j] == ')':
+            indA -= 1
+            if indA == 0: # if we come to the end of a distinct hairpin
+                nPins += 1
+
+    ssDict = {} # best structure dictionary
+    ssDict['2d string'] = ssString
+    ssDict['pair list'] = pairList
+    ssDict['num pairs'] = nPairs
+    ssDict['pair fact'] = pairFrac
+    ssDict['num pins'] = nPins
+    ssDict['state prob'] = prob
+
+    return ssDict, [subopts, subProbs]
+
+
+def getSeqfoldStructure(sequence,temperature):
+    '''
+    output the secondary structure for a given sequence at a given condition
+    formats - ss string and pair list
+    '''
+    dg(sequence, temp=temperature)  # get energy of the structure
+    # print(round(sum(s.e for s in structs), 2)) # predicted energy of the final structure
+
+    structs = fold(sequence)  # identify structural features
+    desc = ["."] * len(sequence)
+    pairList = []
+    for s in structs:
+        pairList.append(s.ij[0])
+        pairList[-1]  # list of bound pairs indexed from 1
+        if len(s.ij) == 1:
+            i, j = s.ij[0]
+            desc[i] = "("
+            desc[j] = ")"
+
+    ssString = "".join(desc)
+    pairList = np.asarray(pairList) + 1
+
+    return ssString, pairList
+
+
+def ssToList(ssString):
+    '''
+    if for some reason we have a secondary structure string we need to convert to a pair list
+    '''
+    pairList = []
+    paired = []
+    for i in range(len(ssString)):
+        if ssString[i] == '(': # if it's paired
+            counter = 0
+            for j in range(1,len(ssString[i:])): # look for the thing paired to it
+                if ssString[i+j] == '(':
+                    counter += 1
+                if ssString[i+j] == ')':
+                    if counter > 0:
+                        counter -= 1
+                    elif counter == 0:
+                        # check for duplicates
+                        if (not i in paired) and (not i+j in paired):  # check for duplicates
+                            paired.append(i)
+                            paired.append(i+j)
+                            pairList.append([i + 1,i+j + 1]) #make pair list in 1-n basis
+                            break
+
+    return pairList

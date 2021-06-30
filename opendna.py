@@ -1,8 +1,5 @@
 # import statements
-from shutil import copyfile
 import re
-from seqfold import dg, fold
-from secondaryStructureScripts import *
 from utils import *
 from simtk.openmm import *
 import simtk.unit as unit
@@ -16,8 +13,81 @@ class opendna():
         self.sequence = sequence
         self.peptide = peptide
 
-        self.setup()
+        self.getActionDict()
+        if self.actionDict['make workdir']:
+            self.setup() # if we dont need a workdir & MMB files, don't make one
         self.getCheckpoint()
+
+
+    def getActionDict(self):
+        '''
+        generate a binary sequence of 'to-do's' given user input
+        '''
+        self.actionDict = {}
+        if self.params['mode'] == '2d structure':
+            self.actionDict['make workdir'] = False
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = False
+            self.actionDict['do smoothing'] = False
+            self.actionDict['get repStructure'] = False
+            self.actionDict['do docking'] = False
+            self.actionDict['do binding'] = False
+        elif self.params['mode'] == '3d coarse':
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = True
+            self.actionDict['do smoothing'] = False
+            self.actionDict['get repStructure'] = False
+            self.actionDict['do docking'] = False
+            self.actionDict['do binding'] = False
+        elif self.params['mode'] == '3d smooth':
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = True
+            self.actionDict['do smoothing'] = True
+            self.actionDict['get repStructure'] = False
+            self.actionDict['do docking'] = False
+            self.actionDict['do binding'] = False
+        elif self.params['mode'] == 'coarse dock':
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = True
+            self.actionDict['do smoothing'] = False
+            self.actionDict['get repStructure'] = False
+            self.actionDict['do docking'] = True
+            self.actionDict['do binding'] = False
+        elif self.params['mode'] == 'smooth dock':
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = True
+            self.actionDict['do smoothing'] = True
+            self.actionDict['get repStructure'] = False
+            self.actionDict['do docking'] = True
+            self.actionDict['do binding'] = False
+        elif self.params['mode'] == 'free aptamer':
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = True
+            self.actionDict['do smoothing'] = True
+            self.actionDict['get repStructure'] = True
+            self.actionDict['do docking'] = False
+            self.actionDict['do binding'] = False
+        elif self.params['mode'] == 'full docking':
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = True
+            self.actionDict['do smoothing'] = True
+            self.actionDict['get repStructure'] = True
+            self.actionDict['do docking'] = True
+            self.actionDict['do binding'] = False
+        elif self.params['mode'] == 'full binding':
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = True
+            self.actionDict['do MMB'] = True
+            self.actionDict['do smoothing'] = True
+            self.actionDict['get repStructure'] = True
+            self.actionDict['do docking'] = True
+            self.actionDict['do binding'] = True
 
 
     def setup(self):
@@ -27,6 +97,7 @@ class opendna():
         move to relevant directory
         :return:
         '''
+
         if self.params['run num'] == 0:
             self.makeNewWorkingDirectory()
             os.mkdir(self.workDir + '/outfiles')
@@ -96,29 +167,30 @@ class opendna():
         consult checkpoints to not repeat prior steps
         :return:
         '''
-        if True:#self.checkpoints < 2:
-            self.ssString, self.pairList = self.getSecondaryStructure(self.sequence) # this is free - do it every time
+        outputDict = {}
+        outputDict['params'] = self.params
+        np.save('opendnaOutput',outputDict)
+        if self.actionDict['do 2d analysis']: # get secondary structure
+            self.ssString, self.pairList = self.getSecondaryStructure(self.sequence)
+            outputDict['2d string'] = self.ssString
+            outputDict['pair list'] = self.pairList
 
-
-        if self.checkpoints < 2:  # if we have the secondary structure
+        if self.actionDict['do MMB']: # fold it
             self.foldSequence(self.sequence, self.pairList)
 
+        if self.actionDict['do smoothing']:
+            self.MDSmoothing('sequence.pdb',relaxationTime=0.01) # relax for xx nanoseconds
 
-        if self.checkpoints < 3: # run MD on the free aptamer
-            aptamerDict = self.freeAptamerDynamics('sequence.pdb')
+        if self.actionDict['get repStructure']:
+            outputDict['free aptamer results'] = self.freeAptamerDynamics('sequence.pdb')
 
+        if self.actionDict['do docking'] and (self.peptide != False): # find docking configurations for the complexed structure
+            outputDict['dock scores'] = self.runDocking('repStructure.pdb','peptide.pdb')
 
-        if (self.checkpoints < 4) and (self.peptide != False): # find docking configurations for the complexed structure
-            self.runDocking('repStructure.pdb','peptide.pdb')
+        if self.actionDict['do binding'] and (self.peptide != False):  # run MD on the complexed structure
+            outputDict['binding results'] = self.bindingDynamics('complex_0.pdb')
 
-
-        if (self.checkpoints < 5) and (self.peptide != False):  # run MD on the complexed structure
-            bindingDict = self.bindingDynamics('complex_0.pdb')
-
-        if self.peptide != False:
-            return [aptamerDict,bindingDict]
-        else:
-            return aptamerDict
+        return outputDict
 
 #=======================================================
 #=======================================================
@@ -139,11 +211,12 @@ class opendna():
             if self.params['secondary structure engine'] == 'seqfold':
                 ssString, pairList = getSeqfoldStructure(sequence, self.params['temperature']) # seqfold guess
             elif self.params['secondary structure engine'] == 'NUPACK':
-                ssString, pairList = getNupackStructure(sequence,self.params['temperature'],self.params['ionic strength']) # NUPACK guess
+                ssDict, subopts = doNupackAnalysis(sequence,self.params['temperature'],self.params['ionic strength']) # NUPACK guess
+                ssString = ssDict['2d string']
+                pairList = ssDict['pair list']
+                self.ssInfo = [ssDict, subopts] # more comprehensive analysis
 
-            return ssString, pairList
-
-        #writeCheckpoint("Got Secondary Structure")
+            return ssString, np.asarray(pairList)
 
 
     def foldSequence(self, sequence, pairList):
@@ -174,6 +247,9 @@ class opendna():
                 attempts += 1
                 os.system(self.params['mmb'] + ' -c ' + comFile + ' > outfiles/fold.out')
                 os.rename('frame.pdb','sequence.pdb')
+                if (self.params['mode'] == '3d coarse') or (self.params['mode'] == 'coarse dock'):
+                    self.prepPDB('sequence.pdb', MMBCORRECTION=True, waterBox=False)
+                    copyfile('sequence_processed.pdb','repStructure.pdb') # final structure output
                 Result = 1
             except:
                 pass
@@ -210,6 +286,19 @@ class opendna():
         PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
 
+    def MDSmoothing(self,structure,relaxationTime=0.01):
+        '''
+        do a short MD run in water to relax the coarse MMB structure
+        relaxation time in nanoseconds, print time in picoseconds
+        '''
+        structureName = structure.split('.')[0]
+        print('Running quick relaxation')
+        self.prepPDB(structure, MMBCORRECTION=True, waterBox=True)
+        processedStructure = structureName + '_processed.pdb'
+        self.openmmDynamics(processedStructure,simTime=relaxationTime)
+        extractFrame(processedStructure,'trajectory.dcd', -1, 'repStructure.pdb') # pull the last frame of the relaxation
+
+
     def freeAptamerDynamics(self,aptamer):
         '''
         run molecular dynamics
@@ -220,16 +309,16 @@ class opendna():
         structureName = aptamer.split('.')[0]
         print('Running free aptamer dynamics')
         self.prepPDB(aptamer, MMBCORRECTION=True, waterBox=True)  # add periodic box and appropriate protons
-        processedAptamer = aptamer.split('.')[0] + '_processed.pdb'
+        processedAptamer = structureName + '_processed.pdb'
         self.autoMD(processedAptamer)  # do MD - automatically converge to equilibrium sampling
 
         print('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day') # print speed
 
-        os.rename(structureName + '_processed_complete_trajectory.dcd', 'aptamertraj.dcd') # rename
+        os.rename(structureName + '_processed_complete_trajectory.dcd', 'aptamer.dcd') # rename
         os.rename(processedAptamer, 'aptamer.pdb')
 
-        cleanTrajectory('aptamer.pdb', 'aptamertraj.dcd')  # make a trajectory without waters and ions and stuff
-        aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb', 'cleanaptamertraj.dcd', False)
+        cleanTrajectory('aptamer.pdb', 'aptamer.dcd')  # make a trajectory without waters and ions and stuff
+        aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb', 'cleanaptamer.dcd', False)
 
         writeCheckpoint('Free aptamer sampling complete')
 
@@ -243,10 +332,12 @@ class opendna():
         print('Docking')
         buildPeptide(self.peptide)
 
-        lightDock(aptamer, peptide, self.params)  # get optimal docked structure
+        topScores = lightDock(aptamer, peptide, self.params)  # get optimal docked structure
         copyfile('top/top_1.pdb', 'complex_0.pdb')
 
         writeCheckpoint('Docking complete')
+
+        return topScores
 
 
     def bindingDynamics(self, complex):
@@ -265,18 +356,18 @@ class opendna():
 
         print('Complex simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
 
-        os.rename(structureName + '_processed_complete_trajectory.dcd', 'complextraj.dcd')
+        os.rename(structureName + '_processed_complete_trajectory.dcd', 'complex.dcd')
         os.rename(processedComplex, 'complex.pdb')
 
-        cleanTrajectory('complex.pdb', 'complextraj.dcd')
-        bindingDict = self.analyzeTrajectory('cleancomplex.pdb', 'cleancomplextraj.dcd', True)
+        cleanTrajectory('complex.pdb', 'complex.dcd')
+        bindingDict = self.analyzeTrajectory('cleancomplex.pdb', 'cleancomplex.dcd', True)
 
         writeCheckpoint('Complex sampling complete')
 
         return bindingDict
 
 
-    def openmmDynamics(self,structure):
+    def openmmDynamics(self,structure,simTime=False):
         '''
         run OpenMM dynamics
         minimize, equilibrate, and sample
@@ -305,8 +396,13 @@ class opendna():
         friction = self.params['friction'] / unit.picosecond
 
         # Simulation Options
-        steps = int(self.params['sampling time'] * 1e6 // self.params['time step']) # number of steps
-        equilibrationSteps = int(self.params['equilibration time'] * 1e6 // self.params['time step'])
+        if simTime != False: # we can override the simulation time here
+            steps = int(simTime/2 * 1e6 // self.params['time step']) # number of steps
+            equilibrationSteps = int(simTime/2 * 1e6 // self.params['time step'])
+        else:
+            steps = int(self.params['sampling time'] * 1e6 // self.params['time step']) # number of steps
+            equilibrationSteps = int(self.params['equilibration time'] * 1e6 // self.params['time step'])
+
         if self.params['platform'] == 'CUDA': # 'CUDA' or 'cpu'
             platform = Platform.getPlatformByName('CUDA')
             if self.params['platform precision'] == 'single':
@@ -432,13 +528,10 @@ class opendna():
         representativeIndex, pcTrajectory = isolateRepresentativeStructure(baseAngles)
 
         # save this structure as a separate file
-        extractFrame(structure, trajectory, representativeIndex)
-
-        if analyte != False: # if we have an analyte
-            bindingInfo = bindingAnalysis(u, self.peptide, self.sequence) # look for contacts between analyte and aptamer
+        extractFrame(structure, trajectory, representativeIndex, 'repStructure.pdb')
 
 
-        # we also need a function which processes the energies spat out by the trajectory thingy
+        # we also need a function which processes the energies spat out by the trajectory logs
 
 
         analysisDict = {} # compile our results
@@ -448,7 +541,9 @@ class opendna():
         analysisDict['RC trajectories'] = pcTrajectory
         analysisDict['representative structure index'] = representativeIndex
         if analyte != False:
+            bindingInfo = bindingAnalysis(u, self.peptide, self.sequence) # look for contacts between analyte and aptamer
             analysisDict['aptamer-analyte binding'] = bindingInfo
 
         return analysisDict
+
 

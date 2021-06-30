@@ -43,9 +43,6 @@ def getNupackString(sequence,temperature,ionicStrength):
     subopts = cout.subopt
     subStrings, subProbs, subEns, subStack, subProbs = [[],[],[],[],[]]
     for subopt in subopts:
-        #subStrings.append(subopt.structure)
-        #subEns.append(subopt.energy)
-        #subStack.append(subopt.stack_energy)
         subProbs.append(np.exp(-subopt.energy/R/temperature)/float(cout.pfunc))
 
 

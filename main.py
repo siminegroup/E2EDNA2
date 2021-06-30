@@ -15,35 +15,49 @@ To-Do:
 ==> outputs & analysis - reduce binding to c-number
 ==> to cluster
 ==> check on checkpointing
-==> dcd file keeps not existing
+==> dcd file keeps not existing - problem with WSL, likely won't happen on cluster
+==> multi-accuracy system
 '''
 
 
 params = {}
 params['device'] = 'local' # 'local' or 'cluster'
 params['platform'] = 'CPU' # 'CUDA' or 'CPU'
-params['platform precision'] = 'single' # only relevant for 'CUDA'
+params['platform precision'] = 'single' # 'single' or 'double' only relevant on 'CUDA' platform
 
 if params['device'] == 'cluster':
-    params['run num'] = get_input()
+    params['run num'] = get_input() # option to get run num from command line (default zero)
 elif params['device'] == 'local':
     params['run num'] = 0 # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
 
-# Simulation parameters
+'''
+Modes, in order of increasing cost
+'2d structure': ssString, pair list and probability
+'3d coarse': MMB output, stressed structure, no solvent
+'3d smooth': MMB output with short MD relaxation
+'coarse dock': best docking scores on coarse MMB structure
+x'smooth dock': best docking scores on smoothed MMB structure
+x'free aptamer': evaluate and find representative 3D aptamer structure
+x'full docking': 'free aptamer' + docking
+x'full binding': 'full docking' + binding 
+'''
+params['mode'] = 'smooth dock' # what to do
+
+#Pipeline parameters
 params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible - will become the default/only option
-params['force field'] = 'AMBER' # this does nothing
-params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), other explicit models easy to add
 params['equilibration time'] = 0.01 # initial equilibration time in nanoseconds
 params['sampling time'] = 0.01 # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
-params['auto sampling'] = True # NON FUNCTIONAL 'True' run sampling until RC's equilibrate + 'sampling time', 'False' just run sampling for 'sampling time'
-params['time step'] = 2.0 # in fs
-params['print step'] = 1 # printout step in ps
+params['auto sampling'] = True # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
+params['time step'] = 2.0 # MD time step in fs
+params['print step'] = 1 # MD printout step in ps
 params['max autoMD iterations'] = 5 # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
 params['autoMD convergence cutoff'] = 1e-2 # how small should average of PCA slopes be to count as 'converged'
 params['docking steps'] = 100 # number of steps for docking simulations
 params['N docked structures'] = 5  # number of docked structures to output from the docker
 
-
+#OpenMM Parameters
+params['force field'] = 'AMBER' # this does nothing
+params['water model'] = 'tip3p' # 'tip3p' (runs on amber 14), other explicit models easy to add
 params['box offset'] = 1.0 # nanometers
 params['barostat interval'] = 25
 params['friction'] = 1.0 # 1/picosecond
@@ -57,8 +71,8 @@ params['hydrogen mass'] = 1.0 # in amu
 
 # physical params
 params['pressure'] = 1 # atmospheres
-params['temperature'] = 310 # Kelvin
-params['ionic strength'] = .163 # mmol
+params['temperature'] = 310 # Kelvin - used to predict secondary structure and for MD thermostatting
+params['ionic strength'] = .163 # mmol - used to predict secondary structure and add ions to simulation box
 params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
 
 
@@ -94,14 +108,13 @@ elif params['device'] == 'cluster':
 # structure files
 params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional static analyte - currently not used
 
-
 '''
 ==============================================================
 '''
 
 if __name__ == '__main__':
-    sequence = 'GCCCTTTCGGA' #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
-    peptide = 'NNSPRR'#'YQTQTNSPRRAR'
-    opendna = opendna(sequence,peptide, params)
+    sequence = 'CGCTTTGCG' # random little hairpin #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
+    peptide = 'NNSPRR'#'YQTQTNSPRRAR' or 'False' for DNA analysis only
+    opendna = opendna(sequence, peptide, params) # instantiate the class
     opendnaOutput = opendna.run() # retrive binding information (eventually this should become a normalized c-number)
     np.save('opendnaOutput',opendnaOutput) # save outputs
