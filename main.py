@@ -117,4 +117,3 @@ if __name__ == '__main__':
     peptide = 'NNSPRR'#'YQTQTNSPRRAR' or 'False' for DNA analysis only
     opendna = opendna(sequence, peptide, params) # instantiate the class
     opendnaOutput = opendna.run() # retrive binding information (eventually this should become a normalized c-number)
-    np.save('opendnaOutput',opendnaOutput) # save outputs

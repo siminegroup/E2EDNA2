@@ -174,6 +174,7 @@ class opendna():
             self.ssString, self.pairList = self.getSecondaryStructure(self.sequence)
             outputDict['2d string'] = self.ssString
             outputDict['pair list'] = self.pairList
+            np.save('opendnaOutput', outputDict)  # save outputs
 
         if self.actionDict['do MMB']: # fold it
             self.foldSequence(self.sequence, self.pairList)
@@ -183,12 +184,16 @@ class opendna():
 
         if self.actionDict['get repStructure']:
             outputDict['free aptamer results'] = self.freeAptamerDynamics('sequence.pdb')
+            np.save('opendnaOutput', outputDict)  # save outputs
 
         if self.actionDict['do docking'] and (self.peptide != False): # find docking configurations for the complexed structure
             outputDict['dock scores'] = self.runDocking('repStructure.pdb','peptide.pdb')
+            np.save('opendnaOutput', outputDict)  # save outputs
 
         if self.actionDict['do binding'] and (self.peptide != False):  # run MD on the complexed structure
             outputDict['binding results'] = self.bindingDynamics('complex_0.pdb')
+            np.save('opendnaOutput', outputDict)  # save outputs
+
 
         return outputDict
 
