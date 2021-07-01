@@ -44,14 +44,14 @@ nupack==4.0.0.23
 OpenDNA takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
 This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
 
-* '2d structure' &rarr; returns NUPACK or seqfold analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
-* '3d coarse' &rarr; returns MMB fold of the best secondary structure. Fast O(5-30 mins). Results in a strained 3D structure which obeys base pairing rules and certain stacking interactions.
-* '3d smooth' &rarr; identical to '3d coarse', with a short MD relaxation in solvent. ~Less than double the cost of '3d coarse' depending on relaxation time.
-* 'coarse dock' &rarr; uses the 3D structure from '3d coarse' as the initial condition for a LightDock simulation, and returns best docking configurations and scores. Depending on docking parameters, adds O(5-30mins) to '3d coarse'.
-* 'smooth dock' &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost. 
-* 'free aptamer' &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
-* 'full docking' &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
-* 'full binding' &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
+* `2d structure` &rarr; returns NUPACK or seqfold analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
+* `3d coarse` &rarr; returns MMB fold of the best secondary structure. Fast O(5-30 mins). Results in a strained 3D structure which obeys base pairing rules and certain stacking interactions.
+* `3d smooth` &rarr; identical to '3d coarse', with a short MD relaxation in solvent. ~Less than double the cost of '3d coarse' depending on relaxation time.
+* `coarse dock` &rarr; uses the 3D structure from '3d coarse' as the initial condition for a LightDock simulation, and returns best docking configurations and scores. Depending on docking parameters, adds O(5-30mins) to '3d coarse'.
+* `smooth dock` &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost. 
+* `free aptamer` &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
+* `full docking` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
+* `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
 
 # __ work in progress__
 
@@ -66,6 +66,57 @@ This code implements several distinct analysis modes so users may customize the 
 
 `python main.py --run-num=0` In cluster mode, or set manually in local mode
 
-### Detailed
+### Physical Parameters
+
+Default force field is AMBER 14. Other AMBER fields and explicit water models are trivial to implement. Implicit water requires moving to building systems from AMBER prmtop files. CHARMM may also be easily implemented, but hasn't been tested. AMOEBA 2013 parameters do not include nucleic acids, and AMOEBABIO18 parameters are not implemented in OpenMM.  
+```
+* params['force field'] = 'AMBER'
+* params['water model'] = 'tip3p'
+```
+
+Default parameters here - for guidance on adjustments start [here](http://docs.openmm.org/latest/userguide/application.html).
+
+```
+params['box offset'] = 1.0 # nanometers
+params['barostat interval'] = 25
+params['friction'] = 1.0 # 1/picosecond
+params['nonbonded method'] = PME
+params['nonbonded cutoff'] = 1.0 # nanometers
+params['ewald error tolerance'] = 5e-4
+params['constraints'] = HBonds
+params['rigid water'] = True
+params['constraint tolerance'] = 1e-6
+params['pressure'] = 1 
+```
+
+Increasing hydrogen mass e.g., to 4 AMU enables longer time-steps up to ~3-4 fs. See documentation for details.
+
+```
+params['hydrogen mass'] = 1.0 # in amu
+```
+
+Temperature, pH and ionic strength are taken into account for 2D folding in NUPACK, ion concentration in MD simulation, and protonation of molecules for MD (safest near 7-7.4).
+
+```
+params['temperature'] = 310 # Kelvin - used to predict secondary structure and for MD thermostatting
+params['ionic strength'] = .163 # mmol - used to predict secondary structure and add ions to simulation box
+params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
+```
 
 ## Example
+
+We will demonstrate the pipeline on a full-docking simulation of a simple hairpin aptamer with a short peptide. 
+
+`sequence='CGCTTTGCG'`
+`peptide='YYYYYY'`
+
+### Parameters
+
+
+### Results
+
+#### 2D Fold
+#### 3D Coarse Fold
+#### 3D Representative Structure
+#### Docking Simulation
+#### Binding Simulation

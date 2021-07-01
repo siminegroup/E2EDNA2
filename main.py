@@ -7,17 +7,20 @@ from simtk.openmm.app import *
 '''
 script which accepts a DNA sequence and an analyte, and returns the binding affinity
 
+Known Issues:
+==> On WSL, after using os.rename on .dcd files, os.path and all functions can no longer find it
+
 To-Do:
 ==> auto-equilibration - done, just need a choice of when to sample (easily set!)
-==> auto-binding - cut off simulation if the analyte floats away
 ==> multi-state comparision in 2d and 3d w clustering
 ==> implicit solvent - ambertools prmtop required
-==> outputs & analysis - reduce binding to c-number
+==> outputs & analysis - reduce binding to c-number - combination of aptamer reorganization in original PCA basis and number and durability of contacts
+    -> auto-binding - cut off simulation if the analyte floats away
 ==> to cluster
-==> check on checkpointing
-==> dcd file keeps not existing - problem with WSL, likely won't happen on cluster
-==> multi-accuracy system
+==> rethink checkpointing
 ==> peptide restraints
+==> finish README example
+==> write readme sections for each sub-module - NUPACK, MMB, OpenMM, PDBFixer, LightDock, MDAnalysis
 '''
 
 
@@ -90,8 +93,8 @@ elif params['device'] == 'cluster':
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
 
 # mmb control files
-params['mmb params'] = 'lib/parameters.csv'
-params['mmb template'] = 'lib/commands.template.dat'
+params['mmb params'] = 'lib/mmb/parameters.csv'
+params['mmb template'] = 'lib/mmb/commands.template.dat'
 
 # lightdock python scripts
 params['ld setup path'] = 'lib/lightdock/lightdock3_setup.py'

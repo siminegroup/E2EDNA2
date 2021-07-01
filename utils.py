@@ -32,13 +32,12 @@ def buildPeptide(peptide):
     :return:
     '''
     #resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
-    #PDBdir = "PDBs"
     structure = PeptideBuilder.initialize_res(peptide[0])
     for i in range(1,len(peptide)):
         geo = Geometry.geometry(peptide[i])
         PeptideBuilder.add_residue(structure, geo)
 
-    #PeptideBuilder.add_terminal_OXT(structure) # OPENMM NEEDS THIS BUT LIGHTDOCK HATES IT
+    #PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
@@ -64,7 +63,7 @@ def combinePDB(file1, file2):
     :return:
     '''
     filenames = [file1,file2]
-    for file in filenames:
+    for file in filenames: # remove title, periodic box, endpoints
         removeLine(file,'CRYST1')
         removeLine(file,'TITLE')
         removeLine(file,'END')
@@ -80,7 +79,7 @@ def combinePDB(file1, file2):
 
 def get_input():
     '''
-    get the command line in put for the run-num. defaulting to a new run (0)
+    get the command line in put for the run num. defaulting to a new run (0)
     :return:
     '''
     parser = argparse.ArgumentParser()
@@ -92,7 +91,7 @@ def get_input():
 
 
 def findLine(file, string):
-    # return the line number of a given string, indexing from 1
+    # return the line number of a given string in a text file, indexing from 1
     f = open(file, 'r')
     text = f.read()
     f.close()
@@ -121,7 +120,7 @@ def readFinalLines(file,lines):
 
 
 def readInitialLines(file,lines):
-    # return the final N lines of a text file
+    # return the first N lines of a text file
     f = open(file,'r')
     text = f.read()
     f.close()
@@ -132,47 +131,13 @@ def readInitialLines(file,lines):
 
 
 def replaceText(file, old_string, new_string):
-    # search and replace text in a file, then save the new version
+    # search and replace text in a text file, then save the new version
     f = open(file, 'r')
     text = f.read()
     f.close()
     text = text.replace(old_string, new_string)
     f = open(file, 'w')
     f.write(text)
-    f.close()
-
-
-def extractPeptide(file):
-    '''
-    if ssDNA and peptide are concatenated, unlabelled in a PDB, extract the peptide, if it's second
-    also extracts the DNA - given it's a lightdock complex file
-    '''
-    proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO', 'THR', 'TYR', 'ARG', 'ASP', 'GLN', 'GLY', 'ILE', 'LYS', 'PHE', 'SER', 'TRP', 'VAL']
-
-    f = open(file, 'r')
-    text = f.read()
-    f.close()
-    text = text.split('\n')
-
-    proteins = []
-    lineInd = 1
-    for line in text:
-        for string in proteinResidues:
-            if string in line:
-                proteins.append(lineInd)  # index from 1
-                break
-        lineInd += 1
-
-    out = [text[i-1] for i in proteins]
-    out = "\n".join(out)
-    f = open('extractedPeptide.pdb','w')
-    f.write(out)
-    f.close()
-
-    out2 = text[:proteins[0]-1]
-    out2 = "\n".join(out2)
-    f = open('extractedAptamer.pdb','w')
-    f.write(out2)
     f.close()
 
 
@@ -232,8 +197,7 @@ def appendLine(file, string):
     f.close()
 
 
-def \
-        writeCheckpoint(text):
+def writeCheckpoint(text):
     '''
     write some output to the checkpoint file
     :return:
@@ -252,11 +216,9 @@ def cleanTrajectory(structure,trajectory):
     '''
     u = mda.Universe(structure,trajectory) # load up trajectory
     goodStuff = u.segments[:-2].atoms # cut out salts and solvent
-    # write template
-    goodStuff.write("clean" + structure)
-    # and write trajectory
-    with mda.Writer("clean" + trajectory, goodStuff.n_atoms) as W:
-        for ts in u.trajectory:
+    goodStuff.write("clean" + structure)     # write topology
+    with mda.Writer("clean" + trajectory, goodStuff.n_atoms) as W: # and write trajectory
+        for ts in u.trajectory: # indexing over the trajectory
             W.write(goodStuff)
 
 
@@ -274,24 +236,13 @@ def extractFrame(structure,trajectory,frame,outFileName):
     atoms.write(outFileName)
 
 
-def dnaBasePairDist(u,sequence):
-    pairDists = np.zeros((len(u.trajectory),len(sequence),len(sequence))) # matrix of watson-crick distances
-    tt = 0
-    for ts in u.trajectory:
-        for i in range(len(sequence)):
-            for j in range(len(sequence)):
-                if i > j:
-                    pairDists[tt,i,j] = nuclinfo.wc_pair(u,i+1,j+1,seg1='A',seg2='A') # also do WC base-pair distances (can set to only follow secondary structure prediction)
-                    pairDists[tt,j,i] = pairDists[tt,i,j]
-
-        tt += 1
-
-    return pairDists
-
-
 def dnaBaseCOGDist(u):
+    '''
+    given an MDA universe containing ssDNA (segment 1)
+    return the trajectory of all the inter-base center-of-geometry distances
+    '''
     nbases = u.segments[0].residues.n_residues
-    baseDists = np.zeros((len(u.trajectory),nbases,nbases)) # matrix of watson-crick distances
+    baseDists = np.zeros((len(u.trajectory),nbases,nbases)) # matrix of CoG distances
     tt = 0
     for ts in u.trajectory:
         dnaResidues = u.segments[0]
@@ -300,27 +251,16 @@ def dnaBaseCOGDist(u):
         for i in range(nbases):
             posMat[i] = dnaResidues.residues[i].atoms.center_of_geometry()
 
-        baseDists[tt, :, :] = distances.distance_array(posMat, posMat, box=u.dimensions)
+        baseDists[tt, :, :] = distances.distance_array(posMat, posMat, box=u.dimensions) # fast calculation
         tt += 1
 
     return baseDists
 
 
-def dnaBaseDihedrals(u,sequence):
-    angles = np.zeros((len(u.trajectory),len(sequence)-3,7))
-    tt = 0
-    for ts in u.trajectory:
-        for j in range(2,len(sequence)-1):
-            angles[tt,j-2,:] = nuclinfo.tors(u,seg="A",i=j)
-
-        tt += 1
-
-    return angles
-
-
 def getPairs(wcDist):
     '''
     identify bases which are paired according to their WC hydrogen bond lengths
+    return the shortest hydrogen bond pair for every base over time
     note - it's possible to have multiple bases paired to one in this algo -
     TO-DO
     post-processing cleanup step where we see what the next closest base is for multi-paired setups
@@ -340,15 +280,20 @@ def getPairs(wcDist):
 
 def trajectoryPCA(n_components,trajectory,transform):
     '''
-    do PCA on some trajectory with pre-selected features
+    do PCA on some trajectory array
     :param n_components:
     :param trajectory:
     :return: the principal components, their relative contributions, the original trajectory in PC basis
     '''
-    pca1 = PCA(n_components=n_components)
+
     if trajectory.ndim ==3: # convert to 2D, if necessary
         trajectory = trajectory.reshape(len(trajectory),int(trajectory.shape[-1]*trajectory.shape[-2]))
 
+    if n_components > trajectory.shape[-1]: # if the trajectory is small-dimensional, reduce the number of principal components
+        n_components = trajectory.shape[-1]
+        print('Warning, attempting PCA on a low-dimensional trajectory!')
+
+    pca1 = PCA(n_components=n_components)
     model = pca1.fit(trajectory)
     components = model.components_
     eigenvalues = pca1.explained_variance_ratio_
@@ -700,17 +645,10 @@ def addH(structure, pH):
     app.PDBFile.writeFile(modeller.topology,modeller.positions,open(structure.split('.')[0] + '_H.pdb','w'))
 
 
-def recenterPDB(structure):
-    pdb = app.PDBFile(structure)
-    topology = pdb.topology
-    positions = pdb.positions
-    modeller = app.Modeller(topology, positions)
-    app.PDBFile.writeFile(modeller.topology, modeller.positions, open(structure.split('.')[0] + '_recentered.pdb','w'))
-
-
 def getMoleculeSize(structure):
     '''
     use MDAnalysis to determine the cubic xyz dimensions for a given molecule
+    return these dimensions
     '''
     u = mda.Universe(structure)
     positions = u.atoms.positions
