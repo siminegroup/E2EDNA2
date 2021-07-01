@@ -744,10 +744,10 @@ def lightDock(aptamer, analyte, params):
     changeSegment(analyte2,'A','B')
 
     # run setup
-    os.system(params['setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']) + ' >> lightdockSetup.out')
+    os.system(params['ld setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']) + ' >> lightdockSetup.out')
 
     # run docking
-    os.system(params['lightdock path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna >> lightdockRun.out')
+    os.system(params['ld run path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna >> lightdockRun.out')
 
     # generate docked structures and cluster them
     for i in range(params['swarms']):
@@ -757,10 +757,10 @@ def lightDock(aptamer, analyte, params):
         os.chdir('../')
 
 
-    os.system(params['lgd rank'] + ' %d' % params['swarms'] + ' %d' % params['docking steps']) # rank the clustered docking setups
+    os.system(params['lgd rank path'] + ' %d' % params['swarms'] + ' %d' % params['docking steps']) # rank the clustered docking setups
 
     # generate top structures
-    os.system(params['lgd top'] + ' ' + aptamer2 + ' ' + analyte2 + ' rank_by_scoring.list %d'%params['N docked structures'])
+    os.system(params['lgd top path'] + ' ' + aptamer2 + ' ' + analyte2 + ' rank_by_scoring.list %d'%params['N docked structures'])
     os.mkdir('top')
     os.system('mv top*.pdb top/') # collect top structures (clustering currently dubiously working)
 

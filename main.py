@@ -17,6 +17,7 @@ To-Do:
 ==> check on checkpointing
 ==> dcd file keeps not existing - problem with WSL, likely won't happen on cluster
 ==> multi-accuracy system
+==> peptide restraints
 '''
 
 
@@ -25,6 +26,7 @@ params['device'] = 'local' # 'local' or 'cluster'
 params['platform'] = 'CPU' # 'CUDA' or 'CPU'
 params['platform precision'] = 'single' # 'single' or 'double' only relevant on 'CUDA' platform
 
+params['explicit run enumeration'] = False # if True, the next run is fresh, in directory 'run%d'%run_num. If false, regular behaviour. Note: ONLY USE THIS FOR FRESH RUNS
 if params['device'] == 'cluster':
     params['run num'] = get_input() # option to get run num from command line (default zero)
 elif params['device'] == 'local':
@@ -36,12 +38,12 @@ Modes, in order of increasing cost
 '3d coarse': MMB output, stressed structure, no solvent
 '3d smooth': MMB output with short MD relaxation
 'coarse dock': best docking scores on coarse MMB structure
-x'smooth dock': best docking scores on smoothed MMB structure
-x'free aptamer': evaluate and find representative 3D aptamer structure
-x'full docking': 'free aptamer' + docking
-x'full binding': 'full docking' + binding 
+'smooth dock': best docking scores on smoothed MMB structure
+'free aptamer': evaluate and find representative 3D aptamer structure
+'full docking': 'free aptamer' + docking
+'full binding': 'full docking' + binding
 '''
-params['mode'] = 'smooth dock' # what to do
+params['mode'] = 'full binding' # what to do
 
 #Pipeline parameters
 params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible - will become the default/only option
@@ -78,32 +80,27 @@ params['pH'] = 7.4 # simulation will automatically protonate the peptide up to t
 
 # paths
 if params['device'] == 'local':
-    params['workdir'] = '/mnt/c/Users/mikem/Desktop/mmruns' #'C:/Users\mikem\Desktop/mmruns'
-    params['mmb dir'] = '/mnt/c/Users/mikem/Desktop/software/Installer.2_14.Linux64'#'C:/Users/mikem/Desktop/Installer.2_14.Windows/MMB.2_14.exe'
-    params['mmb'] = '/mnt/c/Users/mikem/Desktop/software/Installer.2_14.Linux64/MMB.2_14.Linux64'#'C:/Users/mikem/Desktop/Installer.2_14.Windows/MMB.2_14.exe'
-    params['mmb params'] = 'lib/parameters.csv'
-    params['mmb template'] = 'lib/commands.template.dat'
-    params['setup path'] = '/home/mkilgour/miniconda3/bin/lightdock3_setup.py'
-    params['lightdock path'] = '/home/mkilgour/miniconda3/bin/lightdock3.py'
-    params['lgd generate path'] = '/home/mkilgour/miniconda3/bin/lgd_generate_conformations.py'
-    params['lgd cluster path'] = '/home/mkilgour/miniconda3/bin/lgd_cluster_bsas.py'
-    params['anthony py'] = '/home/mkilgour/miniconda3/bin/ant_thony.py'
-    params['lgd rank'] = '/home/mkilgour/miniconda3/bin/lgd_rank.py'
-    params['lgd top'] = '/home/mkilgour/miniconda3/bin/lgd_top.py'
+    params['workdir'] = '/mnt/c/Users/mikem/Desktop/mmruns'
+    params['mmb dir'] = '/mnt/c/Users/mikem/Desktop/software/Installer.2_14.Linux64'
+    params['mmb'] = '/mnt/c/Users/mikem/Desktop/software/Installer.2_14.Linux64/MMB.2_14.Linux64'
 
 elif params['device'] == 'cluster':
     params['workdir'] = '/home/kilgourm/scratch/mmruns' # specify your working directory here
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/'#'C:/Users/mikem/Desktop/Installer.2_14.Windows/MMB.2_14.exe'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
-    params['mmb params'] = 'lib/parameters.csv'
-    params['mmb template'] = 'lib/commands.template.dat'
-    params['setup path'] = '~/lightDock_scripts/lightdock3_setup.py'
-    params['lightdock path'] = '~/lightDock_scripts/lightdock3.py'
-    params['lgd generate path'] = '~/lightDock_scripts/lgd_generate_conformations.py'
-    params['lgd cluster path'] = '~/lightDock_scripts/lgd_cluster_bsas.py'
-    params['anthony py'] = '~/lightDock_scripts/ant_thony.py'
-    params['lgd rank'] = '~/lightDock_scripts/lgd_rank.py'
-    params['lgd top'] = '~/lightDock_scripts/lgd_top.py'
+
+# mmb control files
+params['mmb params'] = 'lib/parameters.csv'
+params['mmb template'] = 'lib/commands.template.dat'
+
+# lightdock python scripts
+params['ld setup path'] = 'lib/lightdock/lightdock3_setup.py'
+params['ld run path'] = 'lib/lightdock/lightdock3.py'
+params['lgd generate path'] = 'lib/lightdock/lgd_generate_conformations.py'
+params['lgd cluster path'] = 'lib/lightdock/lgd_cluster_bsas.py'
+params['lg ant path'] = 'lib/lightdock/ant_thony.py'
+params['lgd rank path'] = 'lib/lightdock/lgd_rank.py'
+params['lgd top path'] = 'lib/lightdock/lgd_top.py'
 
 # structure files
 params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional static analyte - currently not used

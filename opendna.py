@@ -29,7 +29,7 @@ class opendna():
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = False
             self.actionDict['do smoothing'] = False
-            self.actionDict['get repStructure'] = False
+            self.actionDict['get equil repStructure'] = False
             self.actionDict['do docking'] = False
             self.actionDict['do binding'] = False
         elif self.params['mode'] == '3d coarse':
@@ -37,7 +37,7 @@ class opendna():
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
             self.actionDict['do smoothing'] = False
-            self.actionDict['get repStructure'] = False
+            self.actionDict['get equil repStructure'] = False
             self.actionDict['do docking'] = False
             self.actionDict['do binding'] = False
         elif self.params['mode'] == '3d smooth':
@@ -45,7 +45,7 @@ class opendna():
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
             self.actionDict['do smoothing'] = True
-            self.actionDict['get repStructure'] = False
+            self.actionDict['get equil repStructure'] = False
             self.actionDict['do docking'] = False
             self.actionDict['do binding'] = False
         elif self.params['mode'] == 'coarse dock':
@@ -53,7 +53,7 @@ class opendna():
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
             self.actionDict['do smoothing'] = False
-            self.actionDict['get repStructure'] = False
+            self.actionDict['get equil repStructure'] = False
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = False
         elif self.params['mode'] == 'smooth dock':
@@ -61,31 +61,31 @@ class opendna():
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
             self.actionDict['do smoothing'] = True
-            self.actionDict['get repStructure'] = False
+            self.actionDict['get equil repStructure'] = False
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = False
         elif self.params['mode'] == 'free aptamer':
             self.actionDict['make workdir'] = True
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
-            self.actionDict['do smoothing'] = True
-            self.actionDict['get repStructure'] = True
+            self.actionDict['do smoothing'] = False
+            self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = False
             self.actionDict['do binding'] = False
         elif self.params['mode'] == 'full docking':
             self.actionDict['make workdir'] = True
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
-            self.actionDict['do smoothing'] = True
-            self.actionDict['get repStructure'] = True
+            self.actionDict['do smoothing'] = False
+            self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = False
         elif self.params['mode'] == 'full binding':
             self.actionDict['make workdir'] = True
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
-            self.actionDict['do smoothing'] = True
-            self.actionDict['get repStructure'] = True
+            self.actionDict['do smoothing'] = False
+            self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = True
 
@@ -98,8 +98,13 @@ class opendna():
         :return:
         '''
 
-        if self.params['run num'] == 0:
-            self.makeNewWorkingDirectory()
+        if (self.params['explicit run enumeration'] == True) or (self.params['run num'] == 0):
+            if self.params['run num'] == 0:
+                self.makeNewWorkingDirectory()
+            else:
+                self.workDir = self.params['workdir'] + '/run%d' % self.params['run num']  # make a new workdir with the given index
+                os.mkdir(self.workDir)
+
             os.mkdir(self.workDir + '/outfiles')
             # copy structure files
             copyfile(self.params['analyte pdb'], self.workDir + '/analyte.pdb')
@@ -182,7 +187,7 @@ class opendna():
         if self.actionDict['do smoothing']:
             self.MDSmoothing('sequence.pdb',relaxationTime=0.01) # relax for xx nanoseconds
 
-        if self.actionDict['get repStructure']:
+        if self.actionDict['get equil repStructure']:
             outputDict['free aptamer results'] = self.freeAptamerDynamics('sequence.pdb')
             np.save('opendnaOutput', outputDict)  # save outputs
 
@@ -301,7 +306,7 @@ class opendna():
         self.prepPDB(structure, MMBCORRECTION=True, waterBox=True)
         processedStructure = structureName + '_processed.pdb'
         self.openmmDynamics(processedStructure,simTime=relaxationTime)
-        extractFrame(processedStructure,'trajectory.dcd', -1, 'repStructure.pdb') # pull the last frame of the relaxation
+        extractFrame(processedStructure,processedStructure.split('.')[0] + '_trajectory.dcd', -1, 'repStructure.pdb') # pull the last frame of the relaxation
 
 
     def freeAptamerDynamics(self,aptamer):
@@ -384,7 +389,6 @@ class opendna():
         structureName = structure.split('.')[0]
         waterModel = self.params['water model']
         forcefield = ForceField('amber14-all.xml', 'amber14/' + waterModel + '.xml')
-
 
         # System Configuration
         nonbondedMethod = self.params['nonbonded method']

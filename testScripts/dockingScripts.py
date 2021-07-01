@@ -48,13 +48,13 @@ def lightDock(aptamer, analyte):
     setup lightdock run, do the run, generate output models, hierarchical clustering and final concatenation of results
     '''
     params = {}
-    params['setup path'] = '/home/mkilgour/miniconda3/bin/lightdock3_setup.py'
-    params['lightdock path'] = '/home/mkilgour/miniconda3/bin/lightdock3.py'
+    params['ld setup path'] = '/home/mkilgour/miniconda3/bin/lightdock3_setup.py'
+    params['ld run path'] = '/home/mkilgour/miniconda3/bin/lightdock3.py'
     params['lgd generate path'] = '/home/mkilgour/miniconda3/bin/lgd_generate_conformations.py'
     params['lgd cluster path'] = '/home/mkilgour/miniconda3/bin/lgd_cluster_bsas.py'
-    params['anthony py'] = '/home/mkilgour/miniconda3/bin/ant_thony.py'
-    params['lgd rank'] = '/home/mkilgour/miniconda3/bin/lgd_rank.py'
-    params['lgd top'] = '/home/mkilgour/miniconda3/bin/lgd_top.py'
+    params['lg ant path'] = '/home/mkilgour/miniconda3/bin/ant_thony.py'
+    params['lgd rank path'] = '/home/mkilgour/miniconda3/bin/lgd_rank.py'
+    params['lgd top path'] = '/home/mkilgour/miniconda3/bin/lgd_top.py'
 
     # identify aptamer size
     dimensions = getMoleculeSize(aptamer)
@@ -76,26 +76,26 @@ def lightDock(aptamer, analyte):
     analyte2 = analyte.split('.')[0] + "_H.pdb" #analyte.split('.pdb')[0] + "_noH.pdb"
 
     # run setup
-    os.system(params['setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']))
+    os.system(params['ld setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']))
 
     # run docking
-    os.system(params['lightdock path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna')
+    os.system(params['ld run path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna')
 
     # generate docked structures and cluster them
     for i in range(params['swarms']):
         os.chdir('swarm_%d'%i)
         os.system(params['lgd generate path'] + ' ../' + aptamer2 + ' ../' + analyte2 + ' gso_%d'%params['docking steps'] + '.out' + ' %d'%params['docking steps'] + ' > /dev/null 2> /dev/null; >> generate_lightdock.list') # generate configurations
         os.system(params['lgd cluster path'] + ' gso_%d'%params['docking steps'] + '.out >> cluster_lightdock.list') # cluster glowworms
-        # os.system(params['anthony py'] + ' generate_lightdock.list')
-        # os.system(params['anthony py'] + ' cluster_lightdock.list')
+        # os.system(params['lg ant path'] + ' generate_lightdock.list')
+        # os.system(params['lg ant path'] + ' cluster_lightdock.list')
 
         os.chdir('../')
 
 
-    os.system(params['lgd rank'] + ' %d' % params['swarms'] + ' %d' % params['docking steps']) # rank the clustered docking setups
+    os.system(params['lgd rank path'] + ' %d' % params['swarms'] + ' %d' % params['docking steps']) # rank the clustered docking setups
 
     # generate top structures
-    os.system(params['lgd top'] + ' ' + aptamer2 + ' ' + analyte2 + ' rank_by_scoring.list %d'%params['N docked structures'])
+    os.system(params['lgd top path'] + ' ' + aptamer2 + ' ' + analyte2 + ' rank_by_scoring.list %d'%params['N docked structures'])
     os.mkdir('top')
     os.system('mv top*.pdb top/') # collect top structures
 

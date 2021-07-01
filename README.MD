@@ -1,5 +1,7 @@
 # E2EDNA - OpenMM Implementation
 
+### A fully-automated code for DNA aptamer 2D and 3D structure analysis, and binding analysis with small molecules and short peptides.
+
 Michael Kilgour, Tao Liu, Lena Simine
 mjakilgour gmail com
 
@@ -21,74 +23,49 @@ pyparsing==2.4.7
 scipy==1.4.1
 OpenMM=7.5.0
 PeptideBuilder==1.1.0
-scikit-learn
-
+scikit-learn==0.24.2
+Cython==0.29.23
+LightDock==0.9.0
+nupack==4.0.0.23
 ```
 * Install appropriate MacroMoleculeBuilder for your system from [SimTK here](https://simtk.org/projects/rnatoolbox) - old and new versions have been tested and seem to work
 * Create working directory where runs will take place
-* Set paths in main.py. Note, there is a toggle for running on a 'local' machine vs 'cluster', with distinct paths.
+* Set paths in main.py. Note, there is a toggle for running on a 'local' machine vs 'cluster', with distinct paths for e.g., developing on a local vs cluster environment.
 ```
 * params['mmb'] --> set to the MacroMoleculeBuilder executable on your system
-* params['workdir'] --> the working directory created in the previous step
-* params['analyte'] --> path to the analyte structure in .pdb format
+* params['mmb dir'] --> set to the MMB directory, usually a name like /Installer.#_##.Linux
+- params['mmb template'] and params['mmb params'] --> included in this repository, should not have to be changed
+* params['ld path'] --> paths to various lightdock python scripts (included in this package, alternatively automatically come with a lightdock pip installation)
+* params['workdir'] --> the working directory you created in the previous step
 * various .key files --> parameters may be specific to your analyte if custom force-field parameters are required. Adjust keyfiles accordingly, leaving the keywords on top as-is.
 ```
-	
 
-# __ none of this below is current __
-## RUNNING A JOB
-Before running a job, ensure installation, analyte parameterization and simulation parameters have been set.
-1. Set 'run num' in main.py to zero for a fresh run, which will create a new run directory in your workdir. If you want to pick-up on a previous run, put its number here. 
-   - Using argparse, one can directly set this via command line from a submission script rather than editing main.py itself.
-2. Set simulation parameters in main.py, and select the mode to run in as params['simulation type']. 'free aptamer' runs the aptamer by itself, 'binding' runs a representative structure of the aptamer complexed with the analyte, and 'analysis' redoes reaction coordinate analysis given pre-existing trajectories.
-4. Set the DNA sequence as a FASTA string to the 'sequence' variable at the bottom of main.py.
-5. Run the code, e.g., for run_num = 0
-```
-python main.py --run_num=0
-```
-Inputs and outputs will go to /workdir/run0. In this directory, /outfiles contains outputs for debugging the various processes within the script.
+## Modes
+OpenDNA takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
+This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
 
-In general, one would run first a 'free aptamer' simulation to retrieve a representaitive 3D structure and confirm the secondary structure stability. Then, one would change the operating mode to 'binding' to assess aptamer-analyte binding.
-6. Simulation parameters and outputs including energy traces are saved to 'e2ednaOutputs.npy', which can be reloaded as
-   - outputs = np.load('e2ednaOutputs.npy',allow_pickle=True).item()
-   
+* '2d structure' &rarr; returns NUPACK or seqfold analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
+* '3d coarse' &rarr; returns MMB fold of the best secondary structure. Fast O(5-30 mins). Results in a strained 3D structure which obeys base pairing rules and certain stacking interactions.
+* '3d smooth' &rarr; identical to '3d coarse', with a short MD relaxation in solvent. ~Less than double the cost of '3d coarse' depending on relaxation time.
+* 'coarse dock' &rarr; uses the 3D structure from '3d coarse' as the initial condition for a LightDock simulation, and returns best docking configurations and scores. Depending on docking parameters, adds O(5-30mins) to '3d coarse'.
+* 'smooth dock' &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost. 
+* 'free aptamer' &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
+* 'full docking' &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
+* 'full binding' &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
 
-## EXAMPLE
-Here is an example of executing this code on a minimal system.
-### System
-For speed and simplicity, we will look at a tiny hairpin, GCTTTGC, and asses it's binding with UTP(-4) in PBS.
+# __ work in progress__
 
-### Setup
-We will use our default settings, and track the distances between bases which are expected to pair (1-7 and 2-6) as our reaction coordinates. 
-The specific atoms to follow in these bases must be determined manually by users.
-```
-# Simulation parameters
-params['reaction coordinates'] = [[26,213],[53,185]]
-params['force field'] = 'AMOEBA'
-params['target'] = 'UTP-4' # 
-params['minimization gradrms'] = 0.05
-params['equilibration time'] = 0.01 # equilibration time in nanoseconds
-params['sampling time'] = 0.01 # sampling time in nanoseconds
-params['time step'] = 2.0 # in fs
-params['num charges'] = 4 # number of positive counterions (Na+) to add to simulation box to counter the analyte.
-params['NaCl concentration'] = 163 # in mmol
-params['box offset'] = 5 # in angstroms 
-params['print step'] = 0.1 # printout step in ps 
-params['heavy hydrogen'] = False 
-params['outisde secondary structure'] = False 
 
-# analyte placement - only relevant if 'simulation type' is 'binding'
-params['analyte position'] = 'random' # 'random' - will be at least 2 nm from the aptamer in one of 8 cubic directions, 'manual' places the aptamer center at the given coordinates relative to origin
-if params['analyte position'] == 'manual':
-    params['analyte coordinates'] = [10, 10, 10] # places analyte [X, Y, Z] angstroms from the origin
+## Running a job
 
-# AMOEBA parameters
-params['vdW radius'] = 12 # van der Waals radius
-params['polarization version'] = 'OPT4' # OPT3 or OPT4 - 4 is slower but more accurate
-params['polar eps'] = 1e-5 # induced dipole convergence parameter default 1e-6
-params['polar predict'] = True # whether to run with polar-predict or not
-```
+### Quickstart
+* Set 'params' in main.py
+* Set sequence = 'ATGC' where ATGC is your desired FASTA sequence
+* Set peptide = 'YYYY' where YYYY is your desired peptide (restricted structures TBD)
+* Run main, with desired run num. Zero for a fresh run, nonzero for either picking up on a prior run or explicitly enumerated new run (TEST)
 
-### Structure evaluation
+`python main.py --run-num=0` In cluster mode, or set manually in local mode
 
-### Binding evaluation
+### Detailed
+
+## Example
