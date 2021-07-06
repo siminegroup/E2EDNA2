@@ -25,8 +25,8 @@ To-Do:
 
 
 params = {}
-params['device'] = 'local' # 'local' or 'cluster'
-params['platform'] = 'CPU' # 'CUDA' or 'CPU'
+params['device'] = 'cluster' # 'local' or 'cluster'
+params['platform'] = 'CUDA' # 'CUDA' or 'CPU'
 params['platform precision'] = 'single' # 'single' or 'double' only relevant on 'CUDA' platform
 
 params['explicit run enumeration'] = False # if True, the next run is fresh, in directory 'run%d'%run_num. If false, regular behaviour. Note: ONLY USE THIS FOR FRESH RUNS
@@ -49,10 +49,10 @@ Modes, in order of increasing cost
 params['mode'] = 'full binding' # what to do
 
 #Pipeline parameters
-params['secondary structure engine'] = 'NUPACK' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible - will become the default/only option
+params['secondary structure engine'] = 'seqfold' # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible - will become the default/only option
 params['equilibration time'] = 0.01 # initial equilibration time in nanoseconds
-params['sampling time'] = 0.01 # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
-params['auto sampling'] = True # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
+params['sampling time'] = 0.1 # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
+params['auto sampling'] = False # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
 params['time step'] = 2.0 # MD time step in fs
 params['print step'] = 1 # MD printout step in ps
 params['max autoMD iterations'] = 5 # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
@@ -113,7 +113,7 @@ params['analyte pdb'] = 'lib/peptide/peptide.pdb' # optional static analyte - cu
 '''
 
 if __name__ == '__main__':
-    sequence = 'CGCTTTGCG' # random little hairpin #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
+    sequence = 'CGCTTTTGCG' # random little hairpin #'ACCTGGGGGAGTATTGCGGAGGAAGGT' #ATP binding aptamer
     peptide = 'NNSPRR'#'YQTQTNSPRRAR' or 'False' for DNA analysis only
     opendna = opendna(sequence, peptide, params) # instantiate the class
     opendnaOutput = opendna.run() # retrive binding information (eventually this should become a normalized c-number)

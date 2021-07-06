@@ -116,40 +116,60 @@ def ssToList(ssString):
 
 
 ''' test # development
-sequences = numbers2letters(np.random.randint(0,4,size=(1000,10))) # we can go even faster I think, by submitting them in batches
-strings = []
-pairList = []
-probs = np.zeros(len(sequences))
-nPairs = np.zeros_like(probs)
-pFrac = np.zeros_like(probs)
-nPins = np.zeros_like(probs)
-subProbskT = np.zeros_like(probs) # sum of probabilities within kT
-nSubProbskT = np.zeros_like(probs) # number of states within kT
-pinSize, pinDist, subopts, subProbs = [[],[],[],[]]
-t0 = time.time()
-for i in range(len(sequences)):
-    out = getNupackString(sequences[i],310,1.0)
-    strings.append(out[0])
-    probs[i] = out[1]
-    subopts.append(out[2])
-    subProbs.append(out[3])
-    nPairs[i] = out[0].count('(')
-    pFrac[i] = 2* nPairs[i] / len(sequences[i])
-    pairList.append(ssToList(out[0]))
-    subProbskT[i] = np.sum(subProbs[i])
-    nSubProbskT[i] = len(subopts[i])
+'''
+resDict = []
+for j in range(5,61):
+    sequences = numbers2letters(np.random.randint(0,4,size=(1000,j))) # we can go even faster I think, by submitting them in batches
 
-    indA = 0 # hairpin completion index
-    for j in range(len(sequences[i])):
-        if strings[i][j] == '(':
-            indA += 1
-        elif strings[i][j] == ')':
-            indA -= 1
-            if indA == 0: # if we come to the end of a distinct hairpin
-                nPins[i] += 1
+    strings = []
+    pairList = []
+    probs = np.zeros(len(sequences))
+    nPairs = np.zeros_like(probs)
+    pFrac = np.zeros_like(probs)
+    nPins = np.zeros_like(probs)
+    subProbskT = np.zeros_like(probs) # sum of probabilities within kT
+    nSubProbskT = np.zeros_like(probs) # number of states within kT
+    pinSize, pinDist, subopts, subProbs = [[],[],[],[]]
+    t0 = time.time()
+    for i in range(len(sequences)):
+        out = getNupackString(sequences[i],310,1.0)
+        strings.append(out[0])
+        probs[i] = out[1]
+        subopts.append(out[2])
+        subProbs.append(out[3])
+        nPairs[i] = out[0].count('(')
+        pFrac[i] = 2* nPairs[i] / len(sequences[i])
+        pairList.append(ssToList(out[0]))
+        subProbskT[i] = np.sum(subProbs[i])
+        nSubProbskT[i] = len(subopts[i])
 
-tf = time.time()
-print(tf-t0)
+        indA = 0 # hairpin completion index
+        for j in range(len(sequences[i])):
+            if strings[i][j] == '(':
+                indA += 1
+            elif strings[i][j] == ')':
+                indA -= 1
+                if indA == 0: # if we come to the end of a distinct hairpin
+                    nPins[i] += 1
+
+    resDict.append([sequences,strings,pairList,probs,nPairs,pFrac,nPins])
+
+    tf = time.time()
+    print(tf-t0)
+
+avgProb = np.zeros(len(resDict))
+avgPairs = np.zeros_like(avgProb)
+avgFrac = np.zeros_like(avgProb)
+avgPins = np.zeros_like(avgProb)
+lessTen = np.zeros_like(avgProb)
+for i in range(len(resDict)):
+    avgProb[i] = np.average(resDict[i][3])
+    avgPairs[i] = np.average(resDict[i][4])
+    avgFrac[i] = np.average(resDict[i][5])
+    avgPins[i] = np.average(resDict[i][6])
+    lessTen[i] = np.sum(resDict[i][5] < 0.1)/1000
+
+'''
 '''
 
 # possible functions on this space

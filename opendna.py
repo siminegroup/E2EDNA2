@@ -354,7 +354,7 @@ class opendna():
         '''
         run molecular dynamics
         do relevant analysis
-        :param structure:
+        :param complex:
         :return:
         '''
         structureName = complex.split('.')[0]
