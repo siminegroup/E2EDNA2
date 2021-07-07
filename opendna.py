@@ -8,16 +8,17 @@ from pdbfixersource import PDBFixer
 
 
 class opendna():
-    def __init__(self,sequence,peptide,params):
+    def __init__(self, sequence, peptide, params):
         self.params = params
         self.sequence = sequence
         self.peptide = peptide
+        self.params['sequence'] = sequence
+        self.params['peptide'] = peptide
 
         self.getActionDict()
         if self.actionDict['make workdir']:
-            self.setup() # if we dont need a workdir & MMB files, don't make one
+            self.setup()  # if we dont need a workdir & MMB files, don't make one
         self.getCheckpoint()
-
 
     def getActionDict(self):
         '''
@@ -89,7 +90,6 @@ class opendna():
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = True
 
-
     def setup(self):
         '''
         setup working directory
@@ -109,39 +109,41 @@ class opendna():
             # copy structure files
             copyfile(self.params['analyte pdb'], self.workDir + '/analyte.pdb')
 
-            # copy MMB params
+            # copy MMB params and command script
             copyfile(self.params['mmb params'], self.workDir + '/parameters.csv')
             copyfile(self.params['mmb template'], self.workDir + '/commands.template.dat')
 
+            # copy lightdock scripts
+            copytree('lib/lightdock', self.workDir + '/lightdock')
+
         else:
-            self.workDir = self.params['workdir'] + '/' + 'run%d' %self.params['run num']
+            self.workDir = self.params['workdir'] + '/' + 'run%d' % self.params['run num']
 
         # move to working dr
         os.chdir(self.workDir)
 
-        os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir'] # export the path to the MMB library
+        if self.params['device'] == 'local':
+            os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir']  # export the path to the MMB library - only necessary in WSL environments
 
-
-    def makeNewWorkingDirectory(self):    # make working directory
+    def makeNewWorkingDirectory(self):  # make working directory
         '''
         make a new working directory
         non-overlapping previous entries
         :return:
         '''
-        workdirs = glob.glob(self.params['workdir'] + '/' + 'run*') # check for prior working directories
+        workdirs = glob.glob(self.params['workdir'] + '/' + 'run*')  # check for prior working directories
         if len(workdirs) > 0:
             prev_runs = []
             for i in range(len(workdirs)):
                 prev_runs.append(int(workdirs[i].split('run')[-1]))
 
             prev_max = max(prev_runs)
-            self.workDir = self.params['workdir'] + '/' + 'run%d' %(prev_max + 1)
+            self.workDir = self.params['workdir'] + '/' + 'run%d' % (prev_max + 1)
             os.mkdir(self.workDir)
-            print('Starting Fresh Run %d' %(prev_max + 1))
+            print('Starting Fresh Run %d' % (prev_max + 1))
         else:
             self.workDir = self.params['workdir'] + '/' + 'run1'
             os.mkdir(self.workDir)
-
 
     def getCheckpoint(self):
         '''
@@ -149,22 +151,20 @@ class opendna():
         :return:
         '''
         try:
-            f = open('checkpoint.txt','r')#if it does, see how long it is
+            f = open('checkpoint.txt', 'r')  # if it does, see how long it is
             text = f.read()
             f.close()
             self.checkpoints = len([m.start() for m in re.finditer('\n', text)])
 
-
-            print("Resuming Run #%d"%int(self.params['run num']))
+            print("Resuming Run #%d" % int(self.params['run num']))
 
 
         except:
-            f = open('checkpoint.txt','w')
+            f = open('checkpoint.txt', 'w')
             f.write('Started!\n')
             f.close()
             self.checkpoints = 1
             self.checkpoint = 'initialized'
-
 
     def run(self):
         '''
@@ -174,38 +174,36 @@ class opendna():
         '''
         outputDict = {}
         outputDict['params'] = self.params
-        np.save('opendnaOutput',outputDict)
-        if self.actionDict['do 2d analysis']: # get secondary structure
+        np.save('opendnaOutput', outputDict)
+        if self.actionDict['do 2d analysis']:  # get secondary structure
             self.ssString, self.pairList = self.getSecondaryStructure(self.sequence)
             outputDict['2d string'] = self.ssString
             outputDict['pair list'] = self.pairList
             np.save('opendnaOutput', outputDict)  # save outputs
 
-        if self.actionDict['do MMB']: # fold it
+        if self.actionDict['do MMB']:  # fold it
             self.foldSequence(self.sequence, self.pairList)
 
         if self.actionDict['do smoothing']:
-            self.MDSmoothing('sequence.pdb',relaxationTime=0.01) # relax for xx nanoseconds
+            self.MDSmoothing('sequence.pdb', relaxationTime=0.01)  # relax for xx nanoseconds
 
         if self.actionDict['get equil repStructure']:
             outputDict['free aptamer results'] = self.freeAptamerDynamics('sequence.pdb')
             np.save('opendnaOutput', outputDict)  # save outputs
 
-        if self.actionDict['do docking'] and (self.peptide != False): # find docking configurations for the complexed structure
-            outputDict['dock scores'] = self.runDocking('repStructure.pdb','peptide.pdb')
+        if self.actionDict['do docking'] and (self.peptide != False):  # find docking configurations for the complexed structure
+            outputDict['dock scores'] = self.runDocking('repStructure.pdb', 'peptide.pdb')
             np.save('opendnaOutput', outputDict)  # save outputs
 
         if self.actionDict['do binding'] and (self.peptide != False):  # run MD on the complexed structure
             outputDict['binding results'] = self.bindingDynamics('complex_0.pdb')
             np.save('opendnaOutput', outputDict)  # save outputs
 
-
         return outputDict
 
-#=======================================================
-#=======================================================
-#=======================================================
-
+    # =======================================================
+    # =======================================================
+    # =======================================================
 
     def getSecondaryStructure(self, sequence):
         '''
@@ -219,15 +217,14 @@ class opendna():
             pass
         else:
             if self.params['secondary structure engine'] == 'seqfold':
-                ssString, pairList = getSeqfoldStructure(sequence, self.params['temperature']) # seqfold guess
+                ssString, pairList = getSeqfoldStructure(sequence, self.params['temperature'])  # seqfold guess
             elif self.params['secondary structure engine'] == 'NUPACK':
-                ssDict, subopts = doNupackAnalysis(sequence,self.params['temperature'],self.params['ionic strength']) # NUPACK guess
+                ssDict, subopts = doNupackAnalysis(sequence, self.params['temperature'], self.params['ionic strength'])  # NUPACK guess
                 ssString = ssDict['2d string']
                 pairList = ssDict['pair list']
-                self.ssInfo = [ssDict, subopts] # more comprehensive analysis
+                self.ssInfo = [ssDict, subopts]  # more comprehensive analysis
 
             return ssString, np.asarray(pairList)
-
 
     def foldSequence(self, sequence, pairList):
         '''
@@ -246,7 +243,7 @@ class opendna():
         lineNum = findLine(comFile, baseString)  # find the line number to start enumerating base pairs
 
         for i in range(len(pairList)):
-            filledString = 'baseInteraction A {} WatsonCrick A {} WatsonCrick Cis'.format(pairList[i,0], pairList[i,1])
+            filledString = 'baseInteraction A {} WatsonCrick A {} WatsonCrick Cis'.format(pairList[i, 0], pairList[i, 1])
             addLine(comFile, filledString, lineNum + 1)
 
         # run fold - sometimes this errors for no known reason - keep trying till it works
@@ -256,15 +253,14 @@ class opendna():
             try:
                 attempts += 1
                 os.system(self.params['mmb'] + ' -c ' + comFile + ' > outfiles/fold.out')
-                os.rename('frame.pdb','sequence.pdb')
+                os.replace('frame.pdb', 'sequence.pdb')
                 if (self.params['mode'] == '3d coarse') or (self.params['mode'] == 'coarse dock'):
                     self.prepPDB('sequence.pdb', MMBCORRECTION=True, waterBox=False)
-                    copyfile('sequence_processed.pdb','repStructure.pdb') # final structure output
+                    copyfile('sequence_processed.pdb', 'repStructure.pdb')  # final structure output
                 Result = 1
             except:
                 pass
         writeCheckpoint("Folded Sequence")
-
 
     def prepPDB(self, file, MMBCORRECTION=False, waterBox=True):
         '''
@@ -273,7 +269,7 @@ class opendna():
         :return:
         '''
         if MMBCORRECTION:
-            replaceText(file, '*', "'") # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
+            replaceText(file, '*', "'")  # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
 
         fixer = PDBFixer(filename=file)
         padding, boxSize, boxVectors = None, None, None
@@ -282,10 +278,9 @@ class opendna():
 
         fixer.findMissingResidues()
         fixer.findMissingAtoms()
-        fixer.addMissingAtoms() # may need to optimize bonding here
+        fixer.addMissingAtoms()  # may need to optimize bonding here
 
-        fixer.addMissingHydrogens(pH=self.params['pH']) # add missing hydrogens
-
+        fixer.addMissingHydrogens(pH=self.params['pH'])  # add missing hydrogens
 
         if waterBox == True:
             ionicStrength = float(self.params['ionic strength']) * unit.molar  # not implemented
@@ -295,8 +290,7 @@ class opendna():
 
         PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
-
-    def MDSmoothing(self,structure,relaxationTime=0.01):
+    def MDSmoothing(self, structure, relaxationTime=0.01):
         '''
         do a short MD run in water to relax the coarse MMB structure
         relaxation time in nanoseconds, print time in picoseconds
@@ -305,11 +299,10 @@ class opendna():
         print('Running quick relaxation')
         self.prepPDB(structure, MMBCORRECTION=True, waterBox=True)
         processedStructure = structureName + '_processed.pdb'
-        self.openmmDynamics(processedStructure,simTime=relaxationTime)
-        extractFrame(processedStructure,processedStructure.split('.')[0] + '_trajectory.dcd', -1, 'repStructure.pdb') # pull the last frame of the relaxation
+        self.openmmDynamics(processedStructure, simTime=relaxationTime)
+        extractFrame(processedStructure, processedStructure.split('.')[0] + '_trajectory.dcd', -1, 'repStructure.pdb')  # pull the last frame of the relaxation
 
-
-    def freeAptamerDynamics(self,aptamer):
+    def freeAptamerDynamics(self, aptamer):
         '''
         run molecular dynamics
         do relevant analysis
@@ -322,10 +315,10 @@ class opendna():
         processedAptamer = structureName + '_processed.pdb'
         self.autoMD(processedAptamer)  # do MD - automatically converge to equilibrium sampling
 
-        print('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day') # print speed
+        print('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
 
-        os.rename(structureName + '_processed_complete_trajectory.dcd', 'aptamer.dcd') # rename
-        os.rename(processedAptamer, 'aptamer.pdb')
+        os.replace(structureName + '_processed_complete_trajectory.dcd', 'aptamer.dcd')  # rename
+        os.replace(processedAptamer, 'aptamer.pdb')
 
         cleanTrajectory('aptamer.pdb', 'aptamer.dcd')  # make a trajectory without waters and ions and stuff
         aptamerDict = self.analyzeTrajectory('cleanaptamer.pdb', 'cleanaptamer.dcd', False)
@@ -333,7 +326,6 @@ class opendna():
         writeCheckpoint('Free aptamer sampling complete')
 
         return aptamerDict
-
 
     def runDocking(self, aptamer, peptide):
         '''
@@ -349,7 +341,6 @@ class opendna():
 
         return topScores
 
-
     def bindingDynamics(self, complex):
         '''
         run molecular dynamics
@@ -362,12 +353,12 @@ class opendna():
         self.prepPDB(complex, MMBCORRECTION=False, waterBox=True)
         processedComplex = complex.split('.')[0] + '_processed.pdb'
 
-        self.autoMD(processedComplex)  # do MD - automatically converge to equilibrium sampling
+        self.autoMD(processedComplex, binding=True)  # do MD - automatically converge to equilibrium sampling
 
         print('Complex simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
 
-        os.rename(structureName + '_processed_complete_trajectory.dcd', 'complex.dcd')
-        os.rename(processedComplex, 'complex.pdb')
+        os.replace(structureName + '_processed_complete_trajectory.dcd', 'complex.dcd')
+        os.replace(processedComplex, 'complex.pdb')
 
         cleanTrajectory('complex.pdb', 'complex.dcd')
         bindingDict = self.analyzeTrajectory('cleancomplex.pdb', 'cleancomplex.dcd', True)
@@ -377,7 +368,7 @@ class opendna():
         return bindingDict
 
 
-    def openmmDynamics(self,structure,simTime=False):
+    def openmmDynamics(self, structure, simTime=False):
         '''
         run OpenMM dynamics
         minimize, equilibrate, and sample
@@ -405,14 +396,14 @@ class opendna():
         friction = self.params['friction'] / unit.picosecond
 
         # Simulation Options
-        if simTime != False: # we can override the simulation time here
-            steps = int(simTime/2 * 1e6 // self.params['time step']) # number of steps
-            equilibrationSteps = int(simTime/2 * 1e6 // self.params['time step'])
+        if simTime != False:  # we can override the simulation time here
+            steps = int(simTime / 2 * 1e6 // self.params['time step'])  # number of steps
+            equilibrationSteps = int(simTime / 2 * 1e6 // self.params['time step'])
         else:
-            steps = int(self.params['sampling time'] * 1e6 // self.params['time step']) # number of steps
+            steps = int(self.params['sampling time'] * 1e6 // self.params['time step'])  # number of steps
             equilibrationSteps = int(self.params['equilibration time'] * 1e6 // self.params['time step'])
 
-        if self.params['platform'] == 'CUDA': # 'CUDA' or 'cpu'
+        if self.params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
             platform = Platform.getPlatformByName('CUDA')
             if self.params['platform precision'] == 'single':
                 platformProperties = {'Precision': 'single'}
@@ -421,9 +412,9 @@ class opendna():
         else:
             platform = Platform.getPlatformByName('CPU')
 
-        reportSteps = int(self.params['print step'] * 1000 / self.params['time step']) # report step in ps, time step in fs
+        reportSteps = int(self.params['print step'] * 1000 / self.params['time step'])  # report step in ps, time step in fs
         dcdReporter = DCDReporter(structureName + '_trajectory.dcd', reportSteps)
-        #pdbReporter = PDBReporter('trajectory.pdb', reportSteps)
+        # pdbReporter = PDBReporter('trajectory.pdb', reportSteps)
         dataReporter = StateDataReporter('log.txt', reportSteps, totalSteps=steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')
         checkpointReporter = CheckpointReporter(structure.split('.')[0] + '_state.chk', 10000)
 
@@ -440,7 +431,6 @@ class opendna():
             simulation = Simulation(topology, system, integrator, platform)
         simulation.context.setPositions(positions)
 
-
         if not os.path.exists(structure.split('.')[0] + '_state.chk'):
             # Minimize and Equilibrate
             print('Performing energy minimization...')
@@ -454,53 +444,56 @@ class opendna():
         # Simulate
         print('Simulating...')
         simulation.reporters.append(dcdReporter)
-        #simulation.reporters.append(pdbReporter)
+        # simulation.reporters.append(pdbReporter)
         simulation.reporters.append(dataReporter)
         simulation.reporters.append(checkpointReporter)
         simulation.currentStep = 0
         with Timer() as md_time:
-            simulation.step(steps) # run the dynamics
+            simulation.step(steps)  # run the dynamics
 
         simulation.saveCheckpoint(structure.split('.')[0] + '_state.chk')
 
-        self.ns_per_day = (steps * dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds/unit.day)
+        self.ns_per_day = (steps * dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
 
-
-    def autoMD(self,structure):
+    def autoMD(self, structure, binding=False):
         '''
         run MD until either for a set amount of time or until the dynamics 'converge'
         optionally, sample after we reach convergence ("equilibration")
         :param structure:
         :return:
         '''
-        maxIter = self.params['max autoMD iterations'] # some maximum number of allowable iterations
+        maxIter = self.params['max autoMD iterations']  # some maximum number of allowable iterations
         cutoff = self.params['autoMD convergence cutoff']
         structureName = structure.split('.')[0]
-        if self.params['auto sampling'] == False: # just run MD once
+        if self.params['auto sampling'] == False:  # just run MD once
             self.openmmDynamics(structure)
-        elif self.params['auto sampling'] == True: # run until we detect equilibration
-            converged = 0
+            os.replace(structureName + '_trajectory.dcd', structureName + "_complete_trajectory.dcd")
+        elif self.params['auto sampling'] == True:  # run until we detect equilibration
+            converged = False
             iter = 0
-            while (converged == 0) and (iter < maxIter):
+            analyteUnbound = False
+            while (converged == False) and (iter < maxIter):
                 iter += 1
                 self.openmmDynamics(structure)
-                time.sleep(20) # let .dcd file settle down
+                time.sleep(20)  # let .dcd file settle down
 
-                if iter > 1: # if we have multiple trajectory segments, combine them
-                    appendTrajectory(structure,structureName + '_trajectory-1.dcd',structureName + '_trajectory.dcd')
-                    os.rename('combinedTraj.dcd',structureName + '_trajectory-1.dcd')
+                if iter > 1:  # if we have multiple trajectory segments, combine them
+                    appendTrajectory(structure, structureName + '_trajectory-1.dcd', structureName + '_trajectory.dcd')
+                    os.replace('combinedTraj.dcd', structureName + '_trajectory-1.dcd')
                 else:
-                    os.rename(structureName + '_trajectory.dcd',structureName + '_trajectory-1.dcd')
+                    os.replace(structureName + '_trajectory.dcd', structureName + '_trajectory-1.dcd')
 
-                combinedSlope = checkTrajPCASlope(structure,structureName + '_trajectory-1.dcd')
+                combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd')
+                if binding: # if this is a binding simulation, also check to see if the analyte has come unbound from the analyte, and if so, cutoff the simulation
+                    analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.peptide, self.sequence, self.params, cutoffTime=1)
 
-                if combinedSlope < cutoff:  # the average magnitude of sloped should be below some cutoff`
-                    converged = 1
+                if (combinedSlope < cutoff) or (analyteUnbound == True):  # the average magnitude of sloped should be below some cutoff`
+                    converged = True
 
-            os.rename(structureName + '_trajectory-1.dcd', structureName + '_complete_trajectory.dcd') # we'll consider the full trajectory as 'sampling'
+            os.replace(structureName + '_trajectory-1.dcd', structureName + '_complete_trajectory.dcd')  # we'll consider the full trajectory as 'sampling'
 
 
-    def analyzeTrajectory(self,structure,trajectory,analyte):
+    def analyzeTrajectory(self, structure, trajectory, analyte):
         '''
         analyze trajectory for aptamer fold + analyte binding information
         :param trajectory:
@@ -512,12 +505,12 @@ class opendna():
         1) folding info (base-base distances)
         2) binding info (analyte-base distances)
         '''
-        #baseWC1 = dnaBasePairDist(u,sequence) # watson-crick base pairing distances (H-bonding) SLOW
-        #baseAngles = dnaBaseDihedrals(u,sequence) # base-base backbone dihedrals # slow, old
+        # baseWC1 = dnaBasePairDist(u,sequence) # watson-crick base pairing distances (H-bonding) SLOW
+        # baseAngles = dnaBaseDihedrals(u,sequence) # base-base backbone dihedrals # slow, old
 
-        baseWC = wcTrajAnalysis(u) # watson-crick base pairing distances (H-bonding) FAST but some errors
-        baseDists = dnaBaseCOGDist(u) # FAST, base-base center-of-geometry distances
-        baseAngles = nucleicDihedrals(u) # FAST, new, omits 'chi' angle between ribose and base
+        baseWC = wcTrajAnalysis(u)  # watson-crick base pairing distances (H-bonding) FAST but some errors
+        baseDists = dnaBaseCOGDist(u)  # FAST, base-base center-of-geometry distances
+        baseAngles = nucleicDihedrals(u)  # FAST, new, omits 'chi' angle between ribose and base
 
         # 2D structure analysis
         pairingTrajectory = getPairs(baseWC)
@@ -527,11 +520,11 @@ class opendna():
             if i in self.pairList:
                 ind1, ind2 = np.where(self.pairList == i)
                 if ind2 == 0:
-                    predictedConfig[self.pairList[ind1][0][0]-1] = self.pairList[ind1][0][1]
-                    predictedConfig[self.pairList[ind1][0][1]-1] = self.pairList[ind1][0][0]
+                    predictedConfig[self.pairList[ind1][0][0] - 1] = self.pairList[ind1][0][1]
+                    predictedConfig[self.pairList[ind1][0][1] - 1] = self.pairList[ind1][0][0]
 
-        predictionError = getSecondaryStructureDistance([np.asarray(secondaryStructure), predictedConfig])[0,1]  # compare to predicted structure
-        print('Secondary Structure Prediction error = %.2f'%predictionError)
+        predictionError = getSecondaryStructureDistance([np.asarray(secondaryStructure), predictedConfig])[0, 1]  # compare to predicted structure
+        print('Secondary Structure Prediction error = %.2f' % predictionError)
 
         # 3D structure analysis
         representativeIndex, pcTrajectory = isolateRepresentativeStructure(baseAngles)
@@ -539,20 +532,15 @@ class opendna():
         # save this structure as a separate file
         extractFrame(structure, trajectory, representativeIndex, 'repStructure.pdb')
 
-
         # we also need a function which processes the energies spat out by the trajectory logs
 
-
-        analysisDict = {} # compile our results
+        analysisDict = {}  # compile our results
         analysisDict['2nd structure error'] = predictionError
         analysisDict['predicted 2nd structure'] = predictedConfig
-        analysisDict['actual 2nd structure'] = secondaryStructure
+        analysisDict['actual 2d structure'] = secondaryStructure
         analysisDict['RC trajectories'] = pcTrajectory
         analysisDict['representative structure index'] = representativeIndex
         if analyte != False:
-            bindingInfo = bindingAnalysis(u, self.peptide, self.sequence) # look for contacts between analyte and aptamer
-            analysisDict['aptamer-analyte binding'] = bindingInfo
+            analysisDict['aptamer-analyte binding'] = bindingAnalysis(u, self.peptide, self.sequence)  # look for contacts between analyte and aptamer
 
         return analysisDict
-
-

@@ -27,6 +27,7 @@ scikit-learn==0.24.2
 Cython==0.29.23
 LightDock==0.9.0
 nupack==4.0.0.23
+mdtraj==1.9.5
 ```
 * Install appropriate MacroMoleculeBuilder for your system from [SimTK here](https://simtk.org/projects/rnatoolbox) - old and new versions have been tested and seem to work
 * Create working directory where runs will take place

@@ -4,6 +4,7 @@ utilities
 import os
 import numpy as np
 import MDAnalysis as mda
+import mdtraj as md
 import glob
 import argparse
 import matplotlib.pyplot as plt
@@ -22,13 +23,13 @@ from MDAnalysis.analysis.dihedrals import Dihedral
 import time
 from nupack import *
 from seqfold import dg, fold
-from shutil import copyfile
+from shutil import copyfile, copytree
 
 
 def buildPeptide(peptide):
     '''
     construct a peptide sequence pdb file
-    :param sequence:
+    :param peptide:
     :return:
     '''
     # resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
@@ -84,10 +85,14 @@ def get_input():
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_num', type=int, default=0)
+    parser.add_argument('--sequence', type=str, default='XXX')
+    parser.add_argument('--peptide', type=str, default='BBB')
     cmd_line_input = parser.parse_args()
     run = cmd_line_input.run_num
+    sequence = cmd_line_input.sequence
+    peptide = cmd_line_input.peptide
 
-    return run
+    return [run, sequence, peptide]
 
 
 def findLine(file, string):
@@ -232,7 +237,10 @@ def extractFrame(structure, trajectory, frame, outFileName):
     '''
     u = mda.Universe(structure, trajectory)  # load up trajectory
     u.trajectory[frame]  # this indexes the trajectory up to the desired frame (weird syntax, I think)
-    atoms = u.segments[:-2].atoms  # omit solvent and salts (if any exist)
+    if u.segments.n_segments > 2: # if there are more than 2 segments, then there must be solvent and salts (assuming nonzero salt concentration)
+        atoms = u.segments[:-2].atoms  # omit solvent and salts
+    else:
+        atoms = u.atoms
     atoms.write(outFileName)
 
 
@@ -302,7 +310,8 @@ def trajectoryPCA(n_components, trajectory, transform):
     else:
         reducedTrajectory = 0
 
-    return components, eigenvalues, reducedTrajectory
+    return components, eigenvalues, reducedTrajectory, pca1
+
 
 
 def do_kdtree(trajectory, coordinates):
@@ -369,6 +378,34 @@ def analyzeSecondaryStructure(pairingTrajectory):
     return pairingTrajectory[representativeIndex]  # return representative structure
 
 
+def doMultiDProbabilityMap(trajectory, range = None, nBins = None):
+    '''
+    multidimensional histogram of system trajectories
+    adjust bin size automatically
+    '''
+    # find minima in the space of collective variables
+    assert trajectory.ndim == 2
+
+    if nBins == None:
+        converged = False
+        binList = np.logspace(6, 1, 6)
+        ind = 0
+        while converged == False:  # if there are too many bins this crashes
+            nbins = int(binList[ind] ** (1 / trajectory.shape[-1]))  # this is sometimes too large, hence, try-except
+            ind += 1
+            probs, bins = np.histogramdd(trajectory, bins=nbins, range=range, density=True)  # multidimensional probability histogram
+            converged = True
+    else:
+        nbins = nBins
+        probs, bins = np.histogramdd(trajectory, bins=nBins, range=range, density=True)  # multidimensional probability histogram
+
+    # smooth it out and take the diverse maxima - compare relative probability
+    sigma = nbins / 20  # automate sigma to dimension size
+    smoothProbs = ndimage.gaussian_filter(probs, sigma)
+
+    return probs, smoothProbs, bins, nbins
+
+
 def doTrajectoryDimensionalityReduction(trajectory):
     '''
     automatically generate dimension-reduced trajectory using PCA
@@ -378,7 +415,7 @@ def doTrajectoryDimensionalityReduction(trajectory):
     converged = False
     nComponents = 10
     while converged == False:  # add components until some threshold, then take components greater than the average
-        components, eigenvalues, reducedTrajectory = trajectoryPCA(nComponents, trajectory, False)  # do it with a bunch of components, then re-do it with only the necessary number
+        components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(nComponents, trajectory, False)  # do it with a bunch of components, then re-do it with only the necessary number
         totVariance = np.sum(eigenvalues)
         if totVariance > 0.85:
             converged = True
@@ -387,9 +424,9 @@ def doTrajectoryDimensionalityReduction(trajectory):
 
     # we want there to be a gap in this spectrum, or at least, to neglect only the small contributions
     n_components = min(5, np.sum(eigenvalues > np.average(eigenvalues)))  # with the threshold above, this removes some of the variation from having too many components
-    components, eigenvalues, reducedTrajectory = trajectoryPCA(n_components, trajectory, True)
+    components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(n_components, trajectory, True)
 
-    return n_components, reducedTrajectory
+    return n_components, reducedTrajectory, pcaModel
 
 
 def isolateRepresentativeStructure(trajectory):
@@ -399,20 +436,9 @@ def isolateRepresentativeStructure(trajectory):
     :param trajectory:
     :return:
     '''
-    n_components, reducedTrajectory = doTrajectoryDimensionalityReduction(trajectory)
-    # find minima in the space of collective variables
-    converged = False
-    binList = np.logspace(6, 1, 6)
-    ind = 0
-    while converged == False:  # if there are too many bins this crashes
-        nbins = int(binList[ind] ** (1 / n_components))  # this is sometimes too large, hence, try-except
-        ind += 1
-        probs, bins = np.histogramdd(reducedTrajectory, bins=nbins)  # multidimensional probability histogram
-        converged = True
+    n_components, reducedTrajectory, pcaModel = doTrajectoryDimensionalityReduction(trajectory)
+    probs, smoothProbs, bins, nbins = doMultiDProbabilityMap(reducedTrajectory)
 
-    # smooth it out and take the diverse maxima - compare relative probability
-    sigma = nbins / 20  # automate sigma to dimension size
-    smoothProbs = ndimage.gaussian_filter(probs, sigma)
     bestTransformedStructureIndex = np.unravel_index(smoothProbs.argmax(), smoothProbs.shape)
 
     # Pull representative 3D structures from the original trajectory (rather than back-transforming and generating a new structure from only dihedrals - HARD)
@@ -439,36 +465,113 @@ def bindingAnalysis(u, peptide, sequence):
     :param u:
     :return:
     '''
-    contactCutoff = 5  # Angstroms - distance within which we say there is a 'contact'
-
+    assert u.segments.n_segments == 2
     # identify base-analyte distances
-    if u.segments.n_segments == 2:  # if we have an analyte
-        pepNucDists = np.zeros((len(u.trajectory), len(peptide), len(sequence)))  # distances between peptides and nucleotiedes
-        tt = 0
-        for ts in u.trajectory:
-            analyteResidues = u.segments[1]
-            baseResidues = u.segments[0]
-            posMat1 = np.zeros((len(peptide), 3))
-            posMat2 = np.zeros((len(sequence), 3))
-            for i in range(len(peptide)):
-                posMat1[i] = analyteResidues.residues[i].atoms.center_of_geometry()
-            for i in range(len(sequence)):
-                posMat2[i] = baseResidues.residues[i].atoms.center_of_geometry()
+    pepNucDists = peptideAptamerDistances(u,peptide,sequence)
+    contacts, nContacts = getPeptideContacts(pepNucDists)
+    firstContact = np.nonzero(nContacts[:, 0])[0][0]  # first time when the peptide and aptamer were in close-range contact
+    closeContactRatio = np.average(nContacts[firstContact:, 0] > 0) # amount of time peptide spends in close contact with aptamer
+    contactScore = np.average(nContacts[firstContact:, :] / len(peptide))  # per-peptide average contact score, linear average over 8-12 angstrom
+    conformationChange = getConformationChange()
 
-            pepNucDists[tt, :, :] = distances.distance_array(posMat1, posMat2, box=u.dimensions)
-            tt += 1
-
-        # identify contacts
-        contacts = []
-        for i in range(len(pepNucDists)):
-            contacts.append(np.argwhere(pepNucDists[i] < contactCutoff))
+    return [pepNucDists, contacts, nContacts, closeContactRatio, contactScore, conformationChange]
 
 
-    else:
-        pepNucDists = []  # return empty
-        contacts = []
+def peptideAptamerDistances(u,peptide,sequence):
+    '''
+    given an MDA universe
+    return distances between each peptide and each base
+    at every timepoint in the trajectory
+    :return: pepNucDists - peptide-nucleicacid distances
+    '''
 
-    return [pepNucDists, contacts]
+    pepNucDists = np.zeros((len(u.trajectory), len(peptide), len(sequence)))  # distances between peptides and nucleotiedes
+    tt = 0
+    for ts in u.trajectory:
+        analyteResidues = u.segments[1]
+        baseResidues = u.segments[0]
+        posMat1 = np.zeros((len(peptide), 3))
+        posMat2 = np.zeros((len(sequence), 3))
+        for i in range(len(peptide)):
+            posMat1[i] = analyteResidues.residues[i].atoms.center_of_geometry()
+        for i in range(len(sequence)):
+            posMat2[i] = baseResidues.residues[i].atoms.center_of_geometry()
+
+        pepNucDists[tt, :, :] = distances.distance_array(posMat1, posMat2, box=u.dimensions)
+        tt += 1
+
+    return pepNucDists
+
+
+def getPeptideContacts(pepNucDists):
+    '''
+    get the contacts between peptide and dna aptamer
+    return contacts
+    return ncontacts (sum of contacts at various ranges
+    '''
+    contactCutoffs = [6,8,10,12]  # Angstroms - distance within which we say there is a 'contact'
+    # identify contacts
+    contacts = []
+    nContacts = np.zeros((len(pepNucDists),len(contactCutoffs)))
+    for i in range(len(pepNucDists)):
+        contacts.append(np.argwhere(pepNucDists[i] < contactCutoffs[0])) # loosest cutoff
+        for j in range(len(contactCutoffs)):
+            nContacts[i,j] = len(np.argwhere(pepNucDists[i] < contactCutoffs[j]))
+
+    return contacts, np.asarray(nContacts)
+
+
+def getConformationChange():
+    '''
+    compare the pre-complexation (free aptamer) conformation with post-complexation
+    NOTE intimately depends on naming conventions for trajectory files!
+    '''
+    try:
+        # function to analyze analyte impact on aptamer conformation
+        freepdb = 'cleanaptamer.pdb'
+        freedcd = 'cleanaptamer.dcd'
+        bindpdb = 'cleancomplex.pdb'
+        binddcd = 'cleancomplex.dcd'
+
+        freeu = mda.Universe(freepdb, freedcd)
+        bindu = mda.Universe(bindpdb, binddcd)
+
+        freeAngles = nucleicDihedrals(freeu)
+        bindAngles = nucleicDihedrals(bindu)
+
+        n_components, freeReducedTrajectory, pcaModel = doTrajectoryDimensionalityReduction(freeAngles)
+        bindReducedTrajectory = pcaModel.transform(bindAngles.reshape(len(bindAngles), int(bindAngles.shape[-2] * bindAngles.shape[-1])))
+
+        reducedDifferences = np.zeros(n_components) #
+        for i in range(n_components):  # rather than high dimensional probability analysis, we'll instead do differences in averages over dimensions
+            # we could instead do this directly with the angles - since it is a bunch of 1D analyses it is cheap. It will then be lossless, but focus less on big movements.
+            reducedDifferences[i] = (np.average(freeReducedTrajectory[:, i]) - np.average(bindReducedTrajectory[:, i])) / np.average(np.abs(freeReducedTrajectory[:, i]))
+
+        reducedDifference = np.average(np.abs(reducedDifferences))  # how different is the average binding aptamer conformation from free?
+    except:
+        print('Missing binding trajectory!')
+        reducedDifference = 0
+
+    return reducedDifference
+
+
+def checkMidTrajectoryBinding(structure, trajectory, peptide, sequence, params, cutoffTime=1):
+    '''
+    check if the analyte has come unbound from the aptamer
+    and stayed unbound for a certain amount of time
+    :return: True or False
+    '''
+    u = mda.Universe(structure, trajectory)  # load up trajectory
+    pepNucDists = peptideAptamerDistances(u,peptide,sequence)
+    contacts, nContacts = getPeptideContacts(pepNucDists)
+    lastContact = np.nonzero(nContacts[:, 0])[0][-1]  # last time when the peptide and aptamer were in close-range contact
+
+    dt = params['print step']
+    detachedTime = (len(nContacts) - lastContact) * dt / 1e3 # in ns, since dt is in ps
+    if detachedTime > cutoffTime: # if we have been unbound longer than the cutoff
+        return True
+    else: # otherwise keep going
+        return False
 
 
 class atomDistances(AnalysisBase):
@@ -842,3 +945,14 @@ def ssToList(ssString):
                             break
 
     return pairList
+
+
+def recenterDCD(topology,trajectory):
+    '''
+    topology as pdb
+    trajectory as dcd
+    creates a new dcd without periodic artifacts
+    '''
+    traj = md.load(trajectory,topology)
+    traj.image_molecules()
+    traj.save(trajectory.split('.')[0] + '_recentered.dcd')
