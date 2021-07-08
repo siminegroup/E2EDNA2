@@ -237,6 +237,7 @@ class opendna():
         comFile = 'commands.fold.dat'  # name of command file
         copyfile('commands.template.dat', comFile)  # make command file
         replaceText(comFile, 'SEQUENCE', sequence)
+        replaceText(comFile, 'TEMPERATURE', str(self.params['temperature'] - 273)) # probably not important, but we can add the temperature in C
 
         baseString = '#baseInteraction A IND WatsonCrick A IND2 WatsonCrick Cis'
         lineNum = findLine(comFile, baseString)  # find the line number to start enumerating base pairs
@@ -257,8 +258,16 @@ class opendna():
                     self.prepPDB('sequence.pdb', MMBCORRECTION=True, waterBox=False)
                     copyfile('sequence_processed.pdb', 'repStructure.pdb')  # final structure output
                 Result = 1
+                # cleanup
+                os.mkdir('mmbFiles')
+                os.system('mv last* mmbFiles')
+                os.system('mv trajectory.* mmbFiles')
+                os.system('mv match.* mmbFiles')
+                os.system('mv commands* mmbFiles')
+
             except:
                 pass
+
         writeCheckpoint("Folded Sequence")
 
     def prepPDB(self, file, MMBCORRECTION=False, waterBox=True):
@@ -363,6 +372,8 @@ class opendna():
         cleanTrajectory('complex.pdb', 'complex.dcd')
         bindingDict = self.analyzeTrajectory('cleancomplex.pdb', 'cleancomplex.dcd', True)
 
+        # print findings
+        print('Binding Results: Contact Persistence = {:.2f}, Contact Score = {:.2f}, Conformation Change = {:.2f}'.format(bindingDict['close contact ratio'], bindingDict['contact score'], bindingDict['conformation change']))
         writeCheckpoint('Complex sampling complete')
 
         return bindingDict
@@ -414,12 +425,12 @@ class opendna():
 
         reportSteps = int(self.params['print step'] * 1000 / self.params['time step'])  # report step in ps, time step in fs
         dcdReporter = DCDReporter(structureName + '_trajectory.dcd', reportSteps)
-        # pdbReporter = PDBReporter('trajectory.pdb', reportSteps)
+        # pdbReporter = PDBReporter('trajectory.pdb', reportSteps) # much less efficient trajectory format
         dataReporter = StateDataReporter('log.txt', reportSteps, totalSteps=steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')
         checkpointReporter = CheckpointReporter(structure.split('.')[0] + '_state.chk', 10000)
 
         # Prepare the Simulation
-        print('Building system...')
+        #print('Building system...') # waste of space
         topology = pdb.topology
         positions = pdb.positions
         system = forcefield.createSystem(topology, nonbondedMethod=nonbondedMethod, nonbondedCutoff=nonbondedCutoff, constraints=constraints, rigidWater=rigidWater, ewaldErrorTolerance=ewaldErrorTolerance, hydrogenMass=hydrogenMass)
@@ -471,7 +482,7 @@ class opendna():
         elif self.params['auto sampling'] == True:  # run until we detect equilibration
             converged = False
             iter = 0
-            analyteUnbound = False
+            self.analyteUnbound = False
             while (converged == False) and (iter < maxIter):
                 iter += 1
                 self.openmmDynamics(structure)
@@ -485,9 +496,10 @@ class opendna():
 
                 combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd')
                 if binding: # if this is a binding simulation, also check to see if the analyte has come unbound from the analyte, and if so, cutoff the simulation
-                    analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.peptide, self.sequence, self.params, cutoffTime=1)
+                    self.analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.peptide, self.sequence, self.params, cutoffTime=1)
+                    print('Analyte came unbound!')
 
-                if (combinedSlope < cutoff) or (analyteUnbound == True):  # the average magnitude of sloped should be below some cutoff`
+                if (combinedSlope < cutoff) or (self.analyteUnbound == True):  # the average magnitude of sloped should be below some cutoff`
                     converged = True
 
             os.replace(structureName + '_trajectory-1.dcd', structureName + '_complete_trajectory.dcd')  # we'll consider the full trajectory as 'sampling'
@@ -505,16 +517,16 @@ class opendna():
         1) folding info (base-base distances)
         2) binding info (analyte-base distances)
         '''
-        # baseWC1 = dnaBasePairDist(u,sequence) # watson-crick base pairing distances (H-bonding) SLOW
-        # baseAngles = dnaBaseDihedrals(u,sequence) # base-base backbone dihedrals # slow, old
+        # wcTraj1 = dnaBasePairDist(u,sequence) # watson-crick base pairing distances (H-bonding) SLOW
+        # nucleicAnglesTraj = dnaBaseDihedrals(u,sequence) # base-base backbone dihedrals # slow, old
 
-        baseWC = wcTrajAnalysis(u)  # watson-crick base pairing distances (H-bonding) FAST but some errors
-        baseDists = dnaBaseCOGDist(u)  # FAST, base-base center-of-geometry distances
-        baseAngles = nucleicDihedrals(u)  # FAST, new, omits 'chi' angle between ribose and base
+        wcTraj = wcTrajAnalysis(u)  # watson-crick base pairing distances (H-bonding) FAST but some errors
+        baseDistTraj = dnaBaseCOGDist(u)  # FAST, base-base center-of-geometry distances
+        nucleicAnglesTraj = nucleicDihedrals(u)  # FAST, new, omits 'chi' angle between ribose and base
 
         # 2D structure analysis
-        pairingTrajectory = getPairs(baseWC)
-        secondaryStructure = analyzeSecondaryStructure(pairingTrajectory)  # find equilibrium secondary structure
+        pairTraj = getPairs(wcTraj)
+        secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
         predictedConfig = np.zeros(len(self.sequence))
         for i in range(1, len(predictedConfig) + 1):
             if i in self.pairList:
@@ -523,11 +535,12 @@ class opendna():
                     predictedConfig[self.pairList[ind1][0][0] - 1] = self.pairList[ind1][0][1]
                     predictedConfig[self.pairList[ind1][0][1] - 1] = self.pairList[ind1][0][0]
 
+
         predictionError = getSecondaryStructureDistance([np.asarray(secondaryStructure), predictedConfig])[0, 1]  # compare to predicted structure
         print('Secondary Structure Prediction error = %.2f' % predictionError)
 
         # 3D structure analysis
-        representativeIndex, pcTrajectory = isolateRepresentativeStructure(baseAngles)
+        representativeIndex, pcTrajectory, eigenvalues = isolateRepresentativeStructure(nucleicAnglesTraj)
 
         # save this structure as a separate file
         extractFrame(structure, trajectory, representativeIndex, 'repStructure.pdb')
@@ -542,5 +555,10 @@ class opendna():
         analysisDict['representative structure index'] = representativeIndex
         if analyte != False:
             analysisDict['aptamer-analyte binding'] = bindingAnalysis(u, self.peptide, self.sequence)  # look for contacts between analyte and aptamer
+            if self.analyteUnbound:
+                analysisDict['aptamer-analyte binding']['analyte came unbound'] = True
+            else:
+                analysisDict['aptamer-analyte binding']['analyte came unbound'] = False
+
 
         return analysisDict

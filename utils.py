@@ -22,7 +22,7 @@ from MDAnalysis.analysis.dihedrals import Dihedral
 import time
 from nupack import *
 from seqfold import dg, fold
-from shutil import copyfile, copytree
+from shutil import copyfile, copytree, move
 
 
 def buildPeptide(peptide):
@@ -268,7 +268,7 @@ def dnaBaseCOGDist(u):
     return baseDists
 
 
-def getPairs(wcDist):
+def getPairs(wcTraj):
     """
     identify bases which are paired according to their WC hydrogen bond lengths
     return the shortest hydrogen bond pair for every base over time
@@ -276,15 +276,54 @@ def getPairs(wcDist):
     TO-DO
     post-processing cleanup step where we see what the next closest base is for multi-paired setups
     """
-    trajTime = len(wcDist)
-    seqLen = wcDist.shape[-1]
-    pairedBases = np.zeros((trajTime, seqLen))
+    trajTime = len(wcTraj)
+    seqLen = wcTraj.shape[-1]
+    pairedBases = np.zeros((trajTime, seqLen)).astype(int)
+    problems = []
     for tt in range(trajTime):
-        pairMat = wcDist[tt] + np.eye(seqLen) * 20  # add 20 on the diagonal so it's never counted as the 'nearest neighbour' to itself
-        for i in range(wcDist.shape[-1]):
-            nearestNeighbour = np.argmin(pairMat[i, :])
-            if wcDist[tt, i, nearestNeighbour] < 3.3:  # if we're within a hydrogen bond length, count it as a pair
-                pairedBases[tt, i] = nearestNeighbour + 1  # indexing from 1
+        pairMat = wcTraj[tt] + np.eye(seqLen) * 20  # add 20 on the diagonal so it's never counted as the 'nearest neighbour' to itself
+        randomIndices = np.arange(wcTraj.shape[-1])
+        np.random.shuffle(randomIndices)
+        for i in range(wcTraj.shape[-1]): # search for the closest base
+            ind = randomIndices[i] # randomize order so that any errors are not correlated
+            nearestNeighbour = np.argmin(pairMat[ind, :])
+            if nearestNeighbour > ind: # only do the rest if the nearest neighbour is > i - ensures reciprocal algorithm will work
+                if pairedBases[tt,nearestNeighbour] == 0: # also always accept the first base and no others - may or may not be optimal but it is clean
+                    if wcTraj[tt, ind, nearestNeighbour] < 3.3:  # if we're within a hydrogen bond length, count it as a pair
+                        if np.abs(ind-nearestNeighbour) > 2: # also, we cannot pair with a bases directly adjacent
+                            pairedBases[tt, ind] = int(nearestNeighbour + 1)  # indexing from 1
+                            pairedBases[tt, nearestNeighbour] = int(ind+1) # reciprocally pair this base to base i - indexing from 1
+                            # this approach guarantees that sequences are always built from lists of pairs, with no multiple or dangling bonds
+                            # possible that we may realize suboptimal structures, but overall this is safe and simple
+                            # in principle - we could consider between different 3D configurations, e.g. which pairs are closer, but this I think should work for now
+                            # could also minimize error by shrinking the H-bond cutoff range, but we then may reduce pairing too much
+
+        # we then have to clean it, because this does not enforce that bases are mutually paired
+        pairingErrors = findPairingErrors(pairedBases[tt], tt)
+        if pairingErrors != []:
+            problems.append(pairingErrors)  # collect problems timepoint-by-timepoint
+
+    if problems != []:
+        print('Encountered error in pairing algorithm!') # should not be possible, currently
+
+    '''
+    # now we need to fix the snafu's
+    for i in len(problems):
+        # a base paired to a completely unpaired base is impossible, since the above code is completely symmetric
+        # so the only possibility is multiple bases both wanting a third
+        # so, we will find bases which are 'wanted'
+        # let the closest base keep it
+        # second closest base must then go with its next best choice
+        config = pairedBases[problems[i][0][0]]
+        uniques, counts = np.unique(config, return_counts=True)
+        multis = []
+        for j in range(len(uniques) - 1): # for nonzero entries, record where we have multiple instances of a given base
+            if counts[j+1] > 1:
+                multis.append(uniques[j + 1])
+
+        for j in range(len(multis)): # for each multiple-paired base, fix it
+            baseInd = multis[j] - 1 # indexing
+    '''
 
     return pairedBases
 
@@ -342,7 +381,7 @@ def getSecondaryStructureDistance(configs):
     return configDistance
 
 
-def analyzeSecondaryStructure(pairingTrajectory):
+def analyzeSecondaryStructure(pairTraj):
     """
     given a trajectory of base pairing interactions
     identify the equilibrium structure
@@ -350,35 +389,38 @@ def analyzeSecondaryStructure(pairingTrajectory):
     :param trajectory:
     :return:
     """
-    ''' # might be useful for clustering
+    # might be useful for clustering
     configs = []
     counter = []
-    for tt in range(len(pairingTrajectory)):  # find the equilibrium secondary structure
+    for tt in range(len(pairTraj)):  # find the equilibrium secondary structure
         if tt == 0:
-            configs.append(pairingTrajectory[tt])
+            configs.append(pairTraj[tt])
             counter.append(0)
         else:
             found = 0
             for i in range(len(configs)):
-                if all(pairingTrajectory[tt] == configs[i]):
+                if all(pairTraj[tt] == configs[i]):
                     counter[i] += 1  # add one to the population of the state
                     found = 1
 
             if found == 0:  # if we don't find it, enumerate a new possible state
-                configs.append(pairingTrajectory[tt])
+                configs.append(pairTraj[tt])
                 counter.append(1)
 
     # compute a distance metric between all the seen configs
-    configDistance = getSecondaryStructureDistance(configs)
     bestStructure = configs[np.argmax(counter)]
 
-    '''
-    # n_components, reducedTrajectory = doTrajectoryDimensionalityReduction(pairingTrajectory)
-    representativeIndex, reducedTrajectory = isolateRepresentativeStructure(pairingTrajectory)  # do PCA and multidimensional binning to find free energy minimum
-    # alternatively we can do  clustering
-    # and highlight different structures which nevertheless appear
+    configDistance = getSecondaryStructureDistance(configs)
 
-    return pairingTrajectory[representativeIndex]  # return representative structure
+    if counter[np.argmax(counter)] / np.sum(counter) > 0.2: # if one structure meaningfully predominates, go with that one
+        representativeStructure = bestStructure
+    else: # otherwise, until we implement clustering, we can do PCA, which frankly isn't perfect
+        representativeIndex, reducedTrajectory, eigenvalues = isolateRepresentativeStructure(pairTraj)  # do PCA and multidimensional binning to find free energy minimum
+        representativeStructure = pairTraj[representativeIndex]
+        # alternatively we can do  clustering
+        # and highlight different structures which nevertheless appear
+
+    return representativeStructure
 
 
 def doMultiDProbabilityMap(trajectory, range=None, nBins=None):
@@ -459,7 +501,7 @@ def isolateRepresentativeStructure(trajectory):
     # find structures in the reduced trajectory with these coordinates
     representativeIndex = do_kdtree(reducedTrajectory, transformedCoordinates)
 
-    return representativeIndex, reducedTrajectory
+    return representativeIndex, reducedTrajectory, pcaModel.explained_variance_ratio_
 
 
 def bindingAnalysis(u, peptide, sequence):
@@ -477,7 +519,17 @@ def bindingAnalysis(u, peptide, sequence):
     contactScore = np.average(nContacts[firstContact:, :] / len(peptide))  # per-peptide average contact score, linear average over 8-12 angstrom
     conformationChange = getConformationChange()
 
-    return [pepNucDists, contacts, nContacts, closeContactRatio, contactScore, conformationChange]
+    # build directory of outputs
+    outDict = {
+        'peptide-nucleotide distance': pepNucDists,
+        'contact list': contacts,
+        '# contacts': nContacts,
+        'close contact ratio': closeContactRatio,
+        'contact score': contactScore,
+        'conformation change': conformationChange
+    }
+
+    return outDict
 
 
 def peptideAptamerDistances(u, peptide, sequence):
@@ -548,7 +600,7 @@ def getConformationChange():
         reducedDifferences = np.zeros(n_components)  #
         for i in range(n_components):  # rather than high dimensional probability analysis, we'll instead do differences in averages over dimensions
             # we could instead do this directly with the angles - since it is a bunch of 1D analyses it is cheap. It will then be lossless, but focus less on big movements.
-            reducedDifferences[i] = (np.average(freeReducedTrajectory[:, i]) - np.average(bindReducedTrajectory[:, i])) / np.average(np.abs(freeReducedTrajectory[:, i]))
+            reducedDifferences[i] = np.average(bindReducedTrajectory[:, i]) / np.average(np.abs(freeReducedTrajectory[:, i])) # the average of all the free trajectories is zero by construction - any nonzero average in the binding trajectory is therefore an aberration
 
         reducedDifference = np.average(np.abs(reducedDifferences))  # how different is the average binding aptamer conformation from free?
     except:
@@ -786,10 +838,10 @@ def lightDock(aptamer, analyte, params):
     changeSegment(analyte2, 'A', 'B')
 
     # run setup
-    os.system(params['ld setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']) + ' >> lightdockSetup.out')
+    os.system(params['ld setup path'] + ' ' + aptamer2 + ' ' + analyte2 + ' -anm -s ' + str(params['swarms']) + ' -g ' + str(params['glowworms']) + ' >> outfiles/lightdockSetup.out')
 
     # run docking
-    os.system(params['ld run path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna >> lightdockRun.out')
+    os.system(params['ld run path'] + ' setup.json ' + str(params['docking steps']) + ' -s dna >> outfiles/lightdockRun.out')
 
     # generate docked structures and cluster them
     for i in range(params['swarms']):
@@ -833,21 +885,19 @@ def checkTrajPCASlope(topology, trajectory):
 
     u = mda.Universe(topology, trajectory)
 
-    baseWC = wcTrajAnalysis(u)  # watson-crick base pairing distances (H-bonding) FAST but some errors
     baseDists = dnaBaseCOGDist(u)  # FAST, base-base center-of-geometry distances
     baseAngles = nucleicDihedrals(u)  # FAST, new, omits 'chi' angle between ribose and base
-    pairingTrajectory = getPairs(baseWC)
 
-    mixedTrajectory = np.concatenate((baseDists.reshape(len(baseDists), int(baseDists.shape[-2] * baseDists.shape[-1])), baseAngles.reshape(len(baseAngles), int(baseAngles.shape[-2] * baseAngles.shape[-1])), pairingTrajectory),
+    mixedTrajectory = np.concatenate((baseDists.reshape(len(baseDists), int(baseDists.shape[-2] * baseDists.shape[-1])), baseAngles.reshape(len(baseAngles), int(baseAngles.shape[-2] * baseAngles.shape[-1]))),
                                      axis=1)  # mix up all our info
 
-    representativeIndex, pcTrajectory = isolateRepresentativeStructure(mixedTrajectory)  # do dimensionality reduction
+    representativeIndex, pcTrajectory, eigenvalues = isolateRepresentativeStructure(mixedTrajectory)  # do dimensionality reduction
 
     slopes = np.zeros(pcTrajectory.shape[-1])
     for i in range(len(slopes)):
         slopes[i] = np.abs(np.polyfit(np.arange(len(pcTrajectory)), pcTrajectory[:, i], 1)[0])
 
-    combinedSlope = np.average(slopes)
+    combinedSlope = np.average(slopes) * (eigenvalues / np.sum(eigenvalues)) # normalize the components contributions by their eigenvalues
 
     print('PCA slope average is %.4f' % combinedSlope)
 
@@ -956,6 +1006,23 @@ def recenterDCD(topology, trajectory):
     trajectory as dcd
     creates a new dcd without periodic artifacts
     """
-    traj = md.load(trajectory, topology)
+    traj = md.load(trajectory, top = topology)
     traj.image_molecules()
     traj.save(trajectory.split('.')[0] + '_recentered.dcd')
+
+
+def findPairingErrors(config, tt):
+    '''
+    given a pair config in the format [x1, x2, x3, x4 ..., xn]
+    with x as integers indexed from 1
+    identify whether the any elements are paired wth more than one other element
+    return a list of errors and the time index
+    '''
+    pairingErrors = []
+    for i in range(len(config)):
+        if config[i] != 0:  # if it's paired
+            pairMate = int(config[i] - 1)  # indexing - what is 'i' bonded to
+            if config[pairMate] != i + 1:  # indexing - is that thing bonded to 'i'?
+                pairingErrors.append([tt, i, pairMate])
+
+    return pairingErrors

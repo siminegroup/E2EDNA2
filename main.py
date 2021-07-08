@@ -12,26 +12,33 @@ Known Issues:
     -> replace rename with replace -- seems good
 
 To-Do:
-==> multi-state comparision in 2d and 3d w clustering
-==> implicit solvent - ambertools prmtop required
-==> to cluster
-==> separate sampling from equilibration
-==> rethink checkpointing
-==> peptide restraints
+==> make a call on sampling & equilibration
 ==> finish README
     ==> example
-==> 2d structure pairing is not exclusive
-==> customize MMB temperature
-==> add failure output to premature binding cutoff
-==> write up .sh script for github
+==> experiments
+
+future features
+==> rethink checkpointing
+==> multi-state comparision in 2d and 3d w clustering
+==> peptide restraints
+==> would be nice to recognize local but significant rearrangements rather than just global
+==> add nucleoside analytes
+    => force field
+    => docking
+    => analysis & automation
+==> implicit solvent - ambertools prmtop required
+
+
+little things
+==> nucleicDihedrals doesn't wor for terminal 'chi' angles
 '''
 
 params = {}
 params['device'] = 'cluster'  # 'local' or 'cluster'
-params['platform'] = 'GPU'  # 'CUDA' or 'CPU'
+params['platform'] = 'CUDA'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double' only relevant on 'CUDA' platform
 
-params['explicit run enumeration'] = False  # if True, the next run is fresh, in directory 'run%d'%run_num. If false, regular behaviour. Note: ONLY USE THIS FOR FRESH RUNS
+params['explicit run enumeration'] = True  # if True, the next run is fresh, in directory 'run%d'%run_num. If false, regular behaviour. Note: ONLY USE THIS FOR FRESH RUNS
 if params['device'] == 'cluster':
     cmdLineInputs = get_input()
     params['run num'] = cmdLineInputs[0]  # option to get run num from command line (default zero)
@@ -57,13 +64,13 @@ Modes, in order of increasing cost
 params['mode'] = 'full binding'  # what to do
 
 # Pipeline parameters
-params['secondary structure engine'] = 'seqfold'  # 'NUPACK' or 'seqfold' - NUPACK is generally better / more flexible - will become the default/only option
-params['equilibration time'] = 0.01  # initial equilibration time in nanoseconds
-params['sampling time'] = .1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
+params['secondary structure engine'] = 'seqfold'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package setup for probability analysis
+params['equilibration time'] = 5  # initial equilibration time in nanoseconds
+params['sampling time'] = 2  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
 params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
 params['time step'] = 2.0  # MD time step in fs
-params['print step'] = 1  # MD printout step in ps
-params['max autoMD iterations'] = 3  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
+params['print step'] = 2  # MD printout step in ps
+params['max autoMD iterations'] = 20  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
 params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged'
 params['docking steps'] = 100  # number of steps for docking simulations
 params['N docked structures'] = 5  # number of docked structures to output from the docker
