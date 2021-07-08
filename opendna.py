@@ -373,7 +373,7 @@ class opendna():
         bindingDict = self.analyzeTrajectory('cleancomplex.pdb', 'cleancomplex.dcd', True)
 
         # print findings
-        print('Binding Results: Contact Persistence = {:.2f}, Contact Score = {:.2f}, Conformation Change = {:.2f}'.format(bindingDict['close contact ratio'], bindingDict['contact score'], bindingDict['conformation change']))
+        print('Binding Results: Contact Persistence = {:.2f}, Contact Score = {:.2f}, Conformation Change = {:.2f}'.format(bindingDict['aptamer-analyte binding']['close contact ratio'], bindingDict['aptamer-analyte binding']['contact score'], bindingDict['aptamer-analyte binding']['conformation change']))
         writeCheckpoint('Complex sampling complete')
 
         return bindingDict
@@ -497,7 +497,8 @@ class opendna():
                 combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd')
                 if binding: # if this is a binding simulation, also check to see if the analyte has come unbound from the analyte, and if so, cutoff the simulation
                     self.analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.peptide, self.sequence, self.params, cutoffTime=1)
-                    print('Analyte came unbound!')
+                    if self.analyteUnbound:
+                        print('Analyte came unbound!')
 
                 if (combinedSlope < cutoff) or (self.analyteUnbound == True):  # the average magnitude of sloped should be below some cutoff`
                     converged = True
