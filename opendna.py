@@ -7,6 +7,7 @@ from simtk.openmm.app import *
 from pdbfixersource import PDBFixer
 
 
+# noinspection PyPep8Naming
 class opendna():
     def __init__(self, sequence, peptide, params):
         self.params = params
@@ -21,9 +22,9 @@ class opendna():
         self.getCheckpoint()
 
     def getActionDict(self):
-        '''
+        """
         generate a binary sequence of 'to-do's' given user input
-        '''
+        """
         self.actionDict = {}
         if self.params['mode'] == '2d structure':
             self.actionDict['make workdir'] = False
@@ -91,12 +92,12 @@ class opendna():
             self.actionDict['do binding'] = True
 
     def setup(self):
-        '''
+        """
         setup working directory
         copy in relevant xyz and keyfiles
         move to relevant directory
         :return:
-        '''
+        """
 
         if (self.params['explicit run enumeration'] == True) or (self.params['run num'] == 0):
             if self.params['run num'] == 0:
@@ -126,11 +127,11 @@ class opendna():
             os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir']  # export the path to the MMB library - only necessary in WSL environments
 
     def makeNewWorkingDirectory(self):  # make working directory
-        '''
+        """
         make a new working directory
         non-overlapping previous entries
         :return:
-        '''
+        """
         workdirs = glob.glob(self.params['workdir'] + '/' + 'run*')  # check for prior working directories
         if len(workdirs) > 0:
             prev_runs = []
@@ -146,10 +147,10 @@ class opendna():
             os.mkdir(self.workDir)
 
     def getCheckpoint(self):
-        '''
+        """
         identify if any work has been done in this directory, and if so, where to pick up
         :return:
-        '''
+        """
         try:
             f = open('checkpoint.txt', 'r')  # if it does, see how long it is
             text = f.read()
@@ -157,8 +158,6 @@ class opendna():
             self.checkpoints = len([m.start() for m in re.finditer('\n', text)])
 
             print("Resuming Run #%d" % int(self.params['run num']))
-
-
         except:
             f = open('checkpoint.txt', 'w')
             f.write('Started!\n')
@@ -167,11 +166,11 @@ class opendna():
             self.checkpoint = 'initialized'
 
     def run(self):
-        '''
+        """
         run the binding simulation end-to-end
         consult checkpoints to not repeat prior steps
         :return:
-        '''
+        """
         outputDict = {}
         outputDict['params'] = self.params
         np.save('opendnaOutput', outputDict)
@@ -191,11 +190,11 @@ class opendna():
             outputDict['free aptamer results'] = self.freeAptamerDynamics('sequence.pdb')
             np.save('opendnaOutput', outputDict)  # save outputs
 
-        if self.actionDict['do docking'] and (self.peptide != False):  # find docking configurations for the complexed structure
+        if self.actionDict['do docking'] and (self.peptide is not False):  # find docking configurations for the complexed structure
             outputDict['dock scores'] = self.runDocking('repStructure.pdb', 'peptide.pdb')
             np.save('opendnaOutput', outputDict)  # save outputs
 
-        if self.actionDict['do binding'] and (self.peptide != False):  # run MD on the complexed structure
+        if self.actionDict['do binding'] and (self.peptide is not False):  # run MD on the complexed structure
             outputDict['binding results'] = self.bindingDynamics('complex_0.pdb')
             np.save('opendnaOutput', outputDict)  # save outputs
 
@@ -206,12 +205,12 @@ class opendna():
     # =======================================================
 
     def getSecondaryStructure(self, sequence):
-        '''
+        """
         get the secondary structure for a given sequence
         using seqfold here - identical features are available using nupack, though results are sometimes different
         :param sequence:
         :return: a dot-bracket string and list of paired bases (assuming single-strand DNA aptamer)
-        '''
+        """
         print("Get Secondary Structure")
         if os.path.exists("pre_fold.pdb"):  # if we have a pre-folded structure, do nothing
             pass
@@ -227,12 +226,12 @@ class opendna():
             return ssString, np.asarray(pairList)
 
     def foldSequence(self, sequence, pairList):
-        '''
+        """
         generate a coarsely folded structure for the aptamer
         :param sequence: the ssDNA sequence to be folded
         :param pairList: list of binding base pairs
         :return:
-        '''
+        """
         # write pair list as forces to the MMB command file
         print("Folding Sequence")
         comFile = 'commands.fold.dat'  # name of command file
@@ -249,7 +248,7 @@ class opendna():
         # run fold - sometimes this errors for no known reason - keep trying till it works
         Result = None
         attempts = 0
-        while (Result == None) and (attempts < 100):
+        while (Result is None) and (attempts < 100):
             try:
                 attempts += 1
                 os.system(self.params['mmb'] + ' -c ' + comFile + ' > outfiles/fold.out')
@@ -263,11 +262,12 @@ class opendna():
         writeCheckpoint("Folded Sequence")
 
     def prepPDB(self, file, MMBCORRECTION=False, waterBox=True):
-        '''
+        """
         soak pdb file in water box
+        :MMBCORRECTION: if the input pdb file is an MMB output, we need to apply a correction, since MMB is a little weird formatting-wise https://simtk.org/plugins/phpBB/viewtopicPhpbb.php?f=359&t=13397&p=0&start=0&view=&sid=bc6c1b9005122914ec7d572999ba945b
         :param file:
         :return:
-        '''
+        """
         if MMBCORRECTION:
             replaceText(file, '*', "'")  # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
 
@@ -291,10 +291,10 @@ class opendna():
         PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
     def MDSmoothing(self, structure, relaxationTime=0.01):
-        '''
+        """
         do a short MD run in water to relax the coarse MMB structure
         relaxation time in nanoseconds, print time in picoseconds
-        '''
+        """
         structureName = structure.split('.')[0]
         print('Running quick relaxation')
         self.prepPDB(structure, MMBCORRECTION=True, waterBox=True)
@@ -303,12 +303,12 @@ class opendna():
         extractFrame(processedStructure, processedStructure.split('.')[0] + '_trajectory.dcd', -1, 'repStructure.pdb')  # pull the last frame of the relaxation
 
     def freeAptamerDynamics(self, aptamer):
-        '''
+        """
         run molecular dynamics
         do relevant analysis
-        :param structure:
+        :param aptamer:
         :return:
-        '''
+        """
         structureName = aptamer.split('.')[0]
         print('Running free aptamer dynamics')
         self.prepPDB(aptamer, MMBCORRECTION=True, waterBox=True)  # add periodic box and appropriate protons
@@ -328,9 +328,9 @@ class opendna():
         return aptamerDict
 
     def runDocking(self, aptamer, peptide):
-        '''
+        """
         use LightDock to run docking and isolate good structures
-        '''
+        """
         print('Docking')
         buildPeptide(self.peptide)
 
@@ -342,12 +342,12 @@ class opendna():
         return topScores
 
     def bindingDynamics(self, complex):
-        '''
+        """
         run molecular dynamics
         do relevant analysis
         :param complex:
         :return:
-        '''
+        """
         structureName = complex.split('.')[0]
         print('Running Binding Simulation')
         self.prepPDB(complex, MMBCORRECTION=False, waterBox=True)
@@ -369,12 +369,12 @@ class opendna():
 
 
     def openmmDynamics(self, structure, simTime=False):
-        '''
+        """
         run OpenMM dynamics
         minimize, equilibrate, and sample
         :param structure:
         :return:
-        '''
+        """
 
         pdb = PDBFile(structure)
         structureName = structure.split('.')[0]
@@ -456,12 +456,12 @@ class opendna():
         self.ns_per_day = (steps * dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
 
     def autoMD(self, structure, binding=False):
-        '''
+        """
         run MD until either for a set amount of time or until the dynamics 'converge'
         optionally, sample after we reach convergence ("equilibration")
         :param structure:
         :return:
-        '''
+        """
         maxIter = self.params['max autoMD iterations']  # some maximum number of allowable iterations
         cutoff = self.params['autoMD convergence cutoff']
         structureName = structure.split('.')[0]
@@ -494,11 +494,11 @@ class opendna():
 
 
     def analyzeTrajectory(self, structure, trajectory, analyte):
-        '''
+        """
         analyze trajectory for aptamer fold + analyte binding information
         :param trajectory:
         :return:
-        '''
+        """
         u = mda.Universe(structure, trajectory)
         '''
         types of analysis:

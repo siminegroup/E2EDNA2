@@ -18,9 +18,11 @@ To-Do:
 ==> separate sampling from equilibration
 ==> rethink checkpointing
 ==> peptide restraints
-==> finish README example
-==> write readme sections for each sub-module - NUPACK, MMB, OpenMM, PDBFixer, LightDock, MDAnalysis, algorithm analysis and automation tools
+==> finish README
+    ==> example
 ==> 2d structure pairing is not exclusive
+==> customize MMB temperature
+==> add failure output to premature binding cutoff
 '''
 
 params = {}

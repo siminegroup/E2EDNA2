@@ -38,9 +38,6 @@ readBlockEnd
 #readBlockEnd
 
 
-
-
-
 # scrubber
 # dutyCycle .9
 # scrubberPeriod 40

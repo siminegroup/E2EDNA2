@@ -1,6 +1,6 @@
-'''
+"""
 utilities
-'''
+"""
 import os
 import numpy as np
 import MDAnalysis as mda
@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from PeptideBuilder import Geometry
 import PeptideBuilder
 import Bio.PDB
-import MDAnalysis.analysis.nuclinfo as nuclinfo
 from MDAnalysis.analysis import distances
 import simtk.openmm.app as app
 import scipy.ndimage as ndimage
@@ -27,11 +26,11 @@ from shutil import copyfile, copytree
 
 
 def buildPeptide(peptide):
-    '''
+    """
     construct a peptide sequence pdb file
     :param peptide:
     :return:
-    '''
+    """
     # resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
     structure = PeptideBuilder.initialize_res(peptide[0])
     for i in range(1, len(peptide)):
@@ -56,13 +55,13 @@ class Timer:
 
 
 def combinePDB(file1, file2):
-    '''
+    """
     combine 2 pdb files into one
     some special formatting for MDA outputs in particular
     :param file1:
     :param file2:
     :return:
-    '''
+    """
     filenames = [file1, file2]
     for file in filenames:  # remove title, periodic box, endpoints
         removeLine(file, 'CRYST1')
@@ -79,10 +78,10 @@ def combinePDB(file1, file2):
 
 
 def get_input():
-    '''
+    """
     get the command line in put for the run num. defaulting to a new run (0)
     :return:
-    '''
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_num', type=int, default=0)
     parser.add_argument('--sequence', type=str, default='XXX')
@@ -155,11 +154,12 @@ def copyLine(file, line_number):
 
 
 def removeLine(file, string):
-    '''
+    """
     remove every line containing given string from a file
-    :param fine:
+    :param file: the file
+    :param string: the string to look for
     :return:
-    '''
+    """
     f = open(file, 'r')
     text = f.read()
     f.close()
@@ -203,22 +203,22 @@ def appendLine(file, string):
 
 
 def writeCheckpoint(text):
-    '''
+    """
     write some output to the checkpoint file
     :return:
-    '''
+    """
     f = open('checkpoint.txt', 'a')
     f.write('\n' + text)
     f.close()
 
 
 def cleanTrajectory(structure, trajectory):
-    '''
+    """
     remove water, salt from trajectory input
     :param structure: pdb input for initial structure template
     :param trajectory: dcd trajectory file
     :return:
-    '''
+    """
     u = mda.Universe(structure, trajectory)  # load up trajectory
     goodStuff = u.segments[:-2].atoms  # cut out salts and solvent
     goodStuff.write("clean" + structure)  # write topology
@@ -227,28 +227,31 @@ def cleanTrajectory(structure, trajectory):
             W.write(goodStuff)
 
 
+# noinspection PyStatementEffect
 def extractFrame(structure, trajectory, frame, outFileName):
-    '''
+    """
     saves a given trajectory frame as a separate pdb file
     :param structure: pdb input for initial structure template
     :param trajectory: dcd trajectory file
     :param frame: frame to be extracted
+    :param outFileName: the name of the output file
     :return:
-    '''
+    """
     u = mda.Universe(structure, trajectory)  # load up trajectory
     u.trajectory[frame]  # this indexes the trajectory up to the desired frame (weird syntax, I think)
-    if u.segments.n_segments > 2: # if there are more than 2 segments, then there must be solvent and salts (assuming nonzero salt concentration)
+    if u.segments.n_segments > 2:  # if there are more than 2 segments, then there must be solvent and salts (assuming nonzero salt concentration)
         atoms = u.segments[:-2].atoms  # omit solvent and salts
     else:
         atoms = u.atoms
     atoms.write(outFileName)
 
 
+# noinspection PyTypeChecker
 def dnaBaseCOGDist(u):
-    '''
+    """
     given an MDA universe containing ssDNA (segment 1)
     return the trajectory of all the inter-base center-of-geometry distances
-    '''
+    """
     nbases = u.segments[0].residues.n_residues
     baseDists = np.zeros((len(u.trajectory), nbases, nbases))  # matrix of CoG distances
     tt = 0
@@ -266,13 +269,13 @@ def dnaBaseCOGDist(u):
 
 
 def getPairs(wcDist):
-    '''
+    """
     identify bases which are paired according to their WC hydrogen bond lengths
     return the shortest hydrogen bond pair for every base over time
     note - it's possible to have multiple bases paired to one in this algo -
     TO-DO
     post-processing cleanup step where we see what the next closest base is for multi-paired setups
-    '''
+    """
     trajTime = len(wcDist)
     seqLen = wcDist.shape[-1]
     pairedBases = np.zeros((trajTime, seqLen))
@@ -286,13 +289,14 @@ def getPairs(wcDist):
     return pairedBases
 
 
+# noinspection PyUnresolvedReferences
 def trajectoryPCA(n_components, trajectory, transform):
-    '''
+    """
     do PCA on some trajectory array
     :param n_components:
     :param trajectory:
     :return: the principal components, their relative contributions, the original trajectory in PC basis
-    '''
+    """
 
     if trajectory.ndim == 3:  # convert to 2D, if necessary
         trajectory = trajectory.reshape(len(trajectory), int(trajectory.shape[-1] * trajectory.shape[-2]))
@@ -313,25 +317,24 @@ def trajectoryPCA(n_components, trajectory, transform):
     return components, eigenvalues, reducedTrajectory, pca1
 
 
-
 def do_kdtree(trajectory, coordinates):
-    '''
+    """
     returns the index in trajectory closest to 'coordinates'
     :param trajectory:
     :param coordinates:
     :return:
-    '''
+    """
     mytree = spatial.cKDTree(trajectory)
     dist, index = mytree.query(coordinates)
     return index
 
 
 def getSecondaryStructureDistance(configs):
-    '''
+    """
     normalized binary base pairing distance between sequences of equal length
     :param configs:
     :return:
-    '''
+    """
     configDistance = np.zeros((len(configs), len(configs)))
     nBases = len(configs[0])
     for i in range(len(configs)):
@@ -340,13 +343,13 @@ def getSecondaryStructureDistance(configs):
 
 
 def analyzeSecondaryStructure(pairingTrajectory):
-    '''
+    """
     given a trajectory of base pairing interactions
     identify the equilibrium structure
     and maybe metastable states
     :param trajectory:
     :return:
-    '''
+    """
     ''' # might be useful for clustering
     configs = []
     counter = []
@@ -378,19 +381,19 @@ def analyzeSecondaryStructure(pairingTrajectory):
     return pairingTrajectory[representativeIndex]  # return representative structure
 
 
-def doMultiDProbabilityMap(trajectory, range = None, nBins = None):
-    '''
+def doMultiDProbabilityMap(trajectory, range=None, nBins=None):
+    """
     multidimensional histogram of system trajectories
     adjust bin size automatically
-    '''
+    """
     # find minima in the space of collective variables
     assert trajectory.ndim == 2
 
-    if nBins == None:
+    if nBins is None:
         converged = False
         binList = np.logspace(6, 1, 6)
         ind = 0
-        while converged == False:  # if there are too many bins this crashes
+        while converged is False:  # if there are too many bins this crashes
             nbins = int(binList[ind] ** (1 / trajectory.shape[-1]))  # this is sometimes too large, hence, try-except
             ind += 1
             probs, bins = np.histogramdd(trajectory, bins=nbins, range=range, density=True)  # multidimensional probability histogram
@@ -407,11 +410,11 @@ def doMultiDProbabilityMap(trajectory, range = None, nBins = None):
 
 
 def doTrajectoryDimensionalityReduction(trajectory):
-    '''
+    """
     automatically generate dimension-reduced trajectory using PCA
     :param trajectory:
     :return:
-    '''
+    """
     converged = False
     nComponents = 10
     while converged == False:  # add components until some threshold, then take components greater than the average
@@ -430,12 +433,12 @@ def doTrajectoryDimensionalityReduction(trajectory):
 
 
 def isolateRepresentativeStructure(trajectory):
-    '''
+    """
     use PCA to identify collective variables
     identify the most probable structure and save it
     :param trajectory:
     :return:
-    '''
+    """
     n_components, reducedTrajectory, pcaModel = doTrajectoryDimensionalityReduction(trajectory)
     probs, smoothProbs, bins, nbins = doMultiDProbabilityMap(reducedTrajectory)
 
@@ -460,30 +463,30 @@ def isolateRepresentativeStructure(trajectory):
 
 
 def bindingAnalysis(u, peptide, sequence):
-    '''
+    """
     analyze the binding of analyte to aptamer by computing relative distances
     :param u:
     :return:
-    '''
+    """
     assert u.segments.n_segments == 2
     # identify base-analyte distances
-    pepNucDists = peptideAptamerDistances(u,peptide,sequence)
+    pepNucDists = peptideAptamerDistances(u, peptide, sequence)
     contacts, nContacts = getPeptideContacts(pepNucDists)
     firstContact = np.nonzero(nContacts[:, 0])[0][0]  # first time when the peptide and aptamer were in close-range contact
-    closeContactRatio = np.average(nContacts[firstContact:, 0] > 0) # amount of time peptide spends in close contact with aptamer
+    closeContactRatio = np.average(nContacts[firstContact:, 0] > 0)  # amount of time peptide spends in close contact with aptamer
     contactScore = np.average(nContacts[firstContact:, :] / len(peptide))  # per-peptide average contact score, linear average over 8-12 angstrom
     conformationChange = getConformationChange()
 
     return [pepNucDists, contacts, nContacts, closeContactRatio, contactScore, conformationChange]
 
 
-def peptideAptamerDistances(u,peptide,sequence):
-    '''
+def peptideAptamerDistances(u, peptide, sequence):
+    """
     given an MDA universe
     return distances between each peptide and each base
     at every timepoint in the trajectory
     :return: pepNucDists - peptide-nucleicacid distances
-    '''
+    """
 
     pepNucDists = np.zeros((len(u.trajectory), len(peptide), len(sequence)))  # distances between peptides and nucleotiedes
     tt = 0
@@ -504,28 +507,28 @@ def peptideAptamerDistances(u,peptide,sequence):
 
 
 def getPeptideContacts(pepNucDists):
-    '''
+    """
     get the contacts between peptide and dna aptamer
     return contacts
     return ncontacts (sum of contacts at various ranges
-    '''
-    contactCutoffs = [6,8,10,12]  # Angstroms - distance within which we say there is a 'contact'
+    """
+    contactCutoffs = [6, 8, 10, 12]  # Angstroms - distance within which we say there is a 'contact'
     # identify contacts
     contacts = []
-    nContacts = np.zeros((len(pepNucDists),len(contactCutoffs)))
+    nContacts = np.zeros((len(pepNucDists), len(contactCutoffs)))
     for i in range(len(pepNucDists)):
-        contacts.append(np.argwhere(pepNucDists[i] < contactCutoffs[0])) # loosest cutoff
+        contacts.append(np.argwhere(pepNucDists[i] < contactCutoffs[0]))  # loosest cutoff
         for j in range(len(contactCutoffs)):
-            nContacts[i,j] = len(np.argwhere(pepNucDists[i] < contactCutoffs[j]))
+            nContacts[i, j] = len(np.argwhere(pepNucDists[i] < contactCutoffs[j]))
 
     return contacts, np.asarray(nContacts)
 
 
 def getConformationChange():
-    '''
+    """
     compare the pre-complexation (free aptamer) conformation with post-complexation
     NOTE intimately depends on naming conventions for trajectory files!
-    '''
+    """
     try:
         # function to analyze analyte impact on aptamer conformation
         freepdb = 'cleanaptamer.pdb'
@@ -542,7 +545,7 @@ def getConformationChange():
         n_components, freeReducedTrajectory, pcaModel = doTrajectoryDimensionalityReduction(freeAngles)
         bindReducedTrajectory = pcaModel.transform(bindAngles.reshape(len(bindAngles), int(bindAngles.shape[-2] * bindAngles.shape[-1])))
 
-        reducedDifferences = np.zeros(n_components) #
+        reducedDifferences = np.zeros(n_components)  #
         for i in range(n_components):  # rather than high dimensional probability analysis, we'll instead do differences in averages over dimensions
             # we could instead do this directly with the angles - since it is a bunch of 1D analyses it is cheap. It will then be lossless, but focus less on big movements.
             reducedDifferences[i] = (np.average(freeReducedTrajectory[:, i]) - np.average(bindReducedTrajectory[:, i])) / np.average(np.abs(freeReducedTrajectory[:, i]))
@@ -556,33 +559,33 @@ def getConformationChange():
 
 
 def checkMidTrajectoryBinding(structure, trajectory, peptide, sequence, params, cutoffTime=1):
-    '''
+    """
     check if the analyte has come unbound from the aptamer
     and stayed unbound for a certain amount of time
     :return: True or False
-    '''
+    """
     u = mda.Universe(structure, trajectory)  # load up trajectory
-    pepNucDists = peptideAptamerDistances(u,peptide,sequence)
+    pepNucDists = peptideAptamerDistances(u, peptide, sequence)
     contacts, nContacts = getPeptideContacts(pepNucDists)
     lastContact = np.nonzero(nContacts[:, 0])[0][-1]  # last time when the peptide and aptamer were in close-range contact
 
     dt = params['print step']
-    detachedTime = (len(nContacts) - lastContact) * dt / 1e3 # in ns, since dt is in ps
-    if detachedTime > cutoffTime: # if we have been unbound longer than the cutoff
+    detachedTime = (len(nContacts) - lastContact) * dt / 1e3  # in ns, since dt is in ps
+    if detachedTime > cutoffTime:  # if we have been unbound longer than the cutoff
         return True
-    else: # otherwise keep going
+    else:  # otherwise keep going
         return False
 
 
 class atomDistances(AnalysisBase):
-    '''
+    """
     calculate watson-crick bond lengths
-    '''
+    """
 
     def __init__(self, atomgroups, **kwargs):
-        '''
+        """
         :param atomgroups: a list of atomgroups for which the interatom bond lengths are calculated
-        '''
+        """
         super(atomDistances, self).__init__(atomgroups[0].universe.trajectory, **kwargs)
         self.atomgroups = atomgroups
         self.ag1 = atomgroups[0]
@@ -600,11 +603,11 @@ class atomDistances(AnalysisBase):
 
 
 def wcTrajAnalysis(u):
-    '''
+    """
     use the atomDistances class to calculate the WC base pairing distances between all bases on a sequence
     :param u:
     :return:
-    '''
+    """
     n_bases = u.segments[0].residues.n_residues
     atomIndices1 = np.zeros((n_bases, n_bases))
     atomIndices2 = np.zeros_like(atomIndices1)
@@ -631,11 +634,11 @@ def wcTrajAnalysis(u):
 
 
 def nucleicDihedrals(u):
-    '''
+    """
     use analysis.dihedral to quickly compute dihedral angles for a given DNA sequence
     :param u:
     :return: dihderals
-    '''
+    """
     n_bases = u.segments[0].residues.n_residues
     seg = "A"
     a, b, g, d, e, z, c = [[], [], [], [], [], [], []]
@@ -686,12 +689,12 @@ def nucleicDihedrals(u):
     return dihedrals % 360  # convert from -180:180 to 0:360 basis
 
 
-def numbers2letters(sequences):  # Tranforming letters to numbers:
-    '''
+def numbers2letters(sequences):  # Transforming letters to numbers:
+    """
     Converts numerical values to ATGC-format
     :param sequences: numerical DNA sequences to be converted
     :return: DNA sequences in ATGC format
-    '''
+    """
     if type(sequences) != np.ndarray:
         sequences = np.asarray(sequences)
 
@@ -715,9 +718,9 @@ def numbers2letters(sequences):  # Tranforming letters to numbers:
 
 
 def killH(structure):
-    '''
+    """
     use simTk modeller to delete all atoms with 'H' in the name
-    '''
+    """
     pdb = app.PDBFile(structure)
     topology = pdb.topology
     positions = pdb.positions
@@ -727,18 +730,18 @@ def killH(structure):
 
 
 def changeSegment(structure, oldSeg, newSeg):
-    '''
+    """
     change the segment ID for all molecule(s) in a pdb file
-    '''
+    """
     replaceText(structure, ' ' + oldSeg + ' ', ' ' + newSeg + ' ')
 
 
 def addH(structure, pH):
-    '''
+    """
     protonate a given structure
     :param file:
     :return:
-    '''
+    """
     pdb = app.PDBFile(structure)
     topology = pdb.topology
     positions = pdb.positions
@@ -748,10 +751,10 @@ def addH(structure, pH):
 
 
 def getMoleculeSize(structure):
-    '''
+    """
     use MDAnalysis to determine the cubic xyz dimensions for a given molecule
     return these dimensions
-    '''
+    """
     u = mda.Universe(structure)
     positions = u.atoms.positions
     dimensions = np.zeros(3)
@@ -762,9 +765,9 @@ def getMoleculeSize(structure):
 
 
 def lightDock(aptamer, analyte, params):
-    '''
+    """
     setup lightdock run, do the run, generate output models, hierarchical clustering and final concatenation of results
-    '''
+    """
     # identify aptamer size
     dimensions = getMoleculeSize(aptamer)
     # compute surface area of rectangular prism with no offset
@@ -811,9 +814,9 @@ def lightDock(aptamer, analyte, params):
 
 
 def appendTrajectory(topology, original, new):
-    '''
+    """
     use mda to combine old and new MD trajectory files
-    '''
+    """
     trajectories = [original, new]
     u = mda.Universe(topology, trajectories)
     with mda.Writer('combinedTraj.dcd', u.atoms.n_atoms) as W:
@@ -822,9 +825,9 @@ def appendTrajectory(topology, original, new):
 
 
 def checkTrajPCASlope(topology, trajectory):
-    '''
+    """
     analyze the trajectory to see if it's converged
-    '''
+    """
     converged = 0
     cutoff = 1e-2
 
@@ -897,10 +900,10 @@ def doNupackAnalysis(sequence, temperature, ionicStrength):
 
 
 def getSeqfoldStructure(sequence, temperature):
-    '''
+    """
     output the secondary structure for a given sequence at a given condition
     formats - ss string and pair list
-    '''
+    """
     dg(sequence, temp=temperature)  # get energy of the structure
     # print(round(sum(s.e for s in structs), 2)) # predicted energy of the final structure
 
@@ -922,9 +925,9 @@ def getSeqfoldStructure(sequence, temperature):
 
 
 def ssToList(ssString):
-    '''
+    """
     if for some reason we have a secondary structure string we need to convert to a pair list
-    '''
+    """
     pairList = []
     paired = []
     for i in range(len(ssString)):
@@ -947,12 +950,12 @@ def ssToList(ssString):
     return pairList
 
 
-def recenterDCD(topology,trajectory):
-    '''
+def recenterDCD(topology, trajectory):
+    """
     topology as pdb
     trajectory as dcd
     creates a new dcd without periodic artifacts
-    '''
-    traj = md.load(trajectory,topology)
+    """
+    traj = md.load(trajectory, topology)
     traj.image_molecules()
     traj.save(trajectory.split('.')[0] + '_recentered.dcd')
