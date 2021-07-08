@@ -8,14 +8,14 @@ script which accepts a DNA sequence and an analyte, and returns the binding affi
 
 Known Issues:
 ==> On WSL, after using os.rename on .dcd files, os.path and all functions can no longer find it
-    -> it's a permissions problem
-    -> replace rename with replace -- seems good
+    -> it's a permissions problem - after renaming the permissions get screwed up, we're not even allowed to look at it
 
 To-Do:
 ==> make a call on sampling & equilibration
 ==> finish README
     ==> example
 ==> experiments
+==> testing
 
 future features
 ==> rethink checkpointing
@@ -27,7 +27,6 @@ future features
     => docking
     => analysis & automation
 ==> implicit solvent - ambertools prmtop required
-
 
 little things
 ==> nucleicDihedrals doesn't wor for terminal 'chi' angles

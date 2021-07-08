@@ -897,7 +897,7 @@ def checkTrajPCASlope(topology, trajectory):
     for i in range(len(slopes)):
         slopes[i] = np.abs(np.polyfit(np.arange(len(pcTrajectory)), pcTrajectory[:, i], 1)[0])
 
-    combinedSlope = np.average(slopes) * (eigenvalues / np.sum(eigenvalues)) # normalize the components contributions by their eigenvalues
+    combinedSlope = np.sum(slopes * (eigenvalues / np.sum(eigenvalues))) # normalize the components contributions by their eigenvalues
 
     print('PCA slope average is %.4f' % combinedSlope)
 
