@@ -1,14 +1,15 @@
-# E2EDNA - OpenMM Implementation
+# E2EDNA - OpenMM Implementation - OpenDNA!
 
 ### A fully-automated code for DNA aptamer 2D and 3D structure analysis, and binding analysis with small molecules and short peptides.
 
-Michael Kilgour, Tao Liu, Lena Simine
-mjakilgour gmail com
+**Michael Kilgour, Tao Liu, Lena Simine**
+
+_mjakilgour gmail com_
 
 ## INSTALLATION
 * Get the repository
 ```
-it clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_CALLED
+git clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_CALLED
 ```
 * Setup python environment with the following packages
 ```
@@ -29,9 +30,10 @@ LightDock==0.9.0
 nupack==4.0.0.23
 mdtraj==1.9.5
 ```
-* Install appropriate MacroMoleculeBuilder for your system from [SimTK here](https://simtk.org/projects/rnatoolbox) - old and new versions have been tested and seem to work
-* Create working directory where runs will take place
-* Set paths in main.py. Note, there is a toggle for running on a 'local' machine vs 'cluster', with distinct paths for e.g., developing on a local vs cluster environment.
+* Download appropriate MacroMoleculeBuilder for your system from [SimTK here](https://simtk.org/projects/rnatoolbox) - old and new versions have been tested and seem to work. We'll need the 'Installer' directory and MMB executable. 
+* Create working directory where runs will take place on your system. 
+  Each new run will create a serially-numbered directory in this folder containing all the relevant outputs.
+* Set paths in main.py and submission shell script, if relevant (example enclosed). Note, there is a toggle for running on a 'local' machine vs 'cluster', with distinct paths for e.g., developing on a local vs cluster environment.
 ```
 * params['mmb'] --> set to the MacroMoleculeBuilder executable on your system
 * params['mmb dir'] --> set to the MMB directory, usually a name like /Installer.#_##.Linux
@@ -103,21 +105,3 @@ params['temperature'] = 310 # Kelvin - used to predict secondary structure and f
 params['ionic strength'] = .163 # mmol - used to predict secondary structure and add ions to simulation box
 params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
 ```
-
-## Example
-
-We will demonstrate the pipeline on a full-docking simulation of a simple hairpin aptamer with a short peptide. 
-
-`sequence='CGCTTTGCG'`
-`peptide='YYYYYY'`
-
-### Parameters
-
-
-### Results
-
-#### 2D Fold
-#### 3D Coarse Fold
-#### 3D Representative Structure
-#### Docking Simulation
-#### Binding Simulation

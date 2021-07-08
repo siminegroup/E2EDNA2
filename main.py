@@ -23,6 +23,7 @@ To-Do:
 ==> 2d structure pairing is not exclusive
 ==> customize MMB temperature
 ==> add failure output to premature binding cutoff
+==> write up .sh script for github
 '''
 
 params = {}
