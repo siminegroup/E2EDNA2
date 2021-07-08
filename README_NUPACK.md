@@ -12,4 +12,4 @@ A few key NUPACK features we take advantage of are:
 * Output explicit probability of observing the most likely secondary structure for a given sequence.
 * Output suboptimal structures and their probabilities for a given sequence.
 
-NUPACK has also a wealth of complex analysis and utility functions, which we do not currently use.
+NUPACK has also a wealth of design and utility functions we encourage users to play with on their own.

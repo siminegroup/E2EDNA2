@@ -38,9 +38,8 @@ mdtraj==1.9.5
 * params['mmb'] --> set to the MacroMoleculeBuilder executable on your system
 * params['mmb dir'] --> set to the MMB directory, usually a name like /Installer.#_##.Linux
 - params['mmb template'] and params['mmb params'] --> included in this repository, should not have to be changed
-* params['ld path'] --> paths to various lightdock python scripts (included in this package, alternatively automatically come with a lightdock pip installation)
+* params['ld path'] --> paths to various lightdock python scripts (included in this repository, alternatively automatically come with a lightdock pip installation). Depending on your installation, you may need to call 'python' before these scripts in the path.
 * params['workdir'] --> the working directory you created in the previous step
-* various .key files --> parameters may be specific to your analyte if custom force-field parameters are required. Adjust keyfiles accordingly, leaving the keywords on top as-is.
 ```
 
 ## Modes
