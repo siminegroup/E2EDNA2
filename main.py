@@ -16,6 +16,11 @@ To-Do:
     ==> example
 ==> experiments
 ==> testing
+==> clustering with minimum distance
+==> print inputs and results on checkpoint file
+==> return docking score with outputs
+==> fix conformation change check
+==> MK notes
 
 future features
 ==> rethink checkpointing

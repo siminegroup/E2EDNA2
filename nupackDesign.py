@@ -1,5 +1,5 @@
 from nupack import *
-from utils import doNupackAnalysis
+from utils import nupackAnalysis
 
 # design complexes
 
@@ -11,6 +11,7 @@ sequences = []
 analysisDict = []
 for string in ssStrings:
     sequences.append(des(structure = string,model=myModel)[0].replace('U','T'))
-    analysisDict.append(doNupackAnalysis(sequences[-1], 310, 0.163)[0])
+    analysisDict.append(nupackAnalysis(sequences[-1], 310, 0.163)[0])
 
 print(sequences)
+

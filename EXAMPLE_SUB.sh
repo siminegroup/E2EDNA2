@@ -23,8 +23,9 @@ pip install --no-index MDAnalysis
 pip install --no-index lightdock
 pip install --no-index -r requirements.txt
 pip install numpy==1.20.2
-pip install ~/wheels/seqfold-0.7.7-py3-none-any.whl
-pip install ~/wheels/PeptideBuilder-1.1.0-py3-none-any.whl 
+pip install ~/projects/def-simine/programs/opendnaWheels/seqfold-0.7.7-py3-none-any.whl
+pip install ~/projects/def-simine/programs/opendnaWheels/PeptideBuilder-1.1.0-py3-none-any.whl 
+pip install ~/projects/def-simine/programs/opendnaWheels/nupack-4.0.0.23-cp37-cp37m-linux_x86_64.whl
 python -c "import simtk.openmm"
 
 python ./main.py --run_num=0 --sequence='AACGCTTTTTGCGTT' --peptide='YQTQTNSPRRAR'

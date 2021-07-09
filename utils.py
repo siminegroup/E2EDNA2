@@ -15,6 +15,7 @@ from MDAnalysis.analysis import distances
 import simtk.openmm.app as app
 import scipy.ndimage as ndimage
 import scipy.spatial as spatial
+import sklearn.cluster as cluster
 from sklearn.decomposition import PCA
 from MDAnalysis.analysis.base import AnalysisBase
 from MDAnalysis.lib.distances import calc_bonds
@@ -307,7 +308,7 @@ def getPairs(wcTraj):
         print('Encountered error in pairing algorithm!') # should not be possible, currently
 
     '''
-    # now we need to fix the snafu's
+    # now we need to fix the snafu's - or actually nevermind
     for i in len(problems):
         # a base paired to a completely unpaired base is impossible, since the above code is completely symmetric
         # so the only possibility is multiple bases both wanting a third
@@ -326,6 +327,21 @@ def getPairs(wcTraj):
     '''
 
     return pairedBases
+
+
+def pairListToConfig(pairList, sequence):
+    '''
+    convert a secondary structure for a list of pairs to a 'config'
+    which is where every base is listed with its pair-mate (or 0 for unpaired)
+    :param pairList:
+    :return:
+    '''
+    config = np.zeros(len(sequence)).astype(int)
+    for i in range(len(pairList)):
+        config[pairList[i][0] - 1] = pairList[i][1] # indexing
+        config[pairList[i][1] - 1] = pairList[i][0]
+
+    return config
 
 
 # noinspection PyUnresolvedReferences
@@ -389,6 +405,8 @@ def analyzeSecondaryStructure(pairTraj):
     :param trajectory:
     :return:
     """
+
+
     # might be useful for clustering
     configs = []
     counter = []
@@ -408,15 +426,24 @@ def analyzeSecondaryStructure(pairTraj):
                 counter.append(1)
 
     # compute a distance metric between all the seen configs
-    bestStructure = configs[np.argmax(counter)]
+    bestSingleStructure = configs[np.argmax(counter)]
 
-    configDistance = getSecondaryStructureDistance(configs)
 
-    if counter[np.argmax(counter)] / np.sum(counter) > 0.2: # if one structure meaningfully predominates, go with that one
-        representativeStructure = bestStructure
-    else: # otherwise, until we implement clustering, we can do PCA, which frankly isn't perfect
-        representativeIndex, reducedTrajectory, eigenvalues = isolateRepresentativeStructure(pairTraj)  # do PCA and multidimensional binning to find free energy minimum
-        representativeStructure = pairTraj[representativeIndex]
+    if counter[np.argmax(counter)] / np.sum(counter) > 0.5: # if one structure predominates, go with that one
+        representativeStructure = bestSingleStructure
+    else: # otherwise, clustering, or PCA
+        configDistance = getSecondaryStructureDistance(configs)
+        agglomerate = cluster.AgglomerativeClustering(n_clusters=None, affinity='precomputed', linkage='average', compute_full_tree=True, distance_threshold=0.3).fit(configDistance)
+        labels = agglomerate.labels_
+        nClusters = agglomerate.n_clusters_
+
+        clusters = []
+        for i in range(nClusters):
+            inds = np.where(labels == i)[0].astype(int)
+            clusters.append([configs[j] for j in inds])
+
+        #representativeIndex, reducedTrajectory, eigenvalues = isolateRepresentativeStructure(pairTraj)  # do PCA and multidimensional binning to find free energy minimum
+        #representativeStructure = pairTraj[representativeIndex]
         # alternatively we can do  clustering
         # and highlight different structures which nevertheless appear
 
@@ -490,12 +517,11 @@ def isolateRepresentativeStructure(trajectory):
     transformedDimensions = []
     for i in range(len(bins)):
         transformedDimensions.append(bins[i][1:] - np.diff(bins[i][0:2]))
-
     transformedDimensions = np.asarray(transformedDimensions)
+
     transformedCoordinates = []
     for i in range(len(transformedDimensions)):
         transformedCoordinates.append(transformedDimensions[i][bestTransformedStructureIndex[i]])  # best structure coordinates in transformed basis
-
     transformedCoordinates = np.asarray(transformedCoordinates)
 
     # find structures in the reduced trajectory with these coordinates
@@ -594,8 +620,8 @@ def getConformationChange():
         freeAngles = nucleicDihedrals(freeu)
         bindAngles = nucleicDihedrals(bindu)
 
-        n_components, freeReducedTrajectory, pcaModel = doTrajectoryDimensionalityReduction(freeAngles)
-        bindReducedTrajectory = pcaModel.transform(bindAngles.reshape(len(bindAngles), int(bindAngles.shape[-2] * bindAngles.shape[-1])))
+        n_components, freeReducedTrajectory, pcaModel = doTrajectoryDimensionalityReduction(freeAngles) # get free aptamer PCA
+        bindReducedTrajectory = pcaModel.transform(bindAngles.reshape(len(bindAngles), int(bindAngles.shape[-2] * bindAngles.shape[-1]))) # transform complex trajectory to free aptamer pca basis
 
         reducedDifferences = np.zeros(n_components)  #
         for i in range(n_components):  # rather than high dimensional probability analysis, we'll instead do differences in averages over dimensions
@@ -831,7 +857,7 @@ def lightDock(aptamer, analyte, params):
     params['glowworms'] = 300  # number of glowworms per swarm
 
     killH(aptamer)  # DNA needs to be deprotonated
-    addH(analyte, params['pH'])  # peptide needs to be protonated
+    addH(analyte, params['pH'])  # peptide needs to be hydrogenated
 
     aptamer2 = aptamer.split('.')[0] + "_noH.pdb"
     analyte2 = analyte.split('.')[0] + "_H.pdb"
@@ -904,13 +930,25 @@ def checkTrajPCASlope(topology, trajectory):
     return combinedSlope
 
 
-def doNupackAnalysis(sequence, temperature, ionicStrength):
+def nupackAnalysis(sequence, temperature, ionicStrength):
+    '''
+    sequence is DNA FASTA
+    temperature in C or K
+    ionicStrength in M
+    return a bunch of analysis
+    '''
     R = 0.0019872  # ideal gas constant in kcal/mol/K
-    gap = R * temperature
+    if temperature > 273: # auto-detect Kelvins
+        gap = 2 * R * temperature
+        CelsiusTemperature = temperature - 273
+    else:
+        gap = 2 * R * (temperature + 273) # convert to Kelvin for kT
+        CelsiusTemperature = temperature
+
     A = Strand(sequence, name='A')
     comp = Complex([A], name='AA')
     set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp]))
-    model1 = Model(material='dna', celsius=temperature - 273, sodium=ionicStrength)
+    model1 = Model(material='dna', celsius=CelsiusTemperature, sodium=ionicStrength)
     results = complex_analysis(set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
     cout = results[comp]
     prob = np.exp(-cout.mfe[0].energy / R / temperature) / float(cout.pfunc)  # probability - energy/partition function
@@ -1026,3 +1064,76 @@ def findPairingErrors(config, tt):
                 pairingErrors.append([tt, i, pairMate])
 
     return pairingErrors
+
+
+def configToString(config):
+    '''
+    convert 2d structure 'config' to dot-bracket string
+    :param config:
+    :return: string
+    '''
+    string = '.' * len(config) # start every base as unpaired
+    for i in range(len(config)):
+        if (config[i] == 0) or (string[i] != '.'): # if the base is unpaired or previously notated, leave it
+            pass
+        else: # make a pair
+            pair = [i, config[i] - 1] # indexing
+            stringList = list(string)
+            if pair[0] < pair[1]:
+                stringList[pair[0]] = '('
+                stringList[pair[1]] = ')' # indexing
+            elif pair[1] > pair[0]: # possibility for backwards pairs
+                stringList[pair[1]] = '('
+                stringList[pair[0]] = ')'
+            string = ''.join(stringList)
+            #print(str(pair) + string) # for debugging
+
+
+    return string
+
+
+def secondaryStructureClustering(configs, probs):
+    '''
+    :configs: list of configurations to cluster
+    :return:
+    '''
+
+    # ok but I'd like to have a threshold
+    # kmeans = cluster.KMeans(n_clusters = 4, random_state=0).fit(dists) # kmeans cluster
+    # labels = kmeans.labels_
+
+    # nice, nice - getting somewhere - this one uses a minimum threshold rather than a maximum
+    # then algorithm depends on quality of distance metric
+    converged = False
+    threshold = 0.1  # threshold (on normalized distance metric
+    while not converged:
+        agglomerate = cluster.AgglomerativeClustering(n_clusters=None, affinity='precomputed', linkage='average', compute_full_tree=True, distance_threshold=threshold).fit(dists)
+        labels = agglomerate.labels_
+        nClusters = agglomerate.n_clusters_
+
+        clusters = []
+        clusterProbs = []
+        clusterDists = []
+        probSums = np.zeros(len(np.unique(labels)))
+        for i in range(len(np.unique(labels))):
+            inds = np.where(labels == i)[0].astype(int)
+            clusters.append([configs[j] for j in inds])
+            clusterProbs.append([probs[j] for j in inds])
+            probSums[i] = np.sum(clusterProbs[-1])  # unnormalized
+            clusterDists.append(getSecondaryStructureDistance([configs[j] for j in inds]))
+
+        normedProbSums = probSums / np.sum(probSums)
+
+        if np.average(normedProbSums) < 0.1:  # if the average normed probability of our clusters is less than 10%, we're not converged
+            threshold *= 1.1  # if it isn't converged, boost the threshold
+        else:
+            converged = True
+
+    # find a representative from each cluster
+    weightedAvgDistance = []
+    clusterReps = []
+    for i in range(nClusters):
+        weightedAvgDistance.append((clusterDists[i] + np.eye(len(clusterDists[i]))) @ (1 / np.asarray(clusterProbs[i])))  # weight the distance to each config against its probability of being seen
+        clusterReps.append(clusters[i][np.argmin(weightedAvgDistance[i])])
+
+    return clusterReps, clusterProbs
