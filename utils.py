@@ -56,11 +56,11 @@ def printRecord(statement):
     :return:
     '''
     print(statement)
-    if os.path.exists('output.txt'):
-        with open('output.txt', 'a') as file:
+    if os.path.exists('record.txt'):
+        with open('record.txt', 'a') as file:
             file.write('\n' + statement)
     else:
-        with open('output.txt', 'w') as file:
+        with open('record.txt', 'w') as file:
             file.write('\n' + statement)
 
 
@@ -215,6 +215,12 @@ def appendTrajectory(topology, original, new):
     with mda.Writer('combinedTraj.dcd', u.atoms.n_atoms) as W:
         for ts in u.trajectory:
             W.write(u)
+
+def fullPipelineTrajectory(ind1,ind2):
+    '''
+    combine folding, smoothing, sampling, docking and binding trajectories into one nice video
+    '''
+    aa = 3
 
 
 # text editors

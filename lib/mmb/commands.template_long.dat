@@ -3,28 +3,45 @@ DNA A 1     SEQUENCE
 
 # stages
 firstStage 1
-lastStage 4
+lastStage 6
 
 #general simulation parameters
 readAtStage 1
 baseInteractionScaleFactor     100
 reportingInterval 1.0
-numReportingIntervals 10
+numReportingIntervals 20
 readBlockEnd
+
 readAtStage 2
-baseInteractionScaleFactor     200
+baseInteractionScaleFactor     250
 reportingInterval 1.0
-numReportingIntervals 10
+numReportingIntervals 20
 readBlockEnd
+
 readAtStage 3
 baseInteractionScaleFactor     500
 reportingInterval 1.0
-numReportingIntervals 20
+numReportingIntervals 40
 readBlockEnd
+
 readAtStage 4
+baseInteractionScaleFactor     750
+dutyCycle .9
+scrubberPeriod 40
+reportingInterval 1.0
+numReportingIntervals 40
+readBlockEnd
+
+readAtStage 5
 baseInteractionScaleFactor     1000
 reportingInterval 1.0
-numReportingIntervals 20
+numReportingIntervals 40
+readBlockEnd
+
+readAtStage 6
+baseInteractionScaleFactor     1000
+reportingInterval 1.0
+numReportingIntervals 40
 readBlockEnd
 
 # scrubber

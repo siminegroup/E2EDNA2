@@ -21,7 +21,12 @@ from simtk.openmm.app import *
 
 class mmb(): # macromolecule builder
     def __init__(self, sequence, pairList, params):
-        self.comFile = 'commands.fold.dat'  # name of command file
+        if params['fold speed'] == 'quick':
+            self.comFile = 'commands.fold_quick.dat'  # only for debugging runs - very short
+        elif params['fold speed'] == 'normal':
+            self.comFile = 'commands.fold.dat'  # default folding algorithm
+        elif params['fold speed'] == 'long':
+            self.comFile = 'commands.fold_long.dat'  # extended annealing - for difficult sequences
         self.sequence = sequence
         self.temperature = params['temperature']
         self.pairList = pairList
@@ -59,10 +64,23 @@ class mmb(): # macromolecule builder
             except:
                 pass
 
+    def check2DAgreement(self):
+        '''
+        check agreement between prescribed 2D structure and the actual fold
+        '''
+        u = mda.Universe('sequence.pdb')
+        wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding)
+        pairTraj = getPairTraj(wcTraj)
+        trueConfig = pairListToConfig(self.pairList, len(self.sequence))
+        foldDiscrepancy = getSecondaryStructureDistance([pairTraj[0],trueConfig])[0,1]
+        self.foldFidelity = 1-foldDiscrepancy # return the fraction of correctly paired bases
 
     def run(self):
         self.generateCommandFile()
         self.fold()
+        self.check2DAgreement()
+
+        return self.foldFidelity
 
 
 class ld(): # lightdock

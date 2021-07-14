@@ -16,9 +16,14 @@ To-Do:
 ==> cluster auto-zipping script
 ==> 2d and docking collation and final printout
 ==> more detailed printouts
+==> full trajectory combiner - for printouts
+==> do something with trajectory 2D clustering output
+==> always run a relaxation after MMB before going to full dynamics (incl. resize water box)
 
 future features
+
 ==> identify pep-nuc hydrogen bonds
+==> track post-complexation 2D trajectory and compare to pre-complexation, just like the 3D analysis
 ==> enhanced sampling and/or replica exchange (see openmmtools for implementation)
 ==> multi-state comparision in 2d and 3d w clustering
 ==> free energy and/or kd calculation
@@ -48,8 +53,8 @@ if params['device'] == 'cluster':
     params['peptide'] = cmdLineInputs[2] # peptide specified from command line
 elif params['device'] == 'local':
     params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
-    params['sequence'] = 'CGCTTTGCG' # manually set sequence
-    params['peptide'] = 'YYYRRR' # manually set peptide
+    params['sequence'] = 'GCGCTTTGCGC' # manually set sequence # ATP aptamer
+    params['peptide'] = 'YQTQTNSPRRAR' # manually set peptide
 
 '''
 Modes, in order of increasing cost
@@ -64,20 +69,24 @@ Modes, in order of increasing cost
 '''
 
 params['mode'] = 'full binding'  # what to do
-params['test mode'] = True # if true, changes params for a short simulation
+params['test mode'] = False # if true, changes params for a short simulation
 
 # Pipeline parameters
 params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package setup for probability analysis
-params['equilibration time'] = 0.001  # initial equilibration time in nanoseconds
-params['sampling time'] = 0.001  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
-params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
+params['equilibration time'] = 0.1  # initial equilibration time in nanoseconds
+params['sampling time'] = 0.1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
+params['auto sampling'] = False  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
 params['time step'] = 2.0  # MD time step in fs
-params['print step'] = 0.1  # MD printout step in ps
-params['max autoMD iterations'] = 2  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
+params['print step'] = 1  # MD printout step in ps
+params['max autoMD iterations'] = 1  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
 params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged'
-params['docking steps'] = 10  # number of steps for docking simulations
-params['N 2D structures'] = 2 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer
-params['N docked structures'] = 2 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost)
+params['docking steps'] = 100  # number of steps for docking simulations
+params['N 2D structures'] = 1 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer
+params['N docked structures'] = 1 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost)
+params['fold speed'] = 'normal' # 'quick' 'normal' 'long' # time to spend first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
+
+if params['test mode']:
+    params['fold speed'] = 'quick'
 
 # physical params
 params['pressure'] = 1  # atmospheres
@@ -98,9 +107,6 @@ params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
 params['hydrogen mass'] = 1.0  # in amu - we can increase the time if we increase this value
-
-if params['test mode']:
-    params['fast fold'] = True  # use a quicker MMB fold to accelerate debugging
 
 
 # paths
@@ -132,12 +138,13 @@ elif params['device'] == 'cluster':
 
 # mmb control files
 params['mmb params'] = 'lib/mmb/parameters.csv'
-params['mmb template'] = 'lib/mmb/commands.template.dat'
-if params['fast fold']:
-    params['mmb template'] = 'lib/mmb/commands.template_quick.dat'
+params['mmb normal template'] = 'lib/mmb/commands.template.dat'
+params['mmb quick template'] = 'lib/mmb/commands.template_quick.dat'
+params['mmb long template'] = 'lib/mmb/commands.template_long.dat'
+
 
 # structure files
-params['analyte pdb'] = 'lib/peptide/peptide.pdb'  # optional static analyte - currently not used
+params['analyte pdb'] = 'lib/peptide/peptide.pdb'  # optional stasleep 120tic analyte - currently not used
 
 '''
 ==============================================================

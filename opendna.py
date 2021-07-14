@@ -71,7 +71,7 @@ class opendna():
             self.actionDict['make workdir'] = True
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
-            self.actionDict['do smoothing'] = False
+            self.actionDict['do smoothing'] = True
             self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = False
             self.actionDict['do binding'] = False
@@ -79,7 +79,7 @@ class opendna():
             self.actionDict['make workdir'] = True
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
-            self.actionDict['do smoothing'] = False
+            self.actionDict['do smoothing'] = True
             self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = False
@@ -87,7 +87,7 @@ class opendna():
             self.actionDict['make workdir'] = True
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = True
-            self.actionDict['do smoothing'] = False
+            self.actionDict['do smoothing'] = True
             self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = True
@@ -113,7 +113,9 @@ class opendna():
 
             # copy MMB params and command script
             copyfile(self.params['mmb params'], self.workDir + '/parameters.csv')
-            copyfile(self.params['mmb template'], self.workDir + '/commands.template.dat')
+            copyfile(self.params['mmb normal template'], self.workDir + '/commands.template.dat')
+            copyfile(self.params['mmb quick template'], self.workDir + '/commands.template_quick.dat')
+            copyfile(self.params['mmb long template'], self.workDir + '/commands.template_long.dat')
 
             # copy lightdock scripts
             copytree('lib/lightdock', self.workDir + '/ld_scripts')
@@ -191,7 +193,7 @@ class opendna():
                 os.rename('sequence.pdb','sequence_%d'%self.i + '.pdb')
 
             if self.actionDict['do smoothing']:
-                self.MDSmoothing('sequence_%d'%self.i + '.pdb', relaxationTime=0.01)  # relax for xx nanoseconds
+                self.MDSmoothing('sequence_%d'%self.i + '.pdb', relaxationTime=0.1)  # relax for xx nanoseconds
 
             if self.actionDict['get equil repStructure']:
                 outputDict['free aptamer results'] = self.runFreeAptamer('sequence_%d'%self.i + '.pdb')
@@ -252,15 +254,17 @@ class opendna():
         # write pair list as forces to the MMB command file
         printRecord("Folding Sequence")
         mmb = interfaces.mmb(sequence, pairList, self.params)
-        mmb.run()
-        if (self.params['mode'] == '3d coarse') or (self.params['mode'] == 'coarse dock'):
-            self.prepCoarsePDB()
+        foldFidelity = mmb.run()
+        printRecord('Initial fold fidelity = %.3f'%foldFidelity)
+        attempts = 1
+        while (foldFidelity < 0.9) and (attempts < 5): # if it didn't fold properly, try again with a longer annealing time - up to XX times
+            self.params['fold speed'] = 'long'
+            printRecord("Refolding Sequence")
+            mmb = interfaces.mmb(sequence, pairList, self.params)
+            foldFidelity = mmb.run()
+            attempts += 1
 
         printRecord("Folded Sequence")
-
-    def prepCoarsePDB(self):
-        prepPDB('sequence.pdb', self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=False)
-        copyfile('sequence_processed.pdb', 'repStructure_%d'%self.i + '.pdb')  # final structure output
 
     def MDSmoothing(self, structure, relaxationTime=0.01):
         """
@@ -268,12 +272,14 @@ class opendna():
         relaxation time in nanoseconds, print time in picoseconds
         """
         structureName = structure.split('.')[0]
-        printRecord('Running quick relaxation')
+        printRecord('Running relaxation')
         prepPDB(structure, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
         processedStructure = structureName + '_processed.pdb'
-        omm = interfaces.omm(structure, self.params)
+        omm = interfaces.omm(processedStructure, self.params)
         self.ns_per_day = omm.doMD()
-        extractFrame(processedStructure, processedStructure.split('.')[0] + '_trajectory.dcd', -1, 'repStructure_%d'%self.i + '.pdb')  # pull the last frame of the relaxation
+        printRecord('Pre-relaxation simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
+        extractFrame(processedStructure, processedStructure.split('.')[0] + '_trajectory.dcd', -1, structureName + '_%d'%self.i + '.pdb')  # pull the last frame of the relaxation
+        copyfile(structureName + '_%d'%self.i + '.pdb','smoothed_' + structureName + '_%d'%self.i + '.pdb')
 
     def runFreeAptamer(self, aptamer):
         """
@@ -401,13 +407,15 @@ class opendna():
         """
         u = mda.Universe(structure, trajectory)
 
-        wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding) FAST but some errors
+        wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding) s
         baseDistTraj = getBaseBaseDistTraj(u)  # FAST, base-base center-of-geometry distances
         nucleicAnglesTraj = getNucDATraj(u)  # FAST, new, omits 'chi' angle between ribose and base
 
         # 2D structure analysis
         pairTraj = getPairTraj(wcTraj)
         secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
+        print('Predicted 2D structure :' + self.ssAnalysis['2d string'][self.i])
+        print('Actual 2D structure    :' + configToString(secondaryStructure))
 
         # 3D structure analysis
         mixedTrajectory = np.concatenate(
@@ -419,7 +427,6 @@ class opendna():
         extractFrame(structure, trajectory, representativeIndex, 'repStructure_%d'%self.i + '.pdb')
 
         # we also need a function which processes the energies spat out by the trajectory logs
-
         analysisDict = {}  # compile our results
         analysisDict['2D structure'] = secondaryStructure
         analysisDict['RC trajectories'] = pcTrajectory
