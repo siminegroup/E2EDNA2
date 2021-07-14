@@ -8,5 +8,5 @@ We undertake a wide range of manipulations on this object, using mostly straight
 
 One point worth mentioning is on the functions for analysis of nucleic acids. 
 While there are preexisting functions for analysis e.g., of Watson-Crick hydrogen bond lengths in mda.analysis.nuclinfo, these functions are somewhat old, and prohibitively slow for analysis of lengthy trajectories.
-To remedy this, we have written the functions `wcTrajAnalysis` and `nucleicDihedrals` using modern, very fast MDA methods, for Watson-Crick hydrogen bond length and nucleic dihedral angle analysis respectively. 
+To remedy this, we have written the functions `getWCDistTraj` and `getNucDATraj` using modern, very fast MDA methods, for Watson-Crick hydrogen bond length and nucleic dihedral angle analysis respectively. 
 When we have time, we hope to clean these functions up for incorporation into MDA proper.

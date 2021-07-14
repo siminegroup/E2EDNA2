@@ -13,5 +13,5 @@ for string in ssStrings:
     sequences.append(des(structure = string,model=myModel)[0].replace('U','T'))
     analysisDict.append(nupackAnalysis(sequences[-1], 310, 0.163)[0])
 
-print(sequences)
+printRecord(sequences)
 
