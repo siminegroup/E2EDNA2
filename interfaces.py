@@ -20,20 +20,25 @@ from simtk.openmm.app import *
 
 
 class mmb(): # macromolecule builder
-    def __init__(self, sequence, pairList, params):
+    def __init__(self, sequence, pairList, params, ind1):
         if params['fold speed'] == 'quick':
-            self.comFile = 'commands.fold_quick.dat'  # only for debugging runs - very short
+            self.template = 'commands.template_quick.dat'  # only for debugging runs - very short
         elif params['fold speed'] == 'normal':
-            self.comFile = 'commands.fold.dat'  # default folding algorithm
+            self.template = 'commands.template.dat'  # default folding algorithm
         elif params['fold speed'] == 'long':
-            self.comFile = 'commands.fold_long.dat'  # extended annealing - for difficult sequences
+            self.template = 'commands.template_long.dat'  # extended annealing - for difficult sequences
+        self.comFile = 'commands.run_fold.dat'
         self.sequence = sequence
         self.temperature = params['temperature']
         self.pairList = pairList
         self.mmbPath = params['mmb']
 
+        self.ind1 = ind1
+
+        self.foldedSequence = 'foldedSequence_{}.pdb'.format(ind1)
+
     def generateCommandFile(self):
-        copyfile('commands.template.dat', self.comFile)  # make command file
+        copyfile(self.template, self.comFile)  # make command file
         replaceText(self.comFile, 'SEQUENCE', self.sequence)
         replaceText(self.comFile, 'TEMPERATURE', str(self.temperature - 273)) # probably not important, but we can add the temperature in C
 
@@ -52,14 +57,15 @@ class mmb(): # macromolecule builder
             try:
                 attempts += 1
                 os.system(self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')
-                os.replace('frame.pdb', 'sequence.pdb')
+                os.replace('frame.pdb', self.foldedSequence)
 
                 Result = 1
                 # cleanup
-                os.mkdir('mmbFiles')
-                os.system('mv last* mmbFiles')
-                os.system('mv trajectory.* mmbFiles')
-                os.system('mv match.* mmbFiles')
+                self.fileDump = 'mmbFiles_%d'%self.ind1
+                os.mkdir(self.fileDump)
+                os.system('mv last* ' + self.fileDump)
+                os.system('mv trajectory.* ' + self.fileDump)
+                os.system('mv match.* ' + self.fileDump)
 
             except:
                 pass
@@ -68,7 +74,7 @@ class mmb(): # macromolecule builder
         '''
         check agreement between prescribed 2D structure and the actual fold
         '''
-        u = mda.Universe('sequence.pdb')
+        u = mda.Universe(self.foldedSequence)
         wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding)
         pairTraj = getPairTraj(wcTraj)
         trueConfig = pairListToConfig(self.pairList, len(self.sequence))
@@ -192,11 +198,13 @@ class omm(): # openmm
 
         # Simulation Options
         if simTime != None:  # we can override the simulation time here
-            self.steps = int(simTime / 2 * 1e6 // params['time step'])  # number of steps - split evenly between equilibration and sampling times
-            self.equilibrationSteps = int(simTime / 2 * 1e6 // params['time step'])
+            self.steps = int(simTime * 1e6 // params['time step'])  #
+            self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
+
         else:
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
+
 
         #platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'

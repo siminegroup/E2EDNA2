@@ -28,4 +28,4 @@ pip install ~/projects/def-simine/programs/opendnaWheels/PeptideBuilder-1.1.0-py
 pip install ~/projects/def-simine/programs/opendnaWheels/nupack-4.0.0.23-cp37-cp37m-linux_x86_64.whl
 python -c "import simtk.openmm"
 
-python ./main.py --run_num=0 --sequence='AACGCTTTTTGCGTT' --peptide='YQTQTNSPRRAR'
+python ./main.py --run_num=0 --sequence='AACGCTTTTTGCGTT' --peptide='YQTQTNSPRRAR' --walltime=4

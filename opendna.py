@@ -16,11 +16,13 @@ class opendna():
         self.params = params
         self.sequence = self.params['sequence']
         self.peptide = self.params['peptide']
+        self.pdbDict = {}
+        self.dcdDict = {}
 
         self.getActionDict()
         if self.actionDict['make workdir']:
             self.setup()  # if we dont need a workdir & MMB files, don't make one
-        self.getCheckpoint()
+
 
     def getActionDict(self):
         """
@@ -150,24 +152,46 @@ class opendna():
             print('Starting Fresh Run 1')
             os.mkdir(self.workDir)
 
-    def getCheckpoint(self):
-        """
-        identify if any work has been done in this directory, and if so, where to pick up
-        :return:
-        """
-        try:
-            f = open('checkpoint.txt', 'r')  # if it does, see how long it is
-            text = f.read()
-            f.close()
-            self.checkpoints = len([m.start() for m in re.finditer('\n', text)])
+    def computeRuntime(self):
+        '''
+        estimate the maximum runtime for this code, given a ns/day calculation from existing work done
+        omit MMB and docking as being relatively cheap
+        '''
+        dt = self.params['sampling time']
+        ssStructures = self.params['N 2D structures']
+        dockingStructures = self.params['N docked structures']
+        aptamerSteps = self.params['max aptamer sampling iterations']
+        complexSteps = self.params['max complex sampling iterations']
+        maxNS = ssStructures * aptamerSteps * dt + ssStructures * dockingStructures * complexSteps * dt # maximum possible sampling time in nanoseconds
+        projectedMaxRuntime = maxNS / self.ns_per_day * 24 # number of hours to complete our maximum sampling time
 
-            printRecord("Resuming Run #%d" % int(self.params['run num']))
-        except:
-            f = open('checkpoint.txt', 'w')
-            f.write('Started!\n')
-            f.close()
-            self.checkpoints = 1
-            self.checkpoint = 'initialized'
+        return projectedMaxRuntime
+
+    def checkRuntime(self):
+        '''
+        estimate the runtime at the current conditions, and adjust parameters if necessary to fit a given runtime
+        '''
+        projectedMaxRuntime = self.computeRuntime()
+        buffer = 0.8 # we ideally would like a buffer of 20% of the walltime
+        doReduction = 0
+        while projectedMaxRuntime > (buffer * self.params['max walltime']): # if the code is going to take too long, shorten the sampling time until it fits
+            doReduction = 1
+            self.params['sampling time'] *= 0.95
+            projectedMaxRuntime = self.computeRuntime()
+
+        if doReduction == 1:
+            if self.params['sampling time'] < 0.1:
+                printRecord('Sampling time reduced to 100 ps - this run is too expensive, and will now terminate')
+                self.terminateRun()
+            else:
+                printRecord('Sampling time chunk reduced to {} ns'.format(self.params['sampling time']))
+
+    def terminateRun(self):
+        '''
+        for some reason, the run will suddenly end
+        '''
+        sys.exit()
+
 
     def run(self):
         """
@@ -186,29 +210,30 @@ class opendna():
         printRecord('Running over %d' % len(self.pairLists) + ' possible 2D structures')
 
         for self.i in range(len(self.pairLists)):  # loop over possible secondary structures
+            printRecord('2D strcuture #{} is {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
             self.pairList = np.asarray(self.pairLists[self.i])
 
             if self.actionDict['do MMB']:  # fold it
                 self.foldSequence(self.sequence, self.pairList)
-                os.rename('sequence.pdb','sequence_%d'%self.i + '.pdb')
 
             if self.actionDict['do smoothing']:
-                self.MDSmoothing('sequence_%d'%self.i + '.pdb', relaxationTime=0.1)  # relax for xx nanoseconds
+                self.MDSmoothing(self.pdbDict['mmb folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'])  # relax for xx nanoseconds
 
             if self.actionDict['get equil repStructure']:
-                outputDict['free aptamer results'] = self.runFreeAptamer('sequence_%d'%self.i + '.pdb')
-                np.save('opendnaOutput_%d' % self.i, outputDict)  # save outputs
+                outputDict['free aptamer results {}'.format(self.i)] = self.runFreeAptamer(self.pdbDict['relaxed sequence {}'.format(self.i)])
+                np.save('opendnaOutput', outputDict)  # save outputs
 
             if self.actionDict['do docking'] and (self.peptide is not False):  # find docking configurations for the complexed structure
-                outputDict['dock scores'] = self.dock('repStructure_%d'%self.i + '.pdb', 'peptide.pdb')
-                np.save('opendnaOutput_%d' % self.i, outputDict)  # save outputs
+                outputDict['dock scores {}'.format(self.i)] = self.dock(self.pdbDict['representative aptamer {}'.format(self.i)], 'peptide.pdb')
+                np.save('opendnaOutput', outputDict)  # save outputs
 
             printRecord('Running over %d' % self.params['N docked structures'] + ' docked structures')
-            for self.j in range(self.params['N docked structures']):
-                if self.actionDict['do binding'] and (self.peptide is not False):  # run MD on the complexed structure
-                    outputDict['binding results'] = self.bindingDynamics('complex_{}_{}'.format(self.i,int(self.j + 1)) + '.pdb', 'clean_finished_sequence_%d'%self.i + '.pdb')
+            for self.j in range(self.params['N docked structures']): # loop over docking configurations for a given secondary structure
+                printRecord('Docked structure #{}'.format(self.j))
+                if self.actionDict['do binding']:  # run MD on the complexed structure
+                    outputDict['binding results {} {}'.format(self.i, self.j)] = self.bindingDynamics(self.pdbDict['binding complex {} {}'.format(self.i,int(self.j))])
 
-                    np.save('opendnaOutput_%d' % self.i + '_%d' % int(self.j + 1), outputDict)  # save outputs
+                    np.save('opendnaOutput', outputDict)  # save outputs
 
         return outputDict
 
@@ -253,17 +278,20 @@ class opendna():
         """
         # write pair list as forces to the MMB command file
         printRecord("Folding Sequence")
-        mmb = interfaces.mmb(sequence, pairList, self.params)
+        mmb = interfaces.mmb(sequence, pairList, self.params, self.i)
         foldFidelity = mmb.run()
         printRecord('Initial fold fidelity = %.3f'%foldFidelity)
         attempts = 1
-        while (foldFidelity < 0.9) and (attempts < 5): # if it didn't fold properly, try again with a longer annealing time - up to XX times
-            self.params['fold speed'] = 'long'
-            printRecord("Refolding Sequence")
-            mmb = interfaces.mmb(sequence, pairList, self.params)
-            foldFidelity = mmb.run()
-            attempts += 1
+        if not self.params['test mode']: # don't rerun if we're in test mode
+            while (foldFidelity <= 0.9) and (attempts < 5): # if it didn't fold properly, try again with a longer annealing time - up to XX times
+                self.params['fold speed'] = 'long'
+                printRecord("Refolding Sequence")
+                mmb = interfaces.mmb(sequence, pairList, self.params, self.i)
+                foldFidelity = mmb.run()
+                attempts += 1
 
+        self.pdbDict['mmb folded sequence {}'.format(self.i)] = mmb.foldedSequence
+        os.system('mv commands.run* ' + mmb.fileDump)
         printRecord("Folded Sequence")
 
     def MDSmoothing(self, structure, relaxationTime=0.01):
@@ -275,11 +303,17 @@ class opendna():
         printRecord('Running relaxation')
         prepPDB(structure, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
         processedStructure = structureName + '_processed.pdb'
+        processedStructureTrajectory = processedStructure.split('.')[0] + '_trajectory.dcd'
         omm = interfaces.omm(processedStructure, self.params)
         self.ns_per_day = omm.doMD()
+
         printRecord('Pre-relaxation simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
-        extractFrame(processedStructure, processedStructure.split('.')[0] + '_trajectory.dcd', -1, structureName + '_%d'%self.i + '.pdb')  # pull the last frame of the relaxation
-        copyfile(structureName + '_%d'%self.i + '.pdb','smoothed_' + structureName + '_%d'%self.i + '.pdb')
+
+        cleanTrajectory(processedStructure, processedStructureTrajectory) # clean up trajectory for later use
+        self.dcdDict['relaxed sequence {}'.format(self.i)] = 'clean_' + processedStructureTrajectory
+        self.pdbDict['relaxed sequence {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)
+        extractFrame(processedStructure,processedStructureTrajectory,-1,self.pdbDict['relaxed sequence {}'.format(self.i)]) # final frame
+
 
     def runFreeAptamer(self, aptamer):
         """
@@ -292,17 +326,18 @@ class opendna():
         printRecord('Running free aptamer dynamics')
         prepPDB(aptamer, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)  # add periodic box and appropriate protons
         processedAptamer = structureName + '_processed.pdb'
+        processedAptamerTrajectory = processedAptamer.split('.')[0] + '_complete_trajectory.dcd' # this is what autoMD will output
+
         self.autoMD(processedAptamer)  # do MD - automatically converge to equilibrium sampling
 
         printRecord('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
+        self.checkRuntime()
 
-        finishedPDB = 'finished_' + aptamer
-        finishedDCD = 'finished_' + structureName + '.dcd'
-        os.replace(structureName + '_processed_complete_trajectory.dcd', finishedDCD)
-        os.replace(processedAptamer, finishedPDB)
-
-        cleanTrajectory(finishedPDB, finishedDCD)
-        aptamerDict = self.analyzeTrajectory('clean_' + finishedPDB, 'clean_' + finishedDCD, False)
+        cleanTrajectory(processedAptamer, processedAptamerTrajectory)
+        self.dcdDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamerTrajectory
+        self.pdbDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamer
+        aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)],self.dcdDict['sampled aptamer {}'.format(self.i)])
+        self.pdbDict['representative aptamer {}'.format(self.i)] = 'repStructure_{}.pdb'.format(self.i)
 
         printRecord('Free aptamer sampling complete')
 
@@ -319,13 +354,13 @@ class opendna():
         topScores = ld.topScores
 
         for i in range(self.params['N docked structures']):
-            copyfile('top_%d'%self.i + '/top_%d' % int(i + 1) + '.pdb', 'complex_{}_{}'.format(self.i, int(i + 1)) + '.pdb')
+            copyfile('top_%d'%self.i + '/top_%d' % int(i + 1) + '.pdb', 'complex_{}_{}.pdb'.format(self.i, int(i)))
+            self.pdbDict['binding complex {} {}'.format(self.i, int(i))] = 'complex_{}_{}.pdb'.format(self.i,int(i))
 
-        printRecord('Docking complete')
-
+        printRecord('Docking complete, best scores are {}'.format(topScores))
         return topScores
 
-    def bindingDynamics(self, complex, freeSequence):
+    def bindingDynamics(self, complex):
         """
         run molecular dynamics
         do relevant analysis
@@ -336,18 +371,19 @@ class opendna():
         printRecord('Running Binding Simulation')
         prepPDB(complex, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=False, waterBox=True)
         processedComplex = complex.split('.')[0] + '_processed.pdb'
+        processedComplexTrajectory = processedComplex.split('.')[0] + '_complete_trajectory.dcd' # this is what autoMD will output
 
         self.autoMD(processedComplex, binding=True)  # do MD - automatically converge to equilibrium sampling
 
         printRecord('Complex simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print speed
+        self.checkRuntime()
 
-        finishedPDB = 'finished_' + complex
-        finishedDCD = 'finished_' + structureName + '.dcd'
-        os.replace(structureName + '_processed_complete_trajectory.dcd', finishedDCD)
-        os.replace(processedComplex, finishedPDB)
+        cleanTrajectory(processedComplex, processedComplexTrajectory)
 
-        cleanTrajectory(finishedPDB, finishedDCD)
-        bindingDict = self.analyzeBinding('clean_' + finishedPDB, 'clean_' + finishedDCD, freeSequence, freeSequence.split('.')[0] + '.dcd')
+        self.dcdDict['sampled complex {} {}'.format(self.i, self.j)] = 'clean_' + processedComplexTrajectory
+        self.pdbDict['sampled complex {} {}'.format(self.i, self.j)] = 'clean_' + processedComplex
+
+        bindingDict = self.analyzeBinding(self.pdbDict['sampled complex {} {}'.format(self.i, self.j)], self.dcdDict['sampled complex {} {}'.format(self.i,self.j)], self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
 
         # print findings
         printRecord('Binding Results: Contact Persistence = {:.2f}, Contact Score = {:.2f}, Conformation Change = {:.2f}'.format(bindingDict['close contact ratio'], bindingDict['contact score'], bindingDict['conformation change']))
@@ -362,7 +398,10 @@ class opendna():
         :param structure:
         :return:
         """
-        maxIter = self.params['max autoMD iterations']  # some maximum number of allowable iterations
+        if binding:
+            maxIter = self.params['max complex sampling iterations']
+        else:
+            maxIter = self.params['max aptamer sampling iterations']  # some maximum number of allowable iterations
         cutoff = self.params['autoMD convergence cutoff']
 
         structureName = structure.split('.')[0]
@@ -399,7 +438,7 @@ class opendna():
 
             os.replace(structureName + '_trajectory-1.dcd', structureName + '_complete_trajectory.dcd')  # we'll consider the full trajectory as 'sampling'
 
-    def analyzeTrajectory(self, structure, trajectory, analyte):
+    def analyzeTrajectory(self, structure, trajectory):
         """
         analyze trajectory for aptamer fold + analyte binding information
         :param trajectory:

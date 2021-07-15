@@ -12,6 +12,8 @@ import simtk.unit as unit
 from simtk.openmm.app import *
 import time
 from pdbfixersource import PDBFixer
+import numpy as np
+from shutil import copyfile
 
 
 # I/O
@@ -24,6 +26,7 @@ def get_input():
     parser.add_argument('--run_num', type=int, default=0)
     parser.add_argument('--sequence', type=str, default='XXX')
     parser.add_argument('--peptide', type=str, default='BBB')
+    parser.add_argument('--walltime', type=float, default=24)
     cmd_line_input = parser.parse_args()
     run = cmd_line_input.run_num
     sequence = cmd_line_input.sequence
@@ -78,7 +81,28 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
     fixer = PDBFixer(filename=file)
     padding, boxSize, boxVectors = None, None, None
     geompadding = float(boxOffset) * unit.nanometer
-    padding = geompadding
+
+    boxMode = 'cubic' # toggle for box type - look at openmm-setup source code for other box types
+
+    if boxMode == 'cubic':
+        padding = geompadding # for cubic box
+    elif boxMode == 'rectangular prism':
+        # or we can make a rectangular prism which (maybe) cuts off sides of the cube
+        u = mda.Universe(file)
+        coords = u.atoms.positions
+        xrange = np.ptp(coords[:, 0]) # get the maximum dimension
+        yrange = np.ptp(coords[:, 1])
+        zrange = np.ptp(coords[:, 2])
+        maxsize = max([xrange, yrange, zrange])
+        xrange = max([xrange,maxsize/2]) / 10 # minimum dimension is half the longest, also convert to nm
+        yrange = max([yrange,maxsize/2]) / 10
+        zrange = max([zrange,maxsize/2]) / 10
+
+        xrange = xrange + 2 * boxOffset  # may also need an EWALD offset
+        yrange = yrange + 2 * boxOffset
+        zrange = zrange + 2 * boxOffset
+
+        boxSize = [xrange,yrange,zrange] * unit.nanometer # for rectangular prism
 
     fixer.findMissingResidues()
     fixer.findMissingAtoms()
@@ -220,7 +244,51 @@ def fullPipelineTrajectory(ind1,ind2):
     '''
     combine folding, smoothing, sampling, docking and binding trajectories into one nice video
     '''
-    aa = 3
+
+    # this needs to be updated with the new file formatting system
+    trajectories = []
+    # fold
+    dir = './mmbFiles_%d'%ind1
+    copyfile(dir + '/last.1.pdb','foldFrame1.pdb')
+    dirList = os.listdir(dir)
+
+    filenames = []
+    for file in dirList:
+        if 'trajectory' in file:
+            filenames.append(dir + '/' +file)
+
+    with open('foldingTraj_%d'%ind1 + '.pdb', 'w') as outfile:
+        for fname in filenames:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
+
+    replaceText('foldingTraj_%d'%ind1 + '.pdb', '*', "'")  # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
+
+    u = mda.Universe('foldingTraj_%d'%ind1 + '.pdb')
+    with mda.Writer('foldingTraj_%d'%ind1 +'.dcd', u.atoms.n_atoms) as W:
+        for ts in u.trajectory:
+            W.write(u)
+
+    trajectories.append('foldingTraj_%d'%ind1 + '.dcd')
+
+    # initial relaxation
+    trajectories.append('smoothed_sequence_%d'%ind1 + '.dcd')
+
+    # free aptamer
+    trajectories.append('clean_finished_sequence_%d'%ind1 + '.dcd')
+
+    u = mda.Universe('foldFrame1.pdb', trajectories)
+
+    with mda.Writer('fullPipeTraj.dcd', u.atoms.n_atoms) as W:
+        for ts in u.trajectory:
+            W.write(u)
+
+
+    # docking
+
+    # binding
+    trajectories.append('clean_finished_complex_%d'%ind1 + '_%d'%ind2 + '.dcd')
 
 
 # text editors
