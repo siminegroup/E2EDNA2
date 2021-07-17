@@ -31,8 +31,9 @@ def get_input():
     run = cmd_line_input.run_num
     sequence = cmd_line_input.sequence
     peptide = cmd_line_input.peptide
+    walltime = cmd_line_input.walltime
 
-    return [run, sequence, peptide]
+    return [run, sequence, peptide, walltime]
 
 def writeCheckpoint(text):
     """

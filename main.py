@@ -37,15 +37,20 @@ SOFTWARE.
 
 To-Do:
 ==> improve equilibration & sampling
-==> finish README
-    ==> example
-==> write automated testing & test other modes
-==> cluster auto-zipping script
 ==> collation and final printout
 ==> full trajectory combiner - for printouts
 ==> it's possible that the 3D representative structure may have a different 2D structure than our 'official' 2D structure
+==> look at size vs time over a large aptamer trajectory to optimize smoothing timescale
+==> 'long' refold takes too long on big sequences and doesn't actually work that well - make a better/shorter one
+    ==> separate stages in MMB run and cutoff sim if everything is satisfied
+==> record actual number of 2d and docking structures attempted
+==> see if MMB can be easily parallelized - seems like no... maybe then try turning off physics
+==> add Mg ions in nupack and openmm
 
 future features
+==> finish README
+    ==> example
+==> write automated testing with all possible test modes
 ==> specifically identify aptamer-analyte hydrogen bonds
 ==> track post-complexation 2D trajectory and compare to pre-complexation, just like the 3D analysis
 ==> enhanced sampling and/or replica exchange (see openmmtools for implementation)
@@ -66,11 +71,13 @@ little things & known issues
 ==> label bare exceptions
 ==> for long DNA sequences with extended unpaired 'tails', rectangular prism box may fail. However, cubic box would be very expensive. It's a pickle - in any case we may want to encode logic to automatically detect and adjust.
 ==> for tiny peptides, lightdock ANM may fail, and the whole run crashes 
+==> ANM is on and setup but doesn't seem to be used all the time
+
 '''
 
 params = {}
-params['device'] = 'local'  # 'local' or 'cluster'
-params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
+params['device'] = 'cluster'  # 'local' or 'cluster'
+params['platform'] = 'CUDA'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double' only relevant on 'CUDA' platform
 
 if params['device'] == 'cluster':
@@ -81,8 +88,8 @@ if params['device'] == 'cluster':
     params['max walltime'] = cmdLineInputs[3] # maximum walltime
 elif params['device'] == 'local':
     params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
-    params['sequence'] = 'CCCGGTTTCCGGG' # manually set sequence # ATP aptamer
-    params['peptide'] = 'YQTQTNSPRRAR' # manually set peptide
+    params['sequence'] = 'ATTCAACTTTATCGAGTGCGTTGAGTGCGGTATCGCAATG' # manually set sequence # ATP aptamer
+    params['peptide'] = 'YRRYRRYRRY'#'YQTQTNSPRRAR' # manually set peptide
     params['max walltime'] = 3 * 24  # maximum walltime in hours - code will adapt maximum sampling steps to finish in less than this time, or give up if this isn't enough time to complete even a minimum run.
 
 '''
@@ -107,12 +114,12 @@ params['equilibration time'] = 0.01  # initial equilibration time in nanoseconds
 params['sampling time'] = 1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
 params['smoothing time'] = 1  # time for pre-sampling relaxation
 params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
-params['time step'] = 2.0  # MD time step in fs
+params['time step'] = 3.0  # MD time step in fs
 params['print step'] = 10  # MD printout step in ps
 params['max aptamer sampling iterations'] = 20  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
 params['max complex sampling iterations'] = 5  # number of iterations for the binding complex
 params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged'
-params['docking steps'] = 100  # number of steps for docking simulations
+params['docking steps'] = 200  # number of steps for docking simulations
 params['N 2D structures'] = 2 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer
 params['N docked structures'] = 3 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost)
 params['fold speed'] = 'normal' # 'quick' 'normal' 'long' # time to spend first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
@@ -122,7 +129,7 @@ if params['test mode']: # shortcut for fast debugging
     params['sampling time'] = 0.001  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
     params['smoothing time'] = 0.001 # time for pre-sampling relaxation
     params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
-    params['time step'] = 2.0  # MD time step in fs
+    params['time step'] = 3.0  # MD time step in fs
     params['print step'] = .1  # MD printout step in ps
     params['max aptamer sampling iterations'] = 2  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
     params['max complex sampling iterations'] = 2  # number of iterations for the binding complex
@@ -150,7 +157,7 @@ params['ewald error tolerance'] = 5e-4
 params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
-params['hydrogen mass'] = 1.0  # in amu - we can increase the time if we increase this value
+params['hydrogen mass'] = 1.5  # in amu - we can increase the time if we increase this value
 
 # paths
 if params['device'] == 'local':

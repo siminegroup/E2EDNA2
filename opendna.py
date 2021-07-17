@@ -127,6 +127,7 @@ class opendna():
 
         # move to working dr
         os.chdir(self.workDir)
+        printRecord('Simulating {} with {}'.format(self.sequence, self.peptide))
 
         if self.params['device'] == 'local':
             os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir']  # export the path to the MMB library - only necessary in WSL environments
@@ -282,13 +283,16 @@ class opendna():
         foldFidelity = mmb.run()
         printRecord('Initial fold fidelity = %.3f'%foldFidelity)
         attempts = 1
-        if not self.params['test mode']: # don't rerun if we're in test mode
+        if self.params['fold speed'] != 'quick': # don't rerun if we're quick folding
+            intervalLength = 5  # initial interval length
             while (foldFidelity <= 0.9) and (attempts < 5): # if it didn't fold properly, try again with a longer annealing time - up to XX times
                 self.params['fold speed'] = 'long'
                 printRecord("Refolding Sequence")
-                mmb = interfaces.mmb(sequence, pairList, self.params, self.i)
+                mmb = interfaces.mmb(sequence, pairList, self.params, self.i, intervalLength)
                 foldFidelity = mmb.run()
+                printRecord('Subsequent fold fidelity = %.3f' % foldFidelity)
                 attempts += 1
+                intervalLength += 5 # on repeated attempts, try harder
 
         self.pdbDict['mmb folded sequence {}'.format(self.i)] = mmb.foldedSequence
         os.system('mv commands.run* ' + mmb.fileDump)

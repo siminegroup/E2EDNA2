@@ -20,7 +20,7 @@ from simtk.openmm.app import *
 
 
 class mmb(): # macromolecule builder
-    def __init__(self, sequence, pairList, params, ind1):
+    def __init__(self, sequence, pairList, params, ind1, intervalLength=None):
         if params['fold speed'] == 'quick':
             self.template = 'commands.template_quick.dat'  # only for debugging runs - very short
         elif params['fold speed'] == 'normal':
@@ -28,6 +28,7 @@ class mmb(): # macromolecule builder
         elif params['fold speed'] == 'long':
             self.template = 'commands.template_long.dat'  # extended annealing - for difficult sequences
         self.comFile = 'commands.run_fold.dat'
+        self.foldSpeed = params['fold speed']
         self.sequence = sequence
         self.temperature = params['temperature']
         self.pairList = pairList
@@ -37,10 +38,14 @@ class mmb(): # macromolecule builder
 
         self.foldedSequence = 'foldedSequence_{}.pdb'.format(ind1)
 
+        self.intervalLength = intervalLength
+
     def generateCommandFile(self):
         copyfile(self.template, self.comFile)  # make command file
         replaceText(self.comFile, 'SEQUENCE', self.sequence)
         replaceText(self.comFile, 'TEMPERATURE', str(self.temperature - 273)) # probably not important, but we can add the temperature in C
+        if self.foldSpeed == 'long':
+            replaceText(self.comFile, 'INTERVAL', str(self.intervalLength))
 
         baseString = '#baseInteraction A IND WatsonCrick A IND2 WatsonCrick Cis'
         lineNum = findLine(self.comFile, baseString)  # find the line number to start enumerating base pairs
@@ -74,12 +79,32 @@ class mmb(): # macromolecule builder
         '''
         check agreement between prescribed 2D structure and the actual fold
         '''
+        ''' do it with mda
         u = mda.Universe(self.foldedSequence)
         wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding)
         pairTraj = getPairTraj(wcTraj)
         trueConfig = pairListToConfig(self.pairList, len(self.sequence))
         foldDiscrepancy = getSecondaryStructureDistance([pairTraj[0],trueConfig])[0,1]
         self.foldFidelity = 1-foldDiscrepancy # return the fraction of correctly paired bases
+        '''
+        # do it with MMB
+        f = open('outfiles/fold.out')
+        text = f.read()
+        f.close()
+        text = text.split('\n')
+        scores = []
+        for i in range(len(text)):
+            if "Satisfied baseInteraction's" in text[i]:
+                line = text[i].split(':')
+                numerator = float(line[-2].split(' ')[1])
+                denominator = float(line[-1])
+                if denominator == 0: # if there are no pairs, the denominator will be zero (no constraints)
+                    scores.append(1)
+                else:
+                    scores.append(numerator/denominator)
+
+        scores = np.asarray(scores)
+        self.foldFidelity = np.amax(scores)
 
     def run(self):
         self.generateCommandFile()
@@ -196,6 +221,8 @@ class omm(): # openmm
         self.temperature = params['temperature'] * unit.kelvin
         self.friction = params['friction'] / unit.picosecond
 
+        self.quickSim = params['test mode']
+
         # Simulation Options
         if simTime != None:  # we can override the simulation time here
             self.steps = int(simTime * 1e6 // params['time step'])  #
@@ -240,7 +267,10 @@ class omm(): # openmm
         if not os.path.exists(self.structureName.split('.')[0] + '_state.chk'):
             # Minimize and Equilibrate
             printRecord('Performing energy minimization...')
-            self.simulation.minimizeEnergy()
+            if self.quickSim: # if want to do it fast, loosen the tolerances
+                self.simulation.minimizeEnergy(tolerance = 20, maxIterations = 100) # default is 10 kJ/mol - also set a max number of iterations
+            else:
+                self.simulation.minimizeEnergy()
             printRecord('Equilibrating...')
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
