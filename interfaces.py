@@ -39,6 +39,8 @@ class mmb(): # macromolecule builder
         self.foldedSequence = 'foldedSequence_{}.pdb'.format(ind1)
 
         self.intervalLength = intervalLength
+        
+        self.fileDump = 'mmbFiles_%d'%self.ind1
 
     def generateCommandFile(self):
         copyfile(self.template, self.comFile)  # make command file
