@@ -127,15 +127,16 @@ def buildPeptide(peptide):
     """
     # resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
     structure = PeptideBuilder.initialize_res(peptide[0])
+    angles_to_constrain = {}
     for i in range(1, len(peptide)):
         geo = Geometry.geometry(peptide[i])
         PeptideBuilder.add_residue(structure, geo)
         
         # Call dihedral angle attributes
-
-        phi = geo.phi
-        omega = geo.omega
-        psi = geo.psi_im1        
+     
+        da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
+        angles_to_constrain[peptide[i]] = da_set
+        
         
     # PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
