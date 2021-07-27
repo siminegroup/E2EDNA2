@@ -11,7 +11,8 @@ _mjakilgour gmail com_
 ```
 git clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_CALLED
 ```
-* Setup python environment with the following packages (SIMINE GROUP MEMBERS - SKIP TO 'PATHS' SECTION, AND SIMPLY USE EXAMPLE_SUB AS YOUR SUBFILE)
+* Setup python environment with the following packages
+  * Note to Simine Group Members running on Compute Candada - skip this section and go directly to paths. Your virtual environment is automatically setup via the instructions in EXAMPLE_SUB.sh
 ```
 biopython==1.78
 certifi==2020.12.5
