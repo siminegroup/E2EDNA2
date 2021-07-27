@@ -130,14 +130,19 @@ def buildPeptide(peptide):
     for i in range(1, len(peptide)):
         geo = Geometry.geometry(peptide[i])
         PeptideBuilder.add_residue(structure, geo)
+        
+        # Call dihedral angle attributes
 
+        phi = geo.phi
+        omega = geo.omega
+        psi = geo.psi_im1        
+        
     # PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
     out.save('peptide.pdb')
     
-    # Set dihedral angles
     
     
 
