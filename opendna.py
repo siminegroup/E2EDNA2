@@ -211,7 +211,7 @@ class opendna():
         printRecord('Running over %d' % len(self.pairLists) + ' possible 2D structures')
 
         for self.i in range(len(self.pairLists)):  # loop over possible secondary structures
-            printRecord('2D strcuture #{} is {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
+            printRecord('2D structure #{} is {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
             self.pairList = np.asarray(self.pairLists[self.i])
 
             if self.actionDict['do MMB']:  # fold it
