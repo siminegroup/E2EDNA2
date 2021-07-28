@@ -264,17 +264,19 @@ class omm(): # openmm
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
         self.simulation.context.setPositions(self.positions)
         
-        self.force = CustomTorsionForce("10*(theta-theta0)^2")
-        self.force.addPerTorsionParameter("theta0") # it shall now recognize theta0 as some to-be initialized variable
-        
-        # Next, add iterator that goes through all backbone atoms to add the torsions
-        for i in range(self.system.getNumParticles()):
-            self.addTorsion(particle[i], particle[i+1], particle[i+2], particle[i+3], self.angle) # angle and particle are placeholders
-        
-        # After, add all torsions to the system - DONE
-        self.system.addForce(self.force)
-        
-        # Torsions should now be restrained
+        if params['peptide backbone constraint']:
+            self.atoms = [atom for atom in self.topology.atoms()]
+            self.force = CustomTorsionForce("1000*(theta-theta0)^2") # automatically recognizes theta as the dihedral angle
+            self.force.addPerTorsionParameter("theta0")        
+
+            # Next, add iterator that goes through all backbone atoms to add the torsions - will probably iterate over something else
+            for i in range(self.system.getNumParticles()):
+                self.addTorsion(particle[i], particle[i+1], particle[i+2], particle[i+3], self.angle) # angle and particle are placeholders
+
+            # After, add all torsions to the system - DONE
+            self.system.addForce(self.force)
+
+            # Torsions should now be restrained
         
 
     def doMD(self):
