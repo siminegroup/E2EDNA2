@@ -268,26 +268,24 @@ class omm(): # openmm
             
             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C', 'O'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
-            if len(self.da_atoms) % 4 == 0 and len(self.da_atoms) != 0:
-                self.atom_ids = [atom.index for atom in self.da_atoms]
-                
-                self.force = CustomTorsionForce(str(params['peptide backbone constraint constant']) + "*(theta-theta0)^2") # automatically recognizes theta as the dihedral angle
-                self.force.addPerTorsionParameter("theta0")
+            self.atom_ids = [atom.index for atom in self.da_atoms]
 
-                # Next, add iterator that goes through all backbone atoms to add the torsions
-                for atom_num in range(len(self.atom_ids)):
-                    if atom_num <= len(self.atom_ids) - 4:
-                        self.addTorsion(self.atom_ids[atom_num], 
-                                        self.atom_ids[atom_num + 1], 
-                                        self.atom_ids[atom_num + 2], 
-                                        self.atom_ids[atom_num + 3], self.angle) # angle is a placeholder variable
+            self.force = CustomTorsionForce(str(params['peptide backbone constraint constant']) + "*(theta-theta0)^2") # automatically recognizes theta as the dihedral angle
+            self.force.addPerTorsionParameter("theta0")
 
-                # After, add all torsions to the system - DONE
-                self.system.addForce(self.force)
+            # Next, add iterator that goes through all backbone atoms to add the torsions
+            for atom_num in range(len(self.atom_ids)):
+                if atom_num <= len(self.atom_ids) - 4:
+                    self.addTorsion(self.atom_ids[atom_num], 
+                                    self.atom_ids[atom_num + 1], 
+                                    self.atom_ids[atom_num + 2], 
+                                    self.atom_ids[atom_num + 3], self.angle) # angle is a placeholder variable
 
-                # Torsions (Dihedrals) should now be restrained
-            else:
-                printRecord("Unsuccessful torsion constraint setup (number of atoms involved in dihedrals not a multiple of 4)")
+            # After, add all torsions to the system - DONE
+            self.system.addForce(self.force)
+
+            # Torsions (Dihedrals) should now be restrained
+            
         
 
     def doMD(self):
