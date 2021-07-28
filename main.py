@@ -158,6 +158,7 @@ params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
 params['hydrogen mass'] = 1.5  # in amu - we can increase the time if we increase this value
+params['peptide backbone constraint'] = True # Not strictly a constraint, more of a large potential potential barrier
 
 # paths
 if params['device'] == 'local':
