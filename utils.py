@@ -126,7 +126,10 @@ def findAngles(peptide):
     :return angles_to_constrain, a dictionary that contains the numerical values for angles to constrain:
     """
     angles_to_constrain = {}
-    resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
+    resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F",
+               "GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L",
+               "MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R",
+               "SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
     resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
     
     for amino_acid in peptide:
