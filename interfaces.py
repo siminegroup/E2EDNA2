@@ -208,6 +208,7 @@ class omm(): # openmm
         self.structureName = structure.split('.')[0]
         self.waterModel = params['water model']
         self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
+        self.peptide = params['peptide']
 
         # System Configuration
         self.nonbondedMethod = params['nonbonded method']
@@ -265,7 +266,7 @@ class omm(): # openmm
         self.simulation.context.setPositions(self.positions)
         
         if bool(params['peptide backbone constraint constant']): # if constant != 0, implement the constraint
-            self.angles_to_constrain = angles_to_constrain
+            self.angles_to_constrain = findAngles(self.peptide)
             
             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C', 'O', 'H', 'HA'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
