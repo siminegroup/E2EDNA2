@@ -269,17 +269,25 @@ class omm(): # openmm
             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C', 'O', 'H', 'HA'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
             self.atom_ids = [atom.index for atom in self.da_atoms]
-
+            
+            self.phi_tup = ('N', 'H', 'CA', 'HA')
+            self.psi_tup = ('CA', 'HA', 'C', 'O')
+            self.omega_tup = ('C', 'O', 'N', 'H')
+            
+            self.angle_tups = self.phi_tup, self.psi_tup, self.omega_tup
+            
             self.force = CustomTorsionForce(str(params['peptide backbone constraint constant']) + "*(theta-theta0)^2") # automatically recognizes theta as the dihedral angle
             self.force.addPerTorsionParameter("theta0")
-
+            
             # Next, add iterator that goes through all backbone atoms to add the torsions
-            for atom_num in range(len(self.atom_ids)):
-                if atom_num <= len(self.atom_ids) - 4:
-                    self.addTorsion(self.atom_ids[atom_num], 
-                                    self.atom_ids[atom_num + 1], 
-                                    self.atom_ids[atom_num + 2], 
-                                    self.atom_ids[atom_num + 3], self.angle) # angle is a placeholder variable
+            for i in range(len(self.angle_tups)):
+                for j in range(len(self.da_atoms)):
+                    if tuple([atom.residue.name for atom in self.da_atoms[j:j + 4]]) == self.angle_tups[i]:
+                        self.addTorsion(self.atom_ids[j],
+                                        self.atom_ids[j + 1],
+                                        self.atom_ids[j + 2], 
+                                        self.atom_ids[j + 3], 
+                                        angles_to_constrain[self.da_atoms[j].residue.name][i])
 
             # After, add all torsions to the system - DONE
             self.system.addForce(self.force)
