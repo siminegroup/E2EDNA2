@@ -119,6 +119,17 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
     PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
+def findAngles(peptide):
+    angles_to_constrain = {}
+    for amino_acid in peptide:
+        geo = Geometry.geometry(amino_acid)
+        
+        da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
+        angles_to_constrain[resdict_inv[peptide[i]]] = [da * np.pi / 180 for da in da_set]
+        
+    return angles_to_constrain
+    
+
 def buildPeptide(peptide):
     """
     construct a peptide sequence pdb file
