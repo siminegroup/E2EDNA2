@@ -120,7 +120,15 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
     PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
 def findAngles(peptide):
+    """
+    Finds the angles required to constrain the dihedrals of the peptide backbone
+    :param peptide:
+    :return angles_to_constrain, a dictionary that contains the numerical values for angles to constrain:
+    """
     angles_to_constrain = {}
+    resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
+    resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
+    
     for amino_acid in peptide:
         geo = Geometry.geometry(amino_acid)
         
@@ -136,9 +144,6 @@ def buildPeptide(peptide):
     :param peptide:
     :return:
     """
-    resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
-    resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
-    
     structure = PeptideBuilder.initialize_res(peptide[0])
     angles_to_constrain = {}
     for i in range(1, len(peptide)):
@@ -147,8 +152,8 @@ def buildPeptide(peptide):
         
         # Call dihedral angle attributes
      
-        da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
-        angles_to_constrain[resdict_inv[peptide[i]]] = [da * np.pi / 180 for da in da_set]
+        #da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
+        #angles_to_constrain[resdict_inv[peptide[i]]] = [da * np.pi / 180 for da in da_set]
             
     # PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
