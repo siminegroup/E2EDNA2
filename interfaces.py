@@ -266,7 +266,7 @@ class omm(): # openmm
         
         if bool(params['peptide backbone constraint constant']): # if constant != 0, implement the constraint
             
-            self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C', 'O', 'H'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
+            self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C', 'O', 'H', 'HA'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
             self.atom_ids = [atom.index for atom in self.da_atoms]
 
