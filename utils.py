@@ -125,7 +125,9 @@ def buildPeptide(peptide):
     :param peptide:
     :return:
     """
-    # resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
+    resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
+    resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
+    
     structure = PeptideBuilder.initialize_res(peptide[0])
     angles_to_constrain = {}
     for i in range(1, len(peptide)):
@@ -135,9 +137,8 @@ def buildPeptide(peptide):
         # Call dihedral angle attributes
      
         da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
-        angles_to_constrain[peptide[i]] = da_set
-        
-        
+        angles_to_constrain[resdict_inv[peptide[i]]] = da_set
+            
     # PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
     out = Bio.PDB.PDBIO()
