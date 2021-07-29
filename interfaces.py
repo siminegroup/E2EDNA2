@@ -282,7 +282,7 @@ class omm(): # openmm
             # Next, add iterator that goes through all backbone atoms to add the torsions
             for i in range(len(self.angle_tups)):
                 for j in range(len(self.da_atoms)):
-                    if tuple([atom.residue.name for atom in self.da_atoms[j:j + 4]]) == self.angle_tups[i]:
+                    if tuple([atom.residue.name for atom in self.da_atoms[j:j + 4]]) == self.angle_tups[i] and j <= len(self.da_atoms) - 4:
                         self.addTorsion(self.atom_ids[j],
                                         self.atom_ids[j + 1],
                                         self.atom_ids[j + 2], 
