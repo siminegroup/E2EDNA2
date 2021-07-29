@@ -265,10 +265,12 @@ class omm(): # openmm
         self.simulation.context.setPositions(self.positions)
         
         if bool(params['peptide backbone constraint constant']): # if constant != 0, implement the constraint
+            self.angles_to_constrain = angles_to_constrain
             
             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C', 'O', 'H', 'HA'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
             self.atom_ids = [atom.index for atom in self.da_atoms]
+            
             
             self.phi_tup = ('N', 'H', 'CA', 'HA')
             self.psi_tup = ('CA', 'HA', 'C', 'O')
@@ -287,7 +289,7 @@ class omm(): # openmm
                                         self.atom_ids[j + 1],
                                         self.atom_ids[j + 2], 
                                         self.atom_ids[j + 3], 
-                                        angles_to_constrain[self.da_atoms[j].residue.name][i])
+                                        self.angles_to_constrain[self.da_atoms[j].residue.name][i])
 
             # After, add all torsions to the system - DONE
             self.system.addForce(self.force)
