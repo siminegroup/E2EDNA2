@@ -136,7 +136,7 @@ def findAngles(peptide):
         geo = Geometry.geometry(amino_acid)
         
         da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
-        angles_to_constrain[resdict_inv[peptide[i]]] = [da * np.pi / 180 for da in da_set]
+        angles_to_constrain[resdict_inv[amino_acid]] = [da * np.pi / 180 for da in da_set]
         
     return angles_to_constrain
     
