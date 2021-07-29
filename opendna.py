@@ -298,7 +298,7 @@ class opendna():
         os.system('mv commands.run* ' + mmb.fileDump)
         printRecord("Folded Sequence")
 
-    def MDSmoothing(self, structure, relaxationTime=0.01):
+    def MDSmoothing(self, structure, relaxationTime=0.01, peptide):
         """
         do a short MD run in water to relax the coarse MMB structure
         relaxation time in nanoseconds, print time in picoseconds
@@ -308,6 +308,7 @@ class opendna():
         prepPDB(structure, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
         processedStructure = structureName + '_processed.pdb'
         processedStructureTrajectory = processedStructure.split('.')[0] + '_trajectory.dcd'
+        angles_to_constrain = findAngles(self.peptide)
         omm = interfaces.omm(processedStructure, self.params)
         self.ns_per_day = omm.doMD()
 
