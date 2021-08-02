@@ -282,14 +282,28 @@ class omm(): # openmm
             self.force.addPerTorsionParameter("theta0")
             
             # Next, add iterator that goes through all backbone atoms to add the torsions
-            for i in range(len(self.angle_tups)):
-                for j in range(len(self.da_atoms)):
-                    if tuple([atom.residue.name for atom in self.da_atoms[j:j + 4]]) == self.angle_tups[i] and j <= len(self.da_atoms) - 4:
-                        self.addTorsion(self.atom_ids[j],
-                                        self.atom_ids[j + 1],
-                                        self.atom_ids[j + 2], 
-                                        self.atom_ids[j + 3], 
-                                        self.angles_to_constrain[self.da_atoms[j].residue.name][i])
+            for i in range(len(dihedral_atoms)):
+                self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
+                self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
+    
+                if i <= len(self.da_atoms) - 4:
+                    if self.tup == self.phi_tup:
+                        self.addTorsion(self.tupIndex[0], 
+                                   self.tupIndex[1], 
+                                   self.tupIndex[2],
+                                   self.tupIndex[3], self.angles_to_constrain[self.da_atoms[i + 3].residue.name][0])
+
+                    elif self.tup == self.psi_tup:
+                        self.addTorsion(self.tupIndex[0], 
+                                   self.tupIndex[1], 
+                                   self.tupIndex[2],
+                                   self.tupIndex[3], self.angles_to_constrain[self.da_atoms[i + 3].residue.name][1])
+
+                    elif self.tup == self.omega_tup:
+                        self.addTorsion(self.tupIndex[0], 
+                                   self.tupIndex[1], 
+                                   self.tupIndex[2],
+                                   self.tupIndex[3], self.angles_to_constrain[self.da_atoms[i + 3].residue.name][2])
 
             # After, add all torsions to the system - DONE
             self.system.addForce(self.force)
