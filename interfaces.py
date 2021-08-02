@@ -265,17 +265,16 @@ class omm(): # openmm
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
         self.simulation.context.setPositions(self.positions)
         
-        if bool(params['peptide backbone constraint constant']): # if constant != 0, implement the constraint
+        if params['peptide backbone constraint constant'] != 0: # if constant != 0, implement the constraint
             self.angles_to_constrain = findAngles(self.peptide)
             
-            self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C', 'O', 'H', 'HA'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
+            self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
             self.atom_ids = [atom.index for atom in self.da_atoms]
             
-            
-            self.phi_tup = ('N', 'H', 'CA', 'HA')
-            self.psi_tup = ('CA', 'HA', 'C', 'O')
-            self.omega_tup = ('C', 'O', 'N', 'H')
+            self.phi_tup = ('C', 'N', 'CA', 'C')
+            self.psi_tup = ('N', 'CA', 'C', 'N')
+            self.omega_tup = ('CA', 'C', 'N', 'CA')
             
             self.angle_tups = self.phi_tup, self.psi_tup, self.omega_tup
             
