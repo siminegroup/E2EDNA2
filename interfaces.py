@@ -282,7 +282,7 @@ class omm(): # openmm
             self.force.addPerTorsionParameter("theta0")
             
             # Next, add iterator that goes through all backbone atoms to add the torsions
-            for i in range(len(dihedral_atoms)):
+            for i in range(len(self.da_atoms)):
                 self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
                 self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
     
