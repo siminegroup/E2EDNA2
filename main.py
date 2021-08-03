@@ -12,7 +12,7 @@ and analysis of their binding to analyte molecules.
 Implemented in the OpenMM molecular dynamics engine with auxiliary tools: seqfold, NUPACK, MacroMoleculeBuilder, MDAnalysis, and LightDock.
 
 Michael Kilgour*, Tao Liu and Lena Simine, 2021
-*mjakilgour aat gmail doot com
+*mjakilgour at gmail dot com
 
 
 Copyright (C) 2021 Michael Kilgour and OpenDNA contributors
@@ -203,4 +203,4 @@ params['analyte pdb'] = 'lib/peptide/peptide.pdb'  # optional analyte - currentl
 
 if __name__ == '__main__':
     opendna = opendna(params)  # instantiate the class
-    opendnaOutput = opendna.run() # retrive binding information (eventually this should become a normalized c-number)
+    opendnaOutput = opendna.run() # retrieve binding information (eventually this should become a normalized c-number)
