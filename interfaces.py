@@ -304,6 +304,12 @@ class omm(): # openmm
                                               self.tupIndex[1], 
                                               self.tupIndex[2], 
                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][2],))
+                        
+                    printRecord('\nTorsion successfully applied to angles: ' + str(self.tupIndex[0]) + ' ' +
+                                str(self.tupIndex[1]) + ' ' + str(self.tupIndex[2]) + ' ' + str(self.tupIndex[3]) + '\n')
+                    
+                    printRecord('\nThese indices correspond to these angles: ' + self.tup[0] + ' ' + self.tup[1] + ' ' +
+                                self.tup[2] + ' ' + self.tup[3] + '\n')
 
             # After, add all torsions to the system - DONE
             self.system.addForce(self.force)
