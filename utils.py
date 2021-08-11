@@ -158,9 +158,6 @@ def buildPeptide(peptide):
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
     out.save('peptide.pdb')
-    
-    
-    
 
 def combinePDB(file1, file2):
     """
