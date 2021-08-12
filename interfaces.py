@@ -10,7 +10,7 @@ from analysisTools import *
 from simtk.openmm import *
 import simtk.unit as unit
 from simtk.openmm.app import *
-
+from numpy import pi
 
 '''
 => write docstrings
@@ -257,15 +257,12 @@ class omm(): # openmm
         self.topology = self.pdb.topology
         self.positions = self.pdb.positions
         self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
-        self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
-        self.integrator.setConstraintTolerance(self.constraintTolerance)
-        if params['platform'] == 'CUDA':
-            self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
-        elif params['platform'] == 'CPU':
-            self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
-        self.simulation.context.setPositions(self.positions)
         
-        if params['peptide backbone constraint constant'] != 0: # if constant != 0, implement the constraint
+        if params['peptide backbone constraint constant'] != 0:
+            self.force = CustomTorsionForce('0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
+            self.force.addGlobalParameter('K', params['peptide backbone constraint constant'])
+            self.force.addPerTorsionParameter('theta0')
+            
             self.angles_to_constrain = findAngles(self.peptide)
             
             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
@@ -275,13 +272,8 @@ class omm(): # openmm
             self.phi_tup = ('C', 'N', 'CA', 'C')
             self.psi_tup = ('N', 'CA', 'C', 'N')
             self.omega_tup = ('CA', 'C', 'N', 'CA')
-            
             self.angle_tups = self.phi_tup, self.psi_tup, self.omega_tup
             
-            self.force = CustomTorsionForce(str(params['peptide backbone constraint constant']) + "*(theta-theta0)^2") # automatically recognizes theta as the dihedral angle
-            self.force.addPerTorsionParameter("theta0")
-            
-            # Next, add iterator that goes through all backbone atoms to add the torsions
             for i in range(len(self.da_atoms)):
                 self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
                 self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
@@ -306,16 +298,21 @@ class omm(): # openmm
                                               self.tupIndex[2], 
                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][2],) * radians)
                         
-#                     printRecord('\nTorsion successfully applied to angles: ' + str(self.tupIndex[0]) + ' ' +
-#                                 str(self.tupIndex[1]) + ' ' + str(self.tupIndex[2]) + ' ' + str(self.tupIndex[3]) + '\n')
+                    printRecord('\nTorsion successfully applied to angles: ' + str(self.tupIndex[0]) + ' ' +
+                                str(self.tupIndex[1]) + ' ' + str(self.tupIndex[2]) + ' ' + str(self.tupIndex[3]) + '\n')
                     
-#                     printRecord('\nThese indices correspond to these angles: ' + self.tup[0] + ' ' + self.tup[1] + ' ' +
-#                                 self.tup[2] + ' ' + self.tup[3] + '\n')
-
-            # After, add all torsions to the system - DONE
+                    printRecord('\nThese indices correspond to these angles: ' + self.tup[0] + ' ' + self.tup[1] + ' ' +
+                                self.tup[2] + ' ' + self.tup[3] + '\n')
+            
             self.system.addForce(self.force)
-
-            # Torsions (Dihedrals) should now be restrained
+            
+        self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
+        self.integrator.setConstraintTolerance(self.constraintTolerance)
+        if params['platform'] == 'CUDA':
+            self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
+        elif params['platform'] == 'CPU':
+            self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
+        self.simulation.context.setPositions(self.positions)
             
         
 
