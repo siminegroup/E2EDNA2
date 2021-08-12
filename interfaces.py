@@ -273,11 +273,11 @@ class omm(): # openmm
             self.psi_tup = ('N', 'CA', 'C', 'N')
             self.omega_tup = ('CA', 'C', 'N', 'CA')
             self.angle_tups = self.phi_tup, self.psi_tup, self.omega_tup
+            radians = unit.radians
             
             for i in range(len(self.da_atoms)):
                 self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
                 self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
-                radians = unit.radians
     
                 if i <= len(self.da_atoms) - 4:
                     if self.tup == self.phi_tup:
