@@ -323,7 +323,7 @@ class omm(): # openmm
             if self.quickSim: # if want to do it fast, loosen the tolerances
                 self.simulation.minimizeEnergy(tolerance = 20, maxIterations = 100) # default is 10 kJ/mol - also set a max number of iterations
             else:
-                self.simulation.minimizeEnergy()
+                self.simulation.minimizeEnergy(tolerance = 1 * unit.kilojoules / unit.mole)
             printRecord('Equilibrating...')
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
