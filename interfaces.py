@@ -298,11 +298,11 @@ class omm(): # openmm
                                               self.tupIndex[2], 
                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][2],) * radians)
 
-                    printRecord('\nTorsion successfully applied to angles: ' + str(self.tupIndex[0]) + ' ' +
-                                str(self.tupIndex[1]) + ' ' + str(self.tupIndex[2]) + ' ' + str(self.tupIndex[3]) + '\n')
+#                     printRecord('\nTorsion successfully applied to angles: ' + str(self.tupIndex[0]) + ' ' +
+#                                 str(self.tupIndex[1]) + ' ' + str(self.tupIndex[2]) + ' ' + str(self.tupIndex[3]) + '\n')
                     
-                    printRecord('\nThese indices correspond to these angles: ' + self.tup[0] + ' ' + self.tup[1] + ' ' +
-                                self.tup[2] + ' ' + self.tup[3] + '\n')
+#                     printRecord('\nThese indices correspond to these angles: ' + self.tup[0] + ' ' + self.tup[1] + ' ' +
+#                                 self.tup[2] + ' ' + self.tup[3] + '\n')
             
             self.system.addForce(self.force)
             
@@ -323,7 +323,7 @@ class omm(): # openmm
             if self.quickSim: # if want to do it fast, loosen the tolerances
                 self.simulation.minimizeEnergy(tolerance = 20, maxIterations = 100) # default is 10 kJ/mol - also set a max number of iterations
             else:
-                self.simulation.minimizeEnergy(tolerance = 1 * unit.kilojoules / unit.mole)
+                self.simulation.minimizeEnergy() # (tolerance = 1 * unit.kilojoules / unit.mole)
             printRecord('Equilibrating...')
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
