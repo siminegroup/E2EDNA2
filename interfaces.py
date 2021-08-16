@@ -276,10 +276,10 @@ class omm(): # openmm
             radians = unit.radians
             
             for i in range(len(self.da_atoms)):
-                self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
-                self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
-    
                 if i <= len(self.da_atoms) - 4:
+                    self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
+                    self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
+                    
                     if self.tup == self.phi_tup:
                         self.force.addTorsion(self.tupIndex[0], 
                                               self.tupIndex[1], 
@@ -297,7 +297,7 @@ class omm(): # openmm
                                               self.tupIndex[1], 
                                               self.tupIndex[2], 
                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][2],) * radians)
-                        
+
                     printRecord('\nTorsion successfully applied to angles: ' + str(self.tupIndex[0]) + ' ' +
                                 str(self.tupIndex[1]) + ' ' + str(self.tupIndex[2]) + ' ' + str(self.tupIndex[3]) + '\n')
                     
