@@ -14,6 +14,7 @@ import time
 from pdbfixersource import PDBFixer
 import numpy as np
 from shutil import copyfile
+import csv
 
 
 # I/O
@@ -125,12 +126,37 @@ def findAngles(peptide):
     :param peptide:
     :return angles_to_constrain, a dictionary that contains the numerical values for angles to constrain:
     """
-    angles_to_constrain = {}
+    angles_to_constrain = []
     resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F",
                "GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L",
                "MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R",
                "SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
     resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
+    
+#     try:
+
+    with open("backbone_dihedrals.csv", r) as csv_file:
+        read_csv = csv.reader(csv_file, delimiter=",")
+        rows = []
+        row_lengths = set()
+        
+        for row in read_csv:
+            rows.append(row)
+            row_lengths.add(len(row))
+
+        if len(rows) == 0 and params['peptide backbone constraint constant'] != 0:
+            printRecord("ERROR: Backbone angles file is empty, but the constraint constant in main.py is not zero")
+            exit()
+        
+#         if len(row_lengths) != 1:
+#             printRecord("ERROR: Backbone angles file is contains
+
+#         elif len(rows) != 0 and params['peptide backbone constraint constant'] == 0:
+#             printRecord("WARNING: Backbone angles file is not empty, but the constraint constant in main.py is zero")
+
+#     except FileNotFoundError:
+#         printRecord("ERROR: Your backbone angles file is improperly named; exiting run.")
+#         exit()
     
     for amino_acid in peptide:
         geo = Geometry.geometry(amino_acid)
