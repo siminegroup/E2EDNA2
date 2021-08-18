@@ -36,3 +36,10 @@ residue_num,phi,psi
 5,-85,-120
 ```
 
+### Common errors that might occur
+Assuming the above is followed, some common errors that might show up include:
+```Particle Coordinate is nan```
+
+This means the simulation exploded, due to the time step being too large to properly calculate trajectories using the current
+```params['peptide backbone constraint constant']``` value. An easy way to rectify this is to simply make ```params['time step']``` shorter.
+It is currently set at 2.0 fs because that was the best time-step for the current ```params['peptide backbone constraint constant']``` value.
