@@ -196,13 +196,29 @@ def buildPeptide(peptide):
     :param peptide:
     :return:
     """
+    geo = Geometry.geometry(peptide[0])    
+    phis, psis = [row[1] for row in angles_to_constrain], [row[2] for row in angles_to_constrain]
+    
+    if customAngles:
+        for row in angles_to_constrain:
+            if row[0] == 0: 
+                geo.phi = phis[0]
+                geo.psi = psis[0]
+    
     structure = PeptideBuilder.initialize_res(peptide[0])
-    angles_to_constrain = {}
+    
     for i in range(1, len(peptide)):
         geo = Geometry.geometry(peptide[i])
+        
+        if customAngles:
+            for row in angles_to_constrain:
+                if row[0] == i:
+                    geo.phi = phis[i]
+                    geo.psi = psis[i]
+        
         PeptideBuilder.add_residue(structure, geo)
             
-    # PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
+    PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
