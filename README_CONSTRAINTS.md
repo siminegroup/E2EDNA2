@@ -19,7 +19,7 @@ This is the template format that you should follow when inputting the angles int
 Please do not remove this first line. Also, please do not change the name of this .csv file.
 
 The strength of the angular constraint can be set with the ```params['peptide backbone constraint constant'] = YOUR_INTEGER_VALUE``` statement in ```main.py```.
-It is set at ```10,000``` currently because that was determined to be the best value for constraining a peptide, when all other parameters are held constant.
+It is set at ```10000``` currently because that was determined to be the best value for constraining a peptide, when all other parameters are held constant.
 
 ### The variables
 ```residue_num``` is the residue number. It starts from 0, to ensure it matches with Python's (and OpenMM's) indexing style. 
@@ -38,7 +38,7 @@ Chain Letter C = chain_id 2
 .
 .
 .
-etc.
+etc...
 ```
 
 ### An example of a valid input
