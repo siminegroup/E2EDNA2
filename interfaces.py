@@ -263,7 +263,7 @@ class omm(): # openmm
             self.force.addGlobalParameter('K', params['peptide backbone constraint constant'])
             self.force.addPerTorsionParameter('theta0')
             
-            self.angles_to_constrain = findAngles(self.peptide)
+            self.angles_to_constrain = findAngles()
             
             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
@@ -271,38 +271,29 @@ class omm(): # openmm
             
             self.phi_tup = ('C', 'N', 'CA', 'C')
             self.psi_tup = ('N', 'CA', 'C', 'N')
-            self.omega_tup = ('CA', 'C', 'N', 'CA')
-            self.angle_tups = self.phi_tup, self.psi_tup, self.omega_tup
+            self.angle_tups = self.phi_tup, self.psi_tup
             radians = unit.radians
             
-            for i in range(len(self.da_atoms)):
-                if i <= len(self.da_atoms) - 4:
-                    self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
-                    self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
+#             for i in range(len(self.da_atoms)):
+#                 if i <= len(self.da_atoms) - 4:
+#                     self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
+#                     self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
                     
-                    if self.tup == self.phi_tup:
-                        self.force.addTorsion(self.tupIndex[0], 
-                                              self.tupIndex[1], 
-                                              self.tupIndex[2], 
-                                              self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][0],) * radians)
+#                     if self.tup == self.phi_tup:
+#                         self.force.addTorsion(self.tupIndex[0], 
+#                                               self.tupIndex[1], 
+#                                               self.tupIndex[2], 
+#                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][0],) * radians)
 
-                    elif self.tup == self.psi_tup:
-                        self.force.addTorsion(self.tupIndex[0], 
-                                              self.tupIndex[1], 
-                                              self.tupIndex[2], 
-                                              self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][1],) * radians)
-
-                    elif self.tup == self.omega_tup:
-                        self.force.addTorsion(self.tupIndex[0], 
-                                              self.tupIndex[1], 
-                                              self.tupIndex[2], 
-                                              self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][2],) * radians)
-
-#                     printRecord('\nTorsion successfully applied to angles: ' + str(self.tupIndex[0]) + ' ' +
-#                                 str(self.tupIndex[1]) + ' ' + str(self.tupIndex[2]) + ' ' + str(self.tupIndex[3]) + '\n')
-                    
-#                     printRecord('\nThese indices correspond to these angles: ' + self.tup[0] + ' ' + self.tup[1] + ' ' +
-#                                 self.tup[2] + ' ' + self.tup[3] + '\n')
+#                     elif self.tup == self.psi_tup:
+#                         self.force.addTorsion(self.tupIndex[0], 
+#                                               self.tupIndex[1], 
+#                                               self.tupIndex[2], 
+#                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][1],) * radians)
+            
+            for aa in self.angles_to_constrain:
+                aa_id, phi, psi = aa[0], aa[1], aa[2]
+                
             
             self.system.addForce(self.force)
             
