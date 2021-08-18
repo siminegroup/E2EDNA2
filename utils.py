@@ -142,8 +142,8 @@ def findAngles(peptide):
             rows.append(row)
             row_lengths.add(len(row))
 
-        if len(rows) == 0 and params['peptide backbone constraint constant'] != 0:
-            printRecord("ERROR: Backbone angles file is empty, but the constraint constant in main.py is not zero")
+        if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
+            printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero")
             exit()
     
         if len(row_lengths) != 1:   # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
