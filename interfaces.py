@@ -296,7 +296,6 @@ class omm(): # openmm
                     
                     if chain_id != chain:
                         continue
-                    
                     else:
                         # add the rest here - including the tuple "scanner"
                 
