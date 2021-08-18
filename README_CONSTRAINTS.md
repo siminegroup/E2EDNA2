@@ -12,7 +12,7 @@ The file "backbone_dihedrals.csv" will be used as input in order to figure out w
 If we take a look at the file as it is currently, using our favorite text editor, we can see that the following is written in it:
 
 ```
-residue_num,phi,psi
+residue_num,phi,psi,chain_id
 ```
 
 This is the template format that you should follow when inputting the angles into this .csv file.
@@ -28,12 +28,25 @@ In other words, if you need to put a constraint on amino acid 3 for instance (as
 ```phi``` is the angle value that you want to set for phi. Likewise for ```psi```. 
 Support for an ```omega``` variable does not exist currently.
 
-### An example of a valid input
-The following is an example of a valid input for constraining phi and psi values for amino acids 2 and 6 in an arbitrary peptide:
+```chain_id``` is the ID of the chain to which the atom in question belongs. It can be any finite positive integer, including zero. 
+The chain ID for an atom can be found by looking at the chain letter in the pdb file, then converting it to a number. The format for doing so is as follows:
+
 ```
-residue_num,phi,psi
-1,-90,-110
-5,-85,-120
+Chain Letter A = chain_id 0
+Chain Letter B = chain_id 1
+Chain Letter C = chain_id 2
+.
+.
+.
+etc.
+```
+
+### An example of a valid input
+The following is an example of a valid input for constraining phi and psi values for amino acids 2 and 6 found in Chain A of an arbitrary peptide:
+```
+residue_num,phi,psi,chain_id
+1,-90,-110,0
+5,-85,-120,0
 ```
 
 ### Common errors that might occur
