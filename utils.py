@@ -132,8 +132,6 @@ def findAngles(peptide):
                "MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R",
                "SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
     resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
-    
-#     try:
 
     with open("backbone_dihedrals.csv", r) as csv_file:
         read_csv = csv.reader(csv_file, delimiter=",")
@@ -147,24 +145,47 @@ def findAngles(peptide):
         if len(rows) == 0 and params['peptide backbone constraint constant'] != 0:
             printRecord("ERROR: Backbone angles file is empty, but the constraint constant in main.py is not zero")
             exit()
-        
+    
+        if len(row_lengths) != 1:   # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
+            rows_unequal = []
+
+            for i in range(len(rows)):
+                if len(rows[i]) != 3:
+                    rows_unequal.append(i + 1)
+
+            printRecord("ERROR: Incorrect number of inputs for rows:", end=" ")
+            for i, unequal_row in enumerate(rows_unequal):
+                if i == len(rows_unequal) - 1:
+                    printRecord(unequal_row, "\n")
+                elif i == len(rows_unequal) - 2:
+                    printRecord(unequal_row, end=' and ')
+                else:
+                    printRecord(unequal_row, end=', ')
+            
+            exit()
+
+        elif len(row_lengths) == 1 and list(row_lengths)[0] == 3 and len(rows) > 1:  # everything is correct here
+            angles_to_constrain = []
+
+            for i in range(len(rows)):
+                if i > 0:
+                    angles_to_constrain.append(rows[i])
+
+            return angles_to_constrain
+         
 #         if len(row_lengths) != 1:
 #             printRecord("ERROR: Backbone angles file is contains
 
 #         elif len(rows) != 0 and params['peptide backbone constraint constant'] == 0:
 #             printRecord("WARNING: Backbone angles file is not empty, but the constraint constant in main.py is zero")
-
-#     except FileNotFoundError:
-#         printRecord("ERROR: Your backbone angles file is improperly named; exiting run.")
-#         exit()
     
-    for amino_acid in peptide:
-        geo = Geometry.geometry(amino_acid)
+#     for amino_acid in peptide:
+#         geo = Geometry.geometry(amino_acid)
         
-        da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
-        angles_to_constrain[resdict_inv[amino_acid]] = [da * np.pi / 180 for da in da_set]
+#         da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
+#         angles_to_constrain[resdict_inv[amino_acid]] = [da * np.pi / 180 for da in da_set]
         
-    return angles_to_constrain
+#     return angles_to_constrain
     
 
 def buildPeptide(peptide):
