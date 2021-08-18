@@ -117,6 +117,7 @@ params['pH'] = 7.4 # simulation will automatically protonate the peptide up to t
 
 The peptide backbone constraint constant is the constant used to constrain backbone dihedrals. 
 A minimum of 10000, as it is currently set, is recommended for good constraints (below 5°).
+For more info, please read README_CONSTRAINTS.md
 
 ```
 params['peptide backbone constraint constant'] = 10000
