@@ -29,7 +29,7 @@ In other words, if you need to put a constraint on amino acid 3 for instance (as
 Support for an ```omega``` variable does not exist currently.
 
 ### An example of a valid input
-The following is 
+The following is an example of a valid input for constraining phi and psi values for amino acids 2 and 6 in an arbitrary peptide:
 ```
 residue_num,phi,psi
 1,-90,-110
