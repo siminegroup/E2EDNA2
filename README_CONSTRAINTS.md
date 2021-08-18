@@ -16,7 +16,7 @@ residue_num,phi,psi
 ```
 
 This is the template format that you should follow when inputting the angles into this .csv file.
-Please do not remove this first line. Also, please do not change the name of the .csv file.
+Please do not remove this first line. Also, please do not change the name of this .csv file.
 
 ### The variables
 ```residue_num``` is the residue number. It starts from 0, to ensure it matches with Python's (and OpenMM's) indexing style. 
