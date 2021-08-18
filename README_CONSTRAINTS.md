@@ -18,6 +18,9 @@ residue_num,phi,psi
 This is the template format that you should follow when inputting the angles into this .csv file.
 Please do not remove this first line. Also, please do not change the name of this .csv file.
 
+The strength of the angular constraint can be set with the ```params['peptide backbone constraint constant'] = YOUR_INTEGER_VALUE``` statement in ```main.py```.
+It is set at ```10,000``` currently because that was determined to be the best value for constraining a peptide, when all other parameters are held constant.
+
 ### The variables
 ```residue_num``` is the residue number. It starts from 0, to ensure it matches with Python's (and OpenMM's) indexing style. 
 In other words, if you need to put a constraint on amino acid 3 for instance (as it appears in the pdb), then you would write ```2``` for the ```residue_num```.
@@ -26,6 +29,7 @@ In other words, if you need to put a constraint on amino acid 3 for instance (as
 Support for an ```omega``` variable does not exist currently.
 
 ### An example of a valid input
+The following is 
 ```
 residue_num,phi,psi
 1,-90,-110
