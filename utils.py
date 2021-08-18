@@ -157,11 +157,11 @@ def findAngles():
             printRecord("ERROR: Incorrect number of inputs for rows:")
             for i, unequal_row in enumerate(rows_unequal):
                 if i == len(rows_unequal) - 1:
-                    printRecord(unequal_row, "\n")
+                    printRecord(unequal_row)
                 elif i == len(rows_unequal) - 2:
-                    printRecord(unequal_row, end=' and ')
+                    printRecord(unequal_row)
                 else:
-                    printRecord(unequal_row, end=', ')
+                    printRecord(unequal_row)
             
             printRecord("Exiting run.")
             exit()
