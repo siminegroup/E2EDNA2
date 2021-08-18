@@ -120,11 +120,11 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
     PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
-def findAngles(peptide):
+def findAngles():
     """
-    Finds the angles required to constrain the dihedrals of the peptide backbone
-    :param peptide:
-    :return angles_to_constrain, a dictionary that contains the numerical values for angles to constrain:
+    Reads the angles required to constrain the dihedrals of the peptide backbone from the backbone_dihedrals.csv file. For more info, see README_CONSTRAINTS.md
+    :param:
+    :return angles_to_constrain, a list that contains the numerical values for angles to constrain:
     """
     angles_to_constrain = []
     resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F",
