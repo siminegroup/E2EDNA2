@@ -122,7 +122,8 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
 def findAngles():
     """
-    Reads the angles required to constrain the dihedrals of the peptide backbone from the backbone_dihedrals.csv file. For more info, see README_CONSTRAINTS.md
+    Reads the angles required to constrain the dihedrals of the peptide backbone from the backbone_dihedrals.csv file. 
+    For more info, see README_CONSTRAINTS.md
     :param:
     :return angles_to_constrain, a list that contains the numerical values for angles to constrain:
     """
@@ -143,7 +144,7 @@ def findAngles():
             row_lengths.add(len(row))
 
         if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
-            printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero")
+            printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
             exit()
     
         if len(row_lengths) != 1:   # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
@@ -153,7 +154,7 @@ def findAngles():
                 if len(rows[i]) != 3:
                     rows_unequal.append(i + 1)
 
-            printRecord("ERROR: Incorrect number of inputs for rows:", end=" ")
+            printRecord("ERROR: Incorrect number of inputs for rows:")
             for i, unequal_row in enumerate(rows_unequal):
                 if i == len(rows_unequal) - 1:
                     printRecord(unequal_row, "\n")
@@ -162,6 +163,7 @@ def findAngles():
                 else:
                     printRecord(unequal_row, end=', ')
             
+            printRecord("Exiting run.")
             exit()
 
         elif len(row_lengths) == 1 and list(row_lengths)[0] == 3 and len(rows) > 1:  # everything is correct here
