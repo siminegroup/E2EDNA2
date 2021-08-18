@@ -11,7 +11,7 @@ and analysis of their binding to analyte molecules.
 
 Implemented in the OpenMM molecular dynamics engine with auxiliary tools: seqfold, NUPACK, MacroMoleculeBuilder, MDAnalysis, and LightDock.
 
-Michael Kilgour*, Tao Liu and Lena Simine, 2021
+Michael Kilgour*, Tao Liu, Ilya S. Dementyev and Lena Simine, 2021
 *mjakilgour at gmail dot com
 
 
@@ -114,7 +114,7 @@ params['equilibration time'] = 0.01  # initial equilibration time in nanoseconds
 params['sampling time'] = 1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
 params['smoothing time'] = 1  # time for pre-sampling relaxation
 params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
-params['time step'] = 3.0  # MD time step in fs
+params['time step'] = 2.0  # MD time step in fs
 params['print step'] = 10  # MD printout step in ps
 params['max aptamer sampling iterations'] = 20  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
 params['max complex sampling iterations'] = 5  # number of iterations for the binding complex
@@ -158,7 +158,7 @@ params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
 params['hydrogen mass'] = 1.5  # in amu - we can increase the time if we increase this value
-params['peptide backbone constraint constant'] = 10
+params['peptide backbone constraint constant'] = 10000
 
 # paths
 if params['device'] == 'local':
