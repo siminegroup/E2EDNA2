@@ -235,7 +235,6 @@ class omm(): # openmm
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])      
         
-
         #platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
             self.platform = Platform.getPlatformByName('CUDA')
@@ -291,10 +290,16 @@ class omm(): # openmm
 #                                               self.tupIndex[2], 
 #                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][1],) * radians)
             
-            for aa in self.angles_to_constrain:
-                aa_id, phi, psi = aa[0], aa[1], aa[2]
+            for chain in range(self.topology.__repr__.nchains):
+                for row in self.angles_to_constrain:
+                    aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
+                    
+                    if chain_id != chain:
+                        continue
+                    
+                    else:
+                        # add the rest here - including the tuple "scanner"
                 
-            
             self.system.addForce(self.force)
             
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
