@@ -67,7 +67,7 @@ future features
 ==? cleave off non-folded sections? this way we can avoid expensive simulations of very long aptamers
 
 little things & known issues
-==> getNucDATraj doesn't wor for terminal 'chi' angles
+==> getNucDATraj doesn't work for terminal 'chi' angles
 ==> label bare exceptions
 ==> for long DNA sequences with extended unpaired 'tails', rectangular prism box may fail. However, cubic box would be very expensive. It's a pickle - in any case we may want to encode logic to automatically detect and adjust.
 ==> for tiny peptides, lightdock ANM may fail, and the whole run crashes 
