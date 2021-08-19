@@ -352,7 +352,7 @@ class opendna():
         use LightDock to run docking and isolate good structures
         """
         printRecord('Docking')
-        buildPeptide(self.peptide, customAngles=True)
+        buildPeptide(self.peptide, customAngles=bool(self.params['peptide backbone constraint constant']))
         ld = interfaces.ld(aptamer, peptide, self.params, self.i)
         ld.run()
         topScores = ld.topScores
