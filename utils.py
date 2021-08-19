@@ -155,13 +155,9 @@ def findAngles():
                     rows_unequal.append(i + 1)
 
             printRecord("ERROR: Incorrect number of inputs for rows:")
-            for i, unequal_row in enumerate(rows_unequal):
-                if i == len(rows_unequal) - 1:
-                    printRecord(unequal_row)
-                elif i == len(rows_unequal) - 2:
-                    printRecord(unequal_row)
-                else:
-                    printRecord(unequal_row)
+            
+            for unequal_row in rows_unequal:
+                printRecord(unequal_row)
             
             printRecord("Exiting run.")
             exit()
@@ -174,20 +170,6 @@ def findAngles():
                     angles_to_constrain.append(rows[i])
 
             return angles_to_constrain
-         
-#         if len(row_lengths) != 1:
-#             printRecord("ERROR: Backbone angles file is contains
-
-#         elif len(rows) != 0 and params['peptide backbone constraint constant'] == 0:
-#             printRecord("WARNING: Backbone angles file is not empty, but the constraint constant in main.py is zero")
-    
-#     for amino_acid in peptide:
-#         geo = Geometry.geometry(amino_acid)
-        
-#         da_set = geo.phi, geo.psi_im1, geo.omega # the set (actually a tuple) of 3 dihedral angles in the amino acid (from N- to C-terminus)
-#         angles_to_constrain[resdict_inv[amino_acid]] = [da * np.pi / 180 for da in da_set]
-        
-#     return angles_to_constrain
     
 
 def buildPeptide(peptide, customAngles=False):
