@@ -264,41 +264,43 @@ class omm(): # openmm
             
             self.angles_to_constrain = findAngles()
             
-            self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
+#             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
             
-            self.atom_ids = [atom.index for atom in self.da_atoms]
+#             self.atom_ids = [atom.index for atom in self.da_atoms]
             
             self.phi_tup = ('C', 'N', 'CA', 'C')
             self.psi_tup = ('N', 'CA', 'C', 'N')
             self.angle_tups = self.phi_tup, self.psi_tup
             radians = unit.radians
             
-#             for i in range(len(self.da_atoms)):
-#                 if i <= len(self.da_atoms) - 4:
-#                     self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
-#                     self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
-                    
-#                     if self.tup == self.phi_tup:
-#                         self.force.addTorsion(self.tupIndex[0], 
-#                                               self.tupIndex[1], 
-#                                               self.tupIndex[2], 
-#                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][0],) * radians)
-
-#                     elif self.tup == self.psi_tup:
-#                         self.force.addTorsion(self.tupIndex[0], 
-#                                               self.tupIndex[1], 
-#                                               self.tupIndex[2], 
-#                                               self.tupIndex[3], (self.angles_to_constrain[self.da_atoms[i + 3].residue.name][1],) * radians)
-            
-            for chain in range(self.topology.__repr__.nchains):
+            for chain in range(self.topology.__repr__.nchains + 1):                
                 for row in self.angles_to_constrain:
                     aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
                     
                     if chain_id != chain:
-                        continue
+                        continue    # saves a bit of time
                     else:
-                        # add the rest here - including the tuple "scanner"
-                
+                        self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain and atom.name in {'N', 'CA', 'C'} and atom.residue.index in {aa_id, aa_id - 1}]
+                        # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
+                        
+                        for i in range(len(self.da_atoms)):
+                            if i <= len(self.da_atoms) - 4:
+                                self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
+                                self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
+                                
+                                if self.da_atoms[i + 4].residue.index == aa_id:
+                                    if self.tup == self.phi_tup:
+                                        self.force.addTorsion(self.tupIndex[0], 
+                                                              self.tupIndex[1], 
+                                                              self.tupIndex[2], 
+                                                              self.tupIndex[3], (phi,) * radians)
+
+                                    elif self.tup == self.psi_tup:
+                                        self.force.addTorsion(self.tupIndex[0], 
+                                                              self.tupIndex[1], 
+                                                              self.tupIndex[2], 
+                                                              self.tupIndex[3], (psi,) * radians)
+            
             self.system.addForce(self.force)
             
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
