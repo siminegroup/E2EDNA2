@@ -273,6 +273,8 @@ class omm(): # openmm
             self.angle_tups = self.phi_tup, self.psi_tup
             radians = unit.radians
             
+            rad_conv = pi / 180
+            
             for chain in range(self.topology.__repr__.nchains + 1):                
                 for row in self.angles_to_constrain:
                     aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
@@ -293,13 +295,13 @@ class omm(): # openmm
                                         self.force.addTorsion(self.tupIndex[0], 
                                                               self.tupIndex[1], 
                                                               self.tupIndex[2], 
-                                                              self.tupIndex[3], (phi,) * radians)
+                                                              self.tupIndex[3], (phi * rad_conv,) * radians)
 
                                     elif self.tup == self.psi_tup:
                                         self.force.addTorsion(self.tupIndex[0], 
                                                               self.tupIndex[1], 
                                                               self.tupIndex[2], 
-                                                              self.tupIndex[3], (psi,) * radians)
+                                                              self.tupIndex[3], (psi * rad_conv,) * radians)
             
             self.system.addForce(self.force)
             
