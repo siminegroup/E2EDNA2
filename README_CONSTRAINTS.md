@@ -26,7 +26,7 @@ It is set at ```10000``` currently because that was determined to be the best va
 In other words, if you need to put a constraint on amino acid 3 for instance (as it appears in the pdb), then you would write ```2``` for the ```residue_num```.
 
 ```phi``` is the angle value that you want to set for phi. Likewise for ```psi```. 
-Support for an ```omega``` variable does not exist currently. The assignments for each dihedral angle follows the format laid out by the ```PeptideBuilder``` package - see the ```PeptideBuilder.py``` file on their GitHub for more info (Link: ).
+Support for an ```omega``` variable does not exist currently. The assignments for each dihedral angle follows the format laid out by the ```PeptideBuilder``` package - see the ```PeptideBuilder.py``` [file on their GitHub](https://github.com/clauswilke/PeptideBuilder/blob/6d38a167b9992c27adc86f64370f7083303ce877/PeptideBuilder/PeptideBuilder.py) for more info.
 Therefore, it is impossible to add a constraint to psi and phi on the first amino acid at the start of any peptide chain. 
 
 ```chain_id``` is the ID of the chain to which the atom in question belongs. It can be any finite positive integer, including zero. 
