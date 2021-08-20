@@ -134,7 +134,7 @@ def findAngles():
                "SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
     resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
 
-    with open("backbone_dihedrals.csv", r) as csv_file:
+    with open("backbone_dihedrals.csv") as csv_file:
         read_csv = csv.reader(csv_file, delimiter=",")
         rows = []
         row_lengths = set()
