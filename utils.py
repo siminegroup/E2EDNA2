@@ -147,7 +147,7 @@ def findAngles():
             printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
             exit()
     
-        if len(row_lengths) != 1:   # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
+        elif len(row_lengths) != 1:   # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
             rows_unequal = []
 
             for i in range(len(rows)):
@@ -162,7 +162,7 @@ def findAngles():
             printRecord("Exiting run.")
             exit()
 
-        elif len(row_lengths) == 1 and list(row_lengths)[0] == 3 and len(rows) > 1:  # everything is correct here
+        else:  # everything is correct here
             angles_to_constrain = []
 
             for i in range(len(rows)):
