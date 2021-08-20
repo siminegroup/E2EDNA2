@@ -274,8 +274,9 @@ class omm(): # openmm
             radians = unit.radians
             
             rad_conv = pi / 180
+            self.nchains = len(self.topology.nchains)
             
-            for chain in range(self.topology.__repr__.nchains + 1):                
+            for chain in range(self.nchains):                
                 for row in self.angles_to_constrain:
                     aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
                     
