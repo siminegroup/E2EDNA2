@@ -5,7 +5,7 @@ Sometimes it is necessary to implement angular constraints for a peptide, in ord
 This is particularly important for docking simulations, where a certain ligand will only bind to a peptide if its in a certain conformation.
 
 One of the most popular (and simple-to-use) constraints is the harmonic one. It has the following formula:
-<img src="https://latex.codecogs.com/png.latex?%5Cbg_white%20V=0.5k(x-x_0)^2 " />
+<img src="https://latex.codecogs.com/png.latex?%5Cbg_white%20V(x)=0.5k(x-x_0)^2 " />
 
 Where V is the potential energy, k is the force constant, x0 is an initial variable (the value to which the constraint will try and fix the variable) 
 and x is the variable in question, which can be anything from the distance between 2 atoms, to the torsion angle of a dihedral. 
