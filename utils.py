@@ -178,7 +178,8 @@ def buildPeptide(peptide, customAngles=False):
     :param peptide:
     :return:
     """
-    geo = Geometry.geometry(peptide[0])    
+    geo = Geometry.geometry(peptide[0])
+    angles_to_constrain = findAngles()
     phis, psis = [row[1] for row in angles_to_constrain], [row[2] for row in angles_to_constrain]
     
     if customAngles:
