@@ -15,6 +15,7 @@ from pdbfixersource import PDBFixer
 import numpy as np
 from shutil import copyfile
 import csv
+from collections import Counter
 
 
 # I/O
@@ -67,6 +68,16 @@ def printRecord(statement):
     else:
         with open('record.txt', 'w') as file:
             file.write('\n' + statement)
+            
+def mode(lst):
+    """
+    Returns the mode of a given list, only used for checking backbone_dihedrals
+    :param lst:
+    :return mode_list, a list of the mode(s) found in the input list:
+    """
+    c = Counter(lst)
+    mode_list = [k for k, v in c.items() if v == c.most_common(1)[0][1]]
+    return mode_list
 
 
 # pdb & dcd file editing
@@ -136,11 +147,13 @@ def findAngles():
 
     with open("backbone_dihedrals.csv") as csv_file:
         read_csv = csv.reader(csv_file, delimiter=",")
+        residue_nums = []
         rows = []
         row_lengths = set()
         
         for row in read_csv:
             rows.append(row)
+            residue_nums.append(row[0])
             row_lengths.add(len(row))
 
         if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
@@ -160,6 +173,10 @@ def findAngles():
                 printRecord(unequal_row)
             
             printRecord("Exiting run.")
+            exit()
+            
+        elif mode(residue_nums) != residue_nums:
+            printRecord("ERROR: More than one input row for a residue_num in backbone_dihedrals.csv; exiting run.")
             exit()
 
         else:  # everything is correct here
