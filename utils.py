@@ -71,7 +71,7 @@ def printRecord(statement):
             
 def mode(lst):
     """
-    Returns the mode of a given list, only used for checking backbone_dihedrals
+    Returns the mode of a given list, only used for checking backbone_dihedrals (source: https://stackabuse.com/calculating-mean-median-and-mode-in-python/)
     :param lst:
     :return mode_list, a list of the mode(s) found in the input list:
     """
