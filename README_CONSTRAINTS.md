@@ -49,7 +49,7 @@ etc...
 ```
 
 ### An example of a valid input
-The following is an example of a valid input for constraining phi and psi values for amino acids 2 and 6 found in Chain A of an arbitrary peptide:
+The following is an example of a valid input (valid backbone_dihedrals.csv file) for constraining phi and psi values for amino acids 2 and 6 found in Chain A of an arbitrary peptide:
 ```
 residue_num,phi,psi,chain_id
 1,-90,-110,0
