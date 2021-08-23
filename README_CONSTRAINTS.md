@@ -58,7 +58,7 @@ residue_num,phi,psi,chain_id
 ```
 
 ### Common errors that might occur
-**Assuming the above is followed**, a common error that might show up is:
+*Assuming the above is followed*, a common error that might show up is:
 ```Particle Coordinate is nan```
 
 This means the simulation exploded, due to the time step being too large to properly calculate trajectories using the current
