@@ -10,7 +10,7 @@ One of the most popular (and simple-to-use) constraints is the harmonic one. It 
 Where V is the potential energy, k is the force constant, x0 is an initial variable (the value to which the constraint will try and fix the variable) 
 and x is the variable in question, which can be anything from the distance between 2 atoms, to the torsion angle of a dihedral. 
 
-OpenDNA now allows you to perform and set custom angular constraints. Here's how.
+OpenDNA now allows you to perform and set custom angular constraints (for proteins/peptides only). Here's how.
 
 ### Setting up the angular constraints
 
