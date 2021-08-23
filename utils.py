@@ -187,6 +187,7 @@ def buildPeptide(peptide, customAngles=False):
             if row[0] == 0: 
                 geo.phi = phis[0]
                 geo.psi = psis[0]
+                break
     
     structure = PeptideBuilder.initialize_res(peptide[0])
     
