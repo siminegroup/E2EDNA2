@@ -151,7 +151,7 @@ def findAngles():
             rows_unequal = []
 
             for i in range(len(rows)):
-                if len(rows[i]) != 3:
+                if len(rows[i]) != 4:
                     rows_unequal.append(i + 1)
 
             printRecord("ERROR: Incorrect number of inputs for rows:")
