@@ -11,5 +11,5 @@ For the number of glowworms and docking steps, we use default values which seem 
 After docking, we generate configurations for each glowworm in each swarm, cluster similar structures together, and score them. 
 It is then straightforward to select the best structures and send them back to OpenMM for further MD simulation.
 
-There is a certain amount of alchemy involved in adding & removing hydrogens and terminal groups in order to get LightDock and OpenMM to work together. 
+There is a certain amount of art involved in adding & removing hydrogens and terminal groups in order to get LightDock and OpenMM to work together. 
 See the relevant scripts for detailed comments. 
