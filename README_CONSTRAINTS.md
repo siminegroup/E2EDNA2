@@ -30,6 +30,7 @@ It is set at ```10000``` currently because that was determined to be the best va
 ### The variables
 ```residue_num``` is the residue number. It starts from 0, to ensure it matches with Python's (and OpenMM's) indexing style. 
 In other words, if you need to put a constraint on amino acid 3 for instance (as it appears in the pdb), then you would write ```2``` for the ```residue_num```.
+Since ```residue_num``` essentially functions as an ID for the residue, having more than one input rows with the same ```residue_num``` will lead to an error.
 
 ```phi``` is the angle value that you want to set for phi (in degrees). Likewise for ```psi```. 
 Support for an ```omega``` variable does not exist currently. The assignments for each dihedral angle follows the format laid out by the ```PeptideBuilder``` package - see the ```PeptideBuilder.py``` [file on their GitHub](https://github.com/clauswilke/PeptideBuilder/blob/6d38a167b9992c27adc86f64370f7083303ce877/PeptideBuilder/PeptideBuilder.py) for more info.
