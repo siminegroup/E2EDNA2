@@ -202,7 +202,7 @@ def buildPeptide(peptide, customAngles=False):
         
         PeptideBuilder.add_residue(structure, geo)
             
-    PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
+#     PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
