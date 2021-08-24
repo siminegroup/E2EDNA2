@@ -1,7 +1,7 @@
 .idea/
 __pycache__/
-old
+old/
 checkpoint.txt
 old/resultsAnalysis.py
-testScripts
+testScripts/
 old/oldFunctions.py
