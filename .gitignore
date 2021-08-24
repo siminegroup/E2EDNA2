@@ -1,5 +1,5 @@
-.idea
-__pycache__
+.idea/
+__pycache__/
 old
 checkpoint.txt
 old/resultsAnalysis.py
