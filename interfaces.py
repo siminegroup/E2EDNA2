@@ -277,7 +277,7 @@ class omm(): # openmm
             self.nchains = len(self.topology._chains)
             
             for chain in range(self.nchains):                
-                for row in angles_to_constrain:
+                for row in self.angles_to_constrain:
                     aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
                     aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
 
