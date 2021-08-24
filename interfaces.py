@@ -277,33 +277,33 @@ class omm(): # openmm
             self.nchains = len(self.topology._chains)
             
             for chain in range(self.nchains):                
-                for row in self.angles_to_constrain:
+                for row in angles_to_constrain:
                     aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
-                    
-                    if chain_id != chain:
-                        continue    # saves a bit of time
-                    else:
-                        self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain and atom.name in {'N', 'CA', 'C'} and atom.residue.index in {aa_id, aa_id - 1}]
-                        # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
-                        
-                        for i in range(len(self.da_atoms)):
-                            if i <= len(self.da_atoms) - 4:
-                                self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
-                                self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
-                                
-                                if self.da_atoms[i + 4].residue.index == aa_id:
-                                    if self.tup == self.phi_tup:
-                                        self.force.addTorsion(self.tupIndex[0], 
-                                                              self.tupIndex[1], 
-                                                              self.tupIndex[2], 
-                                                              self.tupIndex[3], (phi * rad_conv,) * radians)
+                    aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
 
-                                    elif self.tup == self.psi_tup:
-                                        self.force.addTorsion(self.tupIndex[0], 
-                                                              self.tupIndex[1], 
-                                                              self.tupIndex[2], 
-                                                              self.tupIndex[3], (psi * rad_conv,) * radians)
-            
+                    self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain 
+                                     and atom.name in {'N', 'CA', 'C'} 
+                                     and atom.residue.index in {aa_id, aa_id - 1}]
+                    
+                    # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
+
+                    for i in range(len(self.da_atoms)):
+                        if i < len(self.da_atoms) - 4:
+                            self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
+                            self.tupIndex = tuple([atom.index for atom in da_atoms[i:i + 4]])
+
+                            if self.da_atoms[i + 4].residue.index == aa_id:
+                                if self.tup == self.phi_tup:
+                                    self.force.addTorsion(self.tupIndex[0], 
+                                                          self.tupIndex[1], 
+                                                          self.tupIndex[2], 
+                                                          self.tupIndex[3], (phi * rad_conv,) * radians)
+
+                                elif self.tup == self.psi_tup:
+                                    self.force.addTorsion(self.tupIndex[0], 
+                                                          self.tupIndex[1], 
+                                                          self.tupIndex[2], 
+                                                          self.tupIndex[3], (psi * rad_conv,) * radians)
             self.system.addForce(self.force)
             
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
