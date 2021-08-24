@@ -2,7 +2,7 @@
 
 ### A fully-automated code for DNA aptamer 2D and 3D structure analysis, and binding analysis with small molecules and short peptides.
 
-**Michael Kilgour, Tao Liu, Lena Simine**
+**Michael Kilgour, Tao Liu, Ilya S. Dementyev, Lena Simine**
 
 _mjakilgour gmail com_
 
