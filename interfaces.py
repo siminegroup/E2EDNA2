@@ -287,23 +287,22 @@ class omm(): # openmm
                     
                     # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
 
-                    for i in range(len(self.da_atoms)):
-                        if i < len(self.da_atoms) - 4:
-                            self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
-                            self.tupIndex = tuple([atom.index for atom in da_atoms[i:i + 4]])
+                    for i in range(len(self.da_atoms) - 3):
+                        self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
+                        self.tupIndex = tuple([atom.index for atom in da_atoms[i:i + 4]])
 
-                            if self.da_atoms[i + 4].residue.index == aa_id:
-                                if self.tup == self.phi_tup:
-                                    self.force.addTorsion(self.tupIndex[0], 
-                                                          self.tupIndex[1], 
-                                                          self.tupIndex[2], 
-                                                          self.tupIndex[3], (phi * rad_conv,) * radians)
+                        if self.da_atoms[i + 3].residue.index == aa_id:
+                            if self.tup == self.phi_tup:
+                                self.force.addTorsion(self.tupIndex[0], 
+                                                      self.tupIndex[1], 
+                                                      self.tupIndex[2], 
+                                                      self.tupIndex[3], (phi * rad_conv,) * radians)
 
-                                elif self.tup == self.psi_tup:
-                                    self.force.addTorsion(self.tupIndex[0], 
-                                                          self.tupIndex[1], 
-                                                          self.tupIndex[2], 
-                                                          self.tupIndex[3], (psi * rad_conv,) * radians)
+                            elif self.tup == self.psi_tup:
+                                self.force.addTorsion(self.tupIndex[0], 
+                                                      self.tupIndex[1], 
+                                                      self.tupIndex[2], 
+                                                      self.tupIndex[3], (psi * rad_conv,) * radians)
             self.system.addForce(self.force)
             
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
