@@ -58,11 +58,26 @@ residue_num,phi,psi,chain_id
 ```
 
 ### Common errors that might occur
-*Assuming the above is followed*, a common error that might show up is:
-```Particle Coordinate is nan```
+*Assuming everything above is followed*, some common errors that might show up are:
+
+1. ```Particle Coordinate is nan```
 
 This means the simulation exploded, due to the time step being too large to properly calculate trajectories using the current
 ```params['peptide backbone constraint constant']``` value. An easy way to rectify this is to simply make ```params['time step']``` shorter.
 It is currently set at 2.0 fs because that was the best time-step for the current ```params['peptide backbone constraint constant']``` value.
 
-This is by no means an exhaustive list. If more errors are found, they will be added here.
+2. Dihedral analysis issues
+
+Depending on the type of peptide simulated (and the type of analysis package used to find the dihedrals), there may be a few inconsistencies between
+PeptideBuilder and MDAnalysis. The constraints in OpenDNA are written to be as compatible as possible, but there may still need to be some things to account for.
+For instance, creating a GLY-GLY dimer and simulating it with OpenDNA while attempting to use ```1,-60,140,0``` to put 2 constraints on the 2nd glycine will actually put 1 constraint (phi) on the 2nd glycine and 1 constraint (psi) on the 1st glycine, according to the dihedral analysis done via MDAnalysis. 
+This is because there is no phi for the first residue (```aa_id = 0```) for any peptide, 
+according to how MDAnalysis analyzes the dihedrals. Likewise, there is no psi on the last residue for any peptide, for the same reason. 
+If one were to print out the dihedrals from the GLY-GLY dimer as a list using the phi_selection() method in MDAnalysis , one would get the following:
+```
+Phi: [None, <AtomGroup with 4 atoms>]
+Psi: [<AtomGroup with 4 atoms>, None]
+```
+Which shows the problem mentioned earlier in this paragraph.
+
+****This is by no means an exhaustive list. If more errors are found, they will be added here.**
