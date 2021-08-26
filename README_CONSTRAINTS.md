@@ -7,8 +7,14 @@ This is particularly important for docking simulations, where a certain ligand w
 One of the most popular (and simple-to-use) constraints is the harmonic one. It has the following formula:
 <img src="https://latex.codecogs.com/png.latex?%5Cbg_white%20V(x)=0.5k(x-x_0)^2 " />
 
-Where V is the potential energy, k is the force constant, x0 is an initial variable (the value to which the constraint will try and fix the variable) 
-and x is the variable in question, which can be anything from the distance between 2 atoms, to the torsion angle of a dihedral. 
+Where <img src="https://latex.codecogs.com/png.latex?%5Cbg_white%20V " />
+is the potential energy, 
+<img src="https://latex.codecogs.com/png.latex?%5Cbg_white%20k " /> 
+is the force constant, 
+<img src="https://latex.codecogs.com/png.latex?%5Cbg_white%20x_0 " /> 
+is an initial variable (the value to which the constraint will try and fix the variable) and 
+<img src="https://latex.codecogs.com/png.latex?%5Cbg_white%20x " />
+is the variable in question, which can be anything from the distance between 2 atoms, to the torsion angle of a dihedral. 
 
 OpenDNA now allows you to perform and set custom angular constraints (for proteins/peptides only). Here's how.
 
