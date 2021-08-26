@@ -356,6 +356,10 @@ class opendna():
         use LightDock to run docking and isolate good structures
         """
         printRecord('Docking')
+        
+        if bool(self.params['peptide backbone constraint constant']):
+            printRecord('Peptide will be constrained.')
+            
         buildPeptide(self.peptide, customAngles=bool(self.params['peptide backbone constraint constant']))
         ld = interfaces.ld(aptamer, peptide, self.params, self.i)
         ld.run()
