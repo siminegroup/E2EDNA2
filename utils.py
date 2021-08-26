@@ -72,7 +72,8 @@ def printRecord(statement):
             
 def mode(lst):
     """
-    Returns the mode of a given list, only used for checking backbone_dihedrals (source: https://stackabuse.com/calculating-mean-median-and-mode-in-python/)
+    Returns the statistical mode(s) of a given list, only used for checking backbone_dihedrals 
+    Source: https://stackabuse.com/calculating-mean-median-and-mode-in-python/
     :param lst:
     :return mode_list, a list of the mode(s) found in the input list:
     """
@@ -197,26 +198,28 @@ def buildPeptide(peptide, customAngles=False):
     :return:
     """
     geo = Geometry.geometry(peptide[0])
-    angles_to_constrain = findAngles()
-    phis, psis = [row[1] for row in angles_to_constrain], [row[2] for row in angles_to_constrain]
-    
-    if customAngles:
+    angles_to_constrain = findAngles()  # all values in the list are strings
+
+    if customAngles:        
+        phis = {row[0]: float(row[1]) for row in angles_to_constrain}
+        psis = {row[0]: float(row[2]) for row in angles_to_constrain}
+        
         for row in angles_to_constrain:
-            if row[0] == 0: 
-                geo.phi = phis[0]
-                geo.psi = psis[0]
-                break  # saves some time
-    
+            if int(row[0]) == 0:
+#                 printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]]) # only used for debugging
+                geo.phi, geo.psi = phis[row[0]], psis[row[0]]
+                break
+        
     structure = PeptideBuilder.initialize_res(peptide[0])
-    
+        
     for i in range(1, len(peptide)):
         geo = Geometry.geometry(peptide[i])
         
         if customAngles:
             for row in angles_to_constrain:
-                if row[0] == i:
-                    geo.phi = phis[i]
-                    geo.psi = psis[i]
+                if int(row[0]) == i:
+#                     printRecord(f'phi[{i}] and psi[{i}]:', phis[str(i)], psis[str(i)]) # only used for debugging
+                    geo.phi, geo.psi = phis[str(i)], psis[str(i)]
                     break  # saves some time
         
         PeptideBuilder.add_residue(structure, geo)
