@@ -16,7 +16,7 @@ import numpy as np
 from shutil import copyfile
 import csv
 from collections import Counter
-from main import params
+#from main import params
 
 
 # I/O
@@ -158,9 +158,9 @@ def findAngles():
             residue_nums.append(row[0])
             row_lengths.add(len(row))
 
-        if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
-            printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
-            exit()
+#         if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
+#             printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
+#             exit()
     
         if len(row_lengths) != 1:   # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
             rows_unequal = []
@@ -191,7 +191,7 @@ def findAngles():
             return angles_to_constrain
     
 
-def buildPeptide(peptide, customAngles=bool(params['peptide backbone constraint constant'])):
+def buildPeptide(peptide, customAngles=False) #bool(params['peptide backbone constraint constant'])):
     """
     construct a peptide sequence pdb file
     :param peptide:
