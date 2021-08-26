@@ -191,7 +191,7 @@ def findAngles():
             return angles_to_constrain
     
 
-def buildPeptide(peptide, customAngles=False) #bool(params['peptide backbone constraint constant'])):
+def buildPeptide(peptide, customAngles=False):
     """
     construct a peptide sequence pdb file
     :param peptide:
