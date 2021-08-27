@@ -148,6 +148,7 @@ def findAngles():
     resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
 
     with open("backbone_dihedrals.csv") as csv_file:
+        printRecord("Reading CSV file...")
         read_csv = csv.reader(csv_file, delimiter=",")
         residue_nums = []
         rows = []
@@ -181,7 +182,8 @@ def findAngles():
             printRecord("ERROR: More than one input row for a residue_num in backbone_dihedrals.csv; exiting run.")
             exit()
 
-        else:  # everything is correct here
+        else:  # everything should be correct here
+            printRecord("Finding angles to constrain...")
             angles_to_constrain = []
 
             for i in range(len(rows)):
@@ -199,16 +201,17 @@ def buildPeptide(peptide, customAngles=False):
     """
     geo = Geometry.geometry(peptide[0])
     angles_to_constrain = findAngles()  # all values in the list are strings
-
-    if customAngles:        
+    printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
+    
+    if customAngles:
+        printRecord("customAngles on\n")
         phis = {row[0]: float(row[1]) for row in angles_to_constrain}
         psis = {row[0]: float(row[2]) for row in angles_to_constrain}
         
         for row in angles_to_constrain:
             if int(row[0]) == 0:
-#                 printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]]) # only used for debugging
+                printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]], "\n") # only used for debugging
                 geo.phi, geo.psi = phis[row[0]], psis[row[0]]
-                break
         
     structure = PeptideBuilder.initialize_res(peptide[0])
         
@@ -218,11 +221,17 @@ def buildPeptide(peptide, customAngles=False):
         if customAngles:
             for row in angles_to_constrain:
                 if int(row[0]) == i:
-#                     printRecord(f'phi[{i}] and psi[{i}]:', phis[str(i)], psis[str(i)]) # only used for debugging
+                    printRecord(f'phi[{i}] and psi[{i}]:', phis[str(i)], psis[str(i)], "\n") # only used for debugging
                     geo.phi, geo.psi = phis[str(i)], psis[str(i)]
-                    break  # saves some time
         
+        printRecord("Adding Residue...\n")
         PeptideBuilder.add_residue(structure, geo)
+    
+    if customAngles:
+        constrain_str = " with custom angles & constraints"
+    else:
+        constrain_str = ""
+    printRecord("Successfully built peptide" + constrain_str + "\n")
             
 #     PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
