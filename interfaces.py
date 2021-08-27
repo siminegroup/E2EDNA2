@@ -276,6 +276,8 @@ class omm(): # openmm
             rad_conv = pi / 180
             self.nchains = len(self.topology._chains)
             
+            printRecord("Beginning to iterate through chains...\n")
+            
             for chain in range(self.nchains):                
                 for row in self.angles_to_constrain:
                     aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
@@ -285,25 +287,34 @@ class omm(): # openmm
                                      and atom.name in {'N', 'CA', 'C'} 
                                      and atom.residue.index in {aa_id, aa_id - 1}]
                     
+                    printRecord("Identified da_atoms.\n")
+                    
                     # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
 
                     for i in range(len(self.da_atoms) - 3):
                         self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
                         self.tupIndex = tuple([atom.index for atom in da_atoms[i:i + 4]])
+                        printRecord("Found tup and tupIndex.\n")
 
                         if self.da_atoms[i + 3].residue.index == aa_id:
+                            printRecord("Beginning to add torsions...\n")
+                            
                             if self.tup == self.phi_tup:
                                 self.force.addTorsion(self.tupIndex[0], 
                                                       self.tupIndex[1], 
                                                       self.tupIndex[2], 
                                                       self.tupIndex[3], (phi * rad_conv,) * radians)
+                                printRecord("Successfully added a phi torsion restraint.\n")
 
                             elif self.tup == self.psi_tup:
                                 self.force.addTorsion(self.tupIndex[0], 
                                                       self.tupIndex[1], 
                                                       self.tupIndex[2], 
                                                       self.tupIndex[3], (psi * rad_conv,) * radians)
+                                printRecord("Successfully added a phi torsion restraint.\n")
+                                
             self.system.addForce(self.force)
+            printRecord("Successfully added the force.\n")
             
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
         self.integrator.setConstraintTolerance(self.constraintTolerance)
@@ -313,7 +324,7 @@ class omm(): # openmm
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
         self.simulation.context.setPositions(self.positions)
             
-        
+        printRecord("Positions set.\n")
 
     def doMD(self):
         if not os.path.exists(self.structureName.split('.')[0] + '_state.chk'):
