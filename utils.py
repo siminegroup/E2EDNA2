@@ -221,7 +221,7 @@ def buildPeptide(peptide, customAngles=False):
         if customAngles:
             for row in angles_to_constrain:
                 if int(row[0]) == i:
-                    printRecord(f'phi[{i}] and psi[{i}]:', phis[str(i)], psis[str(i)], "\n") # only used for debugging
+                    printRecord(f'phi[{i}] and psi[{i}]: {phis[str(i)]}, {psis[str(i)]}\n') # only used for debugging
                     geo.phi, geo.psi = phis[str(i)], psis[str(i)]
         
         printRecord("Adding Residue...\n")
