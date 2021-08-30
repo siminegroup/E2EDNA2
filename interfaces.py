@@ -290,6 +290,8 @@ class omm(): # openmm
                     printRecord("Identified da_atoms.\n")
                     
                     # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
+                    
+                    printRecord("da_atoms length = " + str(len(self.da_atoms)))
 
                     for i in range(len(self.da_atoms) - 3):
                         self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
