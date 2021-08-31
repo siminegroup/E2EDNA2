@@ -276,44 +276,47 @@ class omm(): # openmm
             rad_conv = pi / 180
             self.nchains = len(self.topology._chains)
             
+            printRecord("Number of chains = " + str(self.nchains))
             printRecord("Beginning to iterate through chains...\n")
             
-            for chain in range(self.nchains):                
-                for row in self.angles_to_constrain:
-                    aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
-                    aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
+#             for chain in range(self.nchains):                
+            for row in self.angles_to_constrain:
+                aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
+                aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
+                
+                printRecord(f"aa_id = {aa_id}, phi = {phi}, psi = {psi}, chain_id = {chain_id}")
+                
+                self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id 
+                                 and atom.name in {'N', 'CA', 'C'} 
+                                 and atom.residue.index in {aa_id, aa_id - 1}]
 
-                    self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain 
-                                     and atom.name in {'N', 'CA', 'C'} 
-                                     and atom.residue.index in {aa_id, aa_id - 1}]
-                    
-                    printRecord("Identified da_atoms.\n")
-                    
-                    # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
-                    
-                    printRecord("da_atoms length = " + str(len(self.da_atoms)))
+                printRecord("Identified da_atoms.\n")
 
-                    for i in range(len(self.da_atoms) - 3):
-                        self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
-                        self.tupIndex = tuple([atom.index for atom in da_atoms[i:i + 4]])
-                        printRecord("Found tup and tupIndex.\n")
+                # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
 
-                        if self.da_atoms[i + 3].residue.index == aa_id:
-                            printRecord("Beginning to add torsions...\n")
-                            
-                            if self.tup == self.phi_tup:
-                                self.force.addTorsion(self.tupIndex[0], 
-                                                      self.tupIndex[1], 
-                                                      self.tupIndex[2], 
-                                                      self.tupIndex[3], (phi * rad_conv,) * radians)
-                                printRecord("Successfully added a phi torsion restraint.\n")
+                printRecord("da_atoms length = " + str(len(self.da_atoms)))
 
-                            elif self.tup == self.psi_tup:
-                                self.force.addTorsion(self.tupIndex[0], 
-                                                      self.tupIndex[1], 
-                                                      self.tupIndex[2], 
-                                                      self.tupIndex[3], (psi * rad_conv,) * radians)
-                                printRecord("Successfully added a phi torsion restraint.\n")
+                for i in range(len(self.da_atoms) - 3):
+                    self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
+                    self.tupIndex = tuple([atom.index for atom in da_atoms[i:i + 4]])
+                    printRecord("Found tup and tupIndex.\n")
+
+                    if self.da_atoms[i + 3].residue.index == aa_id:
+                        printRecord("Beginning to add torsions...\n")
+
+                        if self.tup == self.phi_tup:
+                            self.force.addTorsion(self.tupIndex[0], 
+                                                  self.tupIndex[1], 
+                                                  self.tupIndex[2], 
+                                                  self.tupIndex[3], (phi * rad_conv,) * radians)
+                            printRecord("Successfully added a phi torsion restraint.\n")
+
+                        elif self.tup == self.psi_tup:
+                            self.force.addTorsion(self.tupIndex[0], 
+                                                  self.tupIndex[1], 
+                                                  self.tupIndex[2], 
+                                                  self.tupIndex[3], (psi * rad_conv,) * radians)
+                            printRecord("Successfully added a phi torsion restraint.\n")
                                 
             self.system.addForce(self.force)
             printRecord("Successfully added the force.\n")
