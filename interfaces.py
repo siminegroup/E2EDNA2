@@ -259,7 +259,7 @@ class omm(): # openmm
         
         for atom in self.topology.atoms():
             if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
-                printRecord("The first amino acid of the peptide belongs to chain ID = " + str(atom.residue.chain.index))
+                printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
         
         if params['peptide backbone constraint constant'] != 0:
             self.force = CustomTorsionForce('0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
@@ -289,16 +289,20 @@ class omm(): # openmm
                 aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
                 
                 printRecord(f"aa_id = {aa_id}, phi = {phi}, psi = {psi}, chain_id = {chain_id}")
+                printRecord("Printing first 5 atoms in topology.atoms()...")
+                
+                for atom in self.topology.atoms()[:5]:
+                    printRecord(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
                 
                 self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id 
                                  and atom.name in {'N', 'CA', 'C'} 
                                  and atom.residue.index in {aa_id, aa_id - 1}]
-
+                
                 printRecord("Identified da_atoms.\n")
 
                 # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
 
-                printRecord("da_atoms length = " + str(len(self.da_atoms)))
+                printRecord("da_atoms length = " + str(len(self.da_atoms))) # returns 0 for some reason
 
                 for i in range(len(self.da_atoms) - 3):
                     self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
