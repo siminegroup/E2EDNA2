@@ -257,6 +257,10 @@ class omm(): # openmm
         self.positions = self.pdb.positions
         self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
         
+        for atom in self.topology.atoms():
+            if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
+                printRecord("The first amino acid of the peptide belongs to chain = " + str(atom.chain.index))
+        
         if params['peptide backbone constraint constant'] != 0:
             self.force = CustomTorsionForce('0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
             self.force.addGlobalParameter('K', params['peptide backbone constraint constant'])
