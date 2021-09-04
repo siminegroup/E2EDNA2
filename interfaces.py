@@ -268,10 +268,6 @@ class omm(): # openmm
             
             self.angles_to_constrain = findAngles()
             
-#             self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == 1 and atom.name in {'N', 'CA', 'C'}] #  assumes the chain id of the peptide is 1 - for future releases, will need to be more dynamic       
-            
-#             self.atom_ids = [atom.index for atom in self.da_atoms]
-            
             self.phi_tup = ('C', 'N', 'CA', 'C')
             self.psi_tup = ('N', 'CA', 'C', 'N')
             self.angle_tups = self.phi_tup, self.psi_tup
@@ -283,21 +279,18 @@ class omm(): # openmm
             printRecord("Number of chains = " + str(self.nchains))
             printRecord("Beginning to iterate through chains...\n")
             
-#             for chain in range(self.nchains):                
             for row in self.angles_to_constrain:
                 aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
                 aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
                 
                 printRecord(f"aa_id = {aa_id}, phi = {phi}, psi = {psi}, chain_id = {chain_id}")
-                printRecord("Printing first 5 atoms in topology.atoms()...")
+#                 printRecord("Printing first 5 atoms in topology.atoms()...")
                 
-                for atom in self.topology.atoms()[:5]:
-                    printRecord(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
+#                 for atom in self.topology.atoms()[:5]:
+#                     printRecord(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
                 
-                self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id 
-                                 and atom.name in {'N', 'CA', 'C'} 
-                                 and atom.residue.index in {aa_id, aa_id - 1}]
-                
+                self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id and atom.name in {'N', 'CA', 'C'} and atom.residue.index in {aa_id, aa_id - 1}]
+
                 printRecord("Identified da_atoms.\n")
 
                 # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
@@ -305,8 +298,8 @@ class omm(): # openmm
                 printRecord("da_atoms length = " + str(len(self.da_atoms))) # returns 0 for some reason
 
                 for i in range(len(self.da_atoms) - 3):
-                    self.tup = tuple([atom.name for atom in da_atoms[i:i + 4]])
-                    self.tupIndex = tuple([atom.index for atom in da_atoms[i:i + 4]])
+                    self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
+                    self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
                     printRecord("Found tup and tupIndex.\n")
 
                     if self.da_atoms[i + 3].residue.index == aa_id:
