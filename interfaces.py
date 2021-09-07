@@ -286,7 +286,10 @@ class omm(): # openmm
                 printRecord(f"aa_id = {aa_id}, phi = {phi}, psi = {psi}, chain_id = {chain_id}")
                 printRecord("Printing first 5 atoms in topology.atoms()...")
                 
-                for atom in self.topology.atoms()[:5]:
+                first5 = [atom for atom in self.topology.atoms()]
+                first5 = first5[:5]
+                
+                for atom in first5:
                     printRecord(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
                 
                 self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id and atom.name in {'N', 'CA', 'C'} and atom.residue.index in {aa_id, aa_id - 1}]
