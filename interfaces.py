@@ -295,10 +295,12 @@ class omm(): # openmm
 
 
 class nupack():
-    def __init__(self, sequence, temperature, ionicStrength):
+    def __init__(self, sequence, temperature, ionicStrength, mgConc=0):
         self.sequence = sequence
         self.temperature = temperature
         self.ionicStrength = ionicStrength
+        self.naConc = ionicStrength
+        self.mgConc = mgConc
         self.R = 0.0019872  # ideal gas constant in kcal/mol/K
 
 
@@ -319,7 +321,7 @@ class nupack():
         A = Strand(self.sequence, name='A')
         comp = Complex([A], name='AA')
         set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp]))
-        model1 = Model(material='dna', celsius=CelsiusTemperature, sodium=self.ionicStrength)
+        model1 = Model(material='dna', celsius=CelsiusTemperature, sodium=self.naConc, magnesium=self.mgConc)
         results = complex_analysis(set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
         self.output = results[comp]
 

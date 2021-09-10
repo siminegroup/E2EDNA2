@@ -5,7 +5,7 @@ from utils import *
 os.chdir('../../../../Desktop/mmruns/cluster')
 
 
-run_num = 993
+run_num = 998
 dir = 'run{}'.format(run_num) # go into the directory
 
 dirList = os.listdir(dir)
@@ -29,8 +29,11 @@ for file in dirList: # recenter .dcd files for better visualization
                         if 'recentered' in trajectory:
                             pass
                         else:
-                            recenterDCD(topology, trajectory)
-                            runPairs.append([topology,trajectory.split('.')[0] + '_recentered.dcd'])
+                            try:
+                                recenterDCD(topology, aaa) # never actually recenter, we don't need it and sometimes it breaks everything
+                                runPairs.append([topology,trajectory.split('.')[0] + '_recentered.dcd'])
+                            except:
+                                copyfile(trajectory, trajectory.split('.')[0] + '_recentered.dcd')
 
                         break
 

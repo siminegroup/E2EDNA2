@@ -591,6 +591,11 @@ def isolateRepresentativeStructure(trajectory):
     :return:
     """
     n_components, reducedTrajectory, pcaModel = doTrajectoryDimensionalityReduction(trajectory)
+    eigenvalues = pcaModel.explained_variance_ratio_
+
+    for i in range(reducedTrajectory.shape[-1]): # normalize the contribution of each PC by its eigenvalue (importance)
+        reducedTrajectory[:,i] = reducedTrajectory[:,i] * eigenvalues[i]
+
     probs, smoothProbs, bins, nbins = doMultiDProbabilityMap(reducedTrajectory)
 
     bestTransformedStructureIndex = np.unravel_index(smoothProbs.argmax(), smoothProbs.shape)
@@ -609,7 +614,7 @@ def isolateRepresentativeStructure(trajectory):
     # find structures in the reduced trajectory with these coordinates
     representativeIndex = do_kdtree(reducedTrajectory, transformedCoordinates)
 
-    return representativeIndex, reducedTrajectory, pcaModel.explained_variance_ratio_
+    return representativeIndex, reducedTrajectory, eigenvalues
 
 def bindingAnalysis(bindu, freeu, peptide, sequence):
     """
@@ -687,7 +692,7 @@ def checkMidTrajectoryBinding(structure, trajectory, peptide, sequence, params, 
     except IndexError:
         return False # if we never attached, give up
 
-def checkTrajPCASlope(topology, trajectory):
+def checkTrajPCASlope(topology, trajectory, printStep):
     """
     analyze the trajectory to see if it's converged
     """
@@ -706,9 +711,10 @@ def checkTrajPCASlope(topology, trajectory):
 
     slopes = np.zeros(pcTrajectory.shape[-1])
     for i in range(len(slopes)):
-        slopes[i] = np.abs(np.polyfit(np.arange(len(pcTrajectory)), pcTrajectory[:, i], 1)[0])
+        slopes[i] = np.abs(np.polyfit(np.arange(len(pcTrajectory)) * printStep, pcTrajectory[:, i], 1)[0]) # normalize against the time step
 
-    combinedSlope = np.sum(slopes * (eigenvalues / np.sum(eigenvalues))) # normalize the components contributions by their eigenvalues
+    normedSlope = slopes * (eigenvalues / np.sum(eigenvalues)) # normalize the components contributions by their eigenvalues
+    combinedSlope = np.linalg.norm(normedSlope)
 
     printRecord('PCA slope average is %.4f' % combinedSlope)
 

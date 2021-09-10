@@ -255,7 +255,7 @@ class opendna():
             self.ssAnalysis = [ssString, pairList]
             return pairList
         elif self.params['secondary structure engine'] == 'NUPACK':
-            nup = interfaces.nupack(sequence, self.params['temperature'], self.params['ionic strength'])  # initialize nupack
+            nup = interfaces.nupack(sequence, self.params['temperature'], self.params['ionic strength'], self.params['[Mg]'])  # initialize nupack
             self.ssAnalysis = nup.run()  # run nupack analysis of possible secondary structures
 
             distances = getSecondaryStructureDistance(self.ssAnalysis['config'])
@@ -431,7 +431,7 @@ class opendna():
                 else:
                     os.replace(structureName + '_trajectory.dcd', structureName + '_trajectory-1.dcd')
 
-                combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd')
+                combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd', self.params['print step'])
                 if binding:  # if this is a binding simulation, also check to see if the analyte has come unbound from the analyte, and if so, cutoff the simulation
                     self.analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.peptide, self.sequence, self.params, cutoffTime=1)
                     if self.analyteUnbound:

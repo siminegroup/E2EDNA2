@@ -35,7 +35,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+
+
 To-Do:
+==> add multi-core support to lightdock, up to however many CPUs we've requested
 ==> improve equilibration & sampling
 ==> collation and final printout
 ==> full trajectory combiner - for printouts
@@ -43,11 +46,14 @@ To-Do:
 ==> look at size vs time over a large aptamer trajectory to optimize smoothing timescale
 ==> 'long' refold takes too long on big sequences and doesn't actually work that well - make a better/shorter one
     ==> separate stages in MMB run and cutoff sim if everything is satisfied
-==> record actual number of 2d and docking structures attempted
-==> see if MMB can be easily parallelized - seems like no... maybe then try turning off physics
-==> add Mg ions in nupack and openmm
+==> record actual number of 2d and docking structures attempted in the outfile - maybe in a 'topline' dictionary
+==> check MMB performance with physics turned off
+==> update to peptide + aptamer full range contact map?
 
 future features
+==> there are scripts which automate helicity mapping for 2D structures - can we use this to supplement / bypass MMB?
+==> upgrade 2d structure distance metric to accomodate 'close-to', not just == vs !=
+    -> the answer may honestly just be to look at the contact map and not any of this 2D crap
 ==> finish README
     ==> example
 ==> write automated testing with all possible test modes
@@ -55,12 +61,12 @@ future features
 ==> track post-complexation 2D trajectory and compare to pre-complexation, just like the 3D analysis
 ==> enhanced sampling and/or replica exchange (see openmmtools for implementation)
 ==> multi-state comparision in 2d and 3d w clustering
-==> binding free energy and/or kd calculation - see BAR free energy
+==> binding free energy and/or kd calculation
 ==> peptide restraints
 ==> would be nice to recognize local but significant rearrangements rather than just global
 ==> add nucleoside analytes
-    => force field
-    => docking
+    => force field - ambertools, LEAP + Antechamber
+    => docking - should work apparently
     => analysis & automation
 ==> implicit solvent - ambertools prmtop file required
     -> may also be able to automatically parameterize nonstandard residues using Amber antechamber
@@ -71,13 +77,15 @@ little things & known issues
 ==> label bare exceptions
 ==> for long DNA sequences with extended unpaired 'tails', rectangular prism box may fail. However, cubic box would be very expensive. It's a pickle - in any case we may want to encode logic to automatically detect and adjust.
 ==> for tiny peptides, lightdock ANM may fail, and the whole run crashes 
-==> ANM is on and setup but doesn't seem to be used all the time
+==> anm in LightDock is a bit funny, especially with small molecules may give odd behaviour
+==> mdtraj recentering code doesn't always work. not really necessary for nice movies given e.g. pymol movie mode, but might be worth fixing for quick visualizations
+==> we have Mg2+ in nupack fold calculations but not in MD sims
 
 '''
 
 params = {}
-params['device'] = 'cluster'  # 'local' or 'cluster'
-params['platform'] = 'CUDA'  # 'CUDA' or 'CPU'
+params['device'] = 'local'  # 'local' or 'cluster'
+params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double' only relevant on 'CUDA' platform
 
 if params['device'] == 'cluster':
@@ -88,7 +96,7 @@ if params['device'] == 'cluster':
     params['max walltime'] = cmdLineInputs[3] # maximum walltime
 elif params['device'] == 'local':
     params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
-    params['sequence'] = 'ATTCAACTTTATCGAGTGCGTTGAGTGCGGTATCGCAATG' # manually set sequence # ATP aptamer
+    params['sequence'] = 'CCCGGGCCCGGG' # manually set sequence # ATP aptamer
     params['peptide'] = 'YRRYRRYRRY'#'YQTQTNSPRRAR' # manually set peptide
     params['max walltime'] = 3 * 24  # maximum walltime in hours - code will adapt maximum sampling steps to finish in less than this time, or give up if this isn't enough time to complete even a minimum run.
 
@@ -105,8 +113,8 @@ Modes, in order of increasing cost
 '''
 
 params['mode'] = 'full binding'  # what to do
-params['test mode'] = False # if true, changes params for a short simulation
-params['explicit run enumeration'] = True  # if True, the next run is fresh, in directory 'run%d'%run_num. If false, regular behaviour. Note: ONLY USE THIS FOR FRESH RUNS
+params['test mode'] = True # if true, changes params for a short simulation
+params['explicit run enumeration'] = False  # if True, the next run is fresh, in directory 'run%d'%run_num. If false, regular behaviour. Note: ONLY USE THIS FOR FRESH RUNS
 
 # Pipeline parameters
 params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package setup for probability analysis
@@ -142,7 +150,8 @@ if params['test mode']: # shortcut for fast debugging
 # physical params
 params['pressure'] = 1  # atmospheres
 params['temperature'] = 310  # Kelvin - used to predict secondary structure and for MD thermostatting
-params['ionic strength'] = .163  # mmol - used to predict secondary structure and add ions to simulation box
+params['ionic strength'] = .163  # M - sodium concentraion - used to predict secondary structure and add ions to simulation box , must be 1100 > [Na] > 50 for nupack to run
+params['[Mg]'] = 0.05 # M - magnesium concentration - 0.2 > [Mg] > 0 - ONLY APPLIES TO NUPACK FOLD - DOES NOT ADD Mg TO MD SIMULATIONS
 params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH
 
 # OpenMM Parameters
