@@ -12,22 +12,32 @@ _mjakilgour gmail com_
 git clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_CALLED
 ```
 * Setup python environment with the following packages
+  * Note to Simine Group Members running on Compute Canada - skip this section and go directly to paths. Your virtual environment is automatically setup via the instructions in EXAMPLE_SUB.sh
 ```
 biopython==1.78
+certifi==2020.12.5
+cycler==0.10.0
+decorator==4.4.2
+GridDataFormats==0.5.0
+gsd==1.9.3
+joblib==1.0.1
+kiwisolver==1.3.1
 matplotlib==3.3.2
-MDAnalysis==1.0.0
-numpy==1.19.2
+mmtf-python==1.1.2
+mock==4.0.3
+msgpack==0.6.2
+networkx==2.5
 pandas==1.1.3
 ParmEd==3.2.0
 Pillow==7.2.0
 pyparsing==2.4.7
+python-dateutil==2.8.1
+pytz==2021.1
 scipy==1.4.1
-OpenMM=7.5.0
-PeptideBuilder==1.1.0
-scikit-learn==0.24.2
+six==1.15.0
+tqdm==4.59.0
+scikit_learn==0.24.2
 Cython==0.29.23
-LightDock==0.9.0
-nupack==4.0.0.23
 mdtraj==1.9.5
 ```
 * Download appropriate MacroMoleculeBuilder for your system from [SimTK here](https://simtk.org/projects/rnatoolbox) - old and new versions have been tested and seem to work. We'll need the 'Installer' directory and MMB executable. 
