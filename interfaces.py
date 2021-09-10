@@ -209,6 +209,7 @@ class omm(): # openmm
         self.waterModel = params['water model']
         self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
         self.peptide = params['peptide']
+        self.sequence = params['sequence']
 
         # System Configuration
         self.nonbondedMethod = params['nonbonded method']
@@ -234,7 +235,7 @@ class omm(): # openmm
         else:
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])      
-        
+
         #platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
             self.platform = Platform.getPlatformByName('CUDA')
@@ -260,8 +261,8 @@ class omm(): # openmm
         for atom in self.topology.atoms():
             if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
                 printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
-        
-        if params['peptide backbone constraint constant'] != 0:
+
+        if (params['peptide backbone constraint constant'] != 0) and ('CA' in [atom.name for atom in self.topology.atoms()]):
             self.force = CustomTorsionForce('0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
             self.force.addGlobalParameter('K', params['peptide backbone constraint constant'])
             self.force.addPerTorsionParameter('theta0')
@@ -291,8 +292,8 @@ class omm(): # openmm
                 
                 for atom in first5:
                     printRecord(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
-                
-                self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id and atom.name in {'N', 'CA', 'C'} and atom.residue.index in {aa_id, aa_id - 1}]
+
+                self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id and atom.name in {'N', 'CA', 'C'} and atom.residue.index - len(self.sequence) in {aa_id, aa_id - 1}]
 
                 printRecord("Identified da_atoms.\n")
 
@@ -321,7 +322,7 @@ class omm(): # openmm
                                                   self.tupIndex[2], 
                                                   self.tupIndex[3], (psi * rad_conv,) * radians)
                             printRecord("Successfully added a phi torsion restraint.\n")
-                                
+
             self.system.addForce(self.force)
             printRecord("Successfully added the force.\n")
             
@@ -332,8 +333,8 @@ class omm(): # openmm
         elif params['platform'] == 'CPU':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
         self.simulation.context.setPositions(self.positions)
-            
-        printRecord("Positions set.\n")
+
+        printRecord("Positions set.")
 
     def doMD(self):
         if not os.path.exists(self.structureName.split('.')[0] + '_state.chk'):

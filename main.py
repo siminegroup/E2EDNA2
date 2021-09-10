@@ -202,7 +202,6 @@ params['mmb normal template'] = 'lib/mmb/commands.template.dat'
 params['mmb quick template'] = 'lib/mmb/commands.template_quick.dat'
 params['mmb long template'] = 'lib/mmb/commands.template_long.dat'
 
-
 # structure files
 params['analyte pdb'] = 'lib/peptide/peptide.pdb'  # optional analyte - currently not used
 
