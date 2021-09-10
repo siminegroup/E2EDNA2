@@ -118,6 +118,10 @@ class opendna():
             copyfile(self.params['mmb normal template'], self.workDir + '/commands.template.dat')
             copyfile(self.params['mmb quick template'], self.workDir + '/commands.template_quick.dat')
             copyfile(self.params['mmb long template'], self.workDir + '/commands.template_long.dat')
+            
+            # copy csv file (dihedral restraints) if restraints are turned on
+            if self.params['peptide backbone constraint constant'] != 0:
+                copyfile('backbone_dihedrals.csv', self.workDir + '/backbone_dihedrals.csv')
 
             # copy lightdock scripts
             copytree('lib/lightdock', self.workDir + '/ld_scripts')
@@ -352,7 +356,11 @@ class opendna():
         use LightDock to run docking and isolate good structures
         """
         printRecord('Docking')
-        buildPeptide(self.peptide)
+        
+        if bool(self.params['peptide backbone constraint constant']):
+            printRecord('Peptide will be constrained.')
+            
+        buildPeptide(self.peptide, customAngles=bool(self.params['peptide backbone constraint constant']))
         ld = interfaces.ld(aptamer, peptide, self.params, self.i)
         ld.run()
         topScores = ld.topScores

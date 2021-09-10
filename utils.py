@@ -14,6 +14,9 @@ import time
 from pdbfixersource import PDBFixer
 import numpy as np
 from shutil import copyfile
+import csv
+from collections import Counter
+#from main import params
 
 
 # I/O
@@ -66,6 +69,17 @@ def printRecord(statement):
     else:
         with open('record.txt', 'w') as file:
             file.write('\n' + statement)
+            
+def mode(lst):
+    """
+    Returns the statistical mode(s) of a given list, only used for checking backbone_dihedrals 
+    Source: https://stackabuse.com/calculating-mean-median-and-mode-in-python/
+    :param lst:
+    :return mode_list, a list of the mode(s) found in the input list:
+    """
+    c = Counter(lst)
+    mode_list = [k for k, v in c.items() if v == c.most_common(1)[0][1]]
+    return mode_list
 
 
 # pdb & dcd file editing
@@ -119,19 +133,107 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
     PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
 
-def buildPeptide(peptide):
+def findAngles():
+    """
+    Reads the angles required to constrain the dihedrals of the peptide backbone from the backbone_dihedrals.csv file. 
+    For more info, see README_CONSTRAINTS.md
+    :param:
+    :return angles_to_constrain, a list that contains the numerical values for angles to constrain:
+    """
+    angles_to_constrain = []
+    resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F",
+               "GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L",
+               "MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R",
+               "SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
+    resdict_inv = {one_let: three_let for three_let, one_let in resdict.items()} # 3-letter a.a. code easier to work with for OpenMM
+
+    with open("backbone_dihedrals.csv") as csv_file:
+        printRecord("Reading CSV file...")
+        read_csv = csv.reader(csv_file, delimiter=",")
+        residue_nums = []
+        rows = []
+        row_lengths = set()
+        
+        for row in read_csv:
+            rows.append(row)
+            residue_nums.append(row[0])
+            row_lengths.add(len(row))
+
+#         if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
+#             printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
+#             exit()
+    
+        if len(row_lengths) != 1:   # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
+            rows_unequal = []
+
+            for i in range(len(rows)):
+                if len(rows[i]) != 4:
+                    rows_unequal.append(i + 1)
+
+            printRecord("ERROR: Incorrect number of inputs for rows:")
+            
+            for unequal_row in rows_unequal:
+                printRecord(unequal_row)
+            
+            printRecord("Exiting run.")
+            exit()
+            
+        elif mode(residue_nums) != residue_nums:
+            printRecord("ERROR: More than one input row for a residue_num in backbone_dihedrals.csv; exiting run.")
+            exit()
+
+        else:  # everything should be correct here
+            printRecord("Finding angles to constrain...")
+            angles_to_constrain = []
+
+            for i in range(len(rows)):
+                if i > 0:
+                    angles_to_constrain.append(rows[i])
+
+            return angles_to_constrain
+    
+
+def buildPeptide(peptide, customAngles=False):
     """
     construct a peptide sequence pdb file
     :param peptide:
     :return:
     """
-    # resdict = {"ALA": "A","CYS": "C","ASP": "D","GLU": "E","PHE": "F","GLY": "G","HIS": "H","ILE": "I","LYS": "K","LEU": "L","MET": "M","ASN": "N","PRO": "P","GLN": "Q","ARG": "R","SER": "S","THR": "T","VAL": "V","TRP": "W","TYR": "Y"}
+    geo = Geometry.geometry(peptide[0])
+    angles_to_constrain = findAngles()  # all values in the list are strings
+    printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
+    
+    if customAngles:
+        printRecord("customAngles on\n")
+        phis = {row[0]: float(row[1]) for row in angles_to_constrain}
+        psis = {row[0]: float(row[2]) for row in angles_to_constrain}
+        
+        for row in angles_to_constrain:
+            if int(row[0]) == 0:
+                printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]], "\n") # only used for debugging
+                geo.phi, geo.psi = phis[row[0]], psis[row[0]]
+        
     structure = PeptideBuilder.initialize_res(peptide[0])
+        
     for i in range(1, len(peptide)):
         geo = Geometry.geometry(peptide[i])
+        
+        if customAngles:
+            for row in angles_to_constrain:
+                if int(row[0]) == i:
+                    printRecord(f'phi[{i}] and psi[{i}]: {phis[str(i)]}, {psis[str(i)]}\n') # only used for debugging
+                    geo.phi, geo.psi = phis[str(i)], psis[str(i)]
+        
+        printRecord("Adding Residue...\n")
         PeptideBuilder.add_residue(structure, geo)
-
-    # PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
+    
+    if customAngles:
+        constrain_str = " with custom angles & constraints"
+    else:
+        constrain_str = ""
+    printRecord("Successfully built peptide" + constrain_str + "\n")
+            
+#     PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)

@@ -11,8 +11,8 @@ and analysis of their binding to analyte molecules.
 
 Implemented in the OpenMM molecular dynamics engine with auxiliary tools: seqfold, NUPACK, MacroMoleculeBuilder, MDAnalysis, and LightDock.
 
-Michael Kilgour*, Tao Liu and Lena Simine, 2021
-*mjakilgour aat gmail doot com
+Michael Kilgour*, Tao Liu, Ilya S. Dementyev and Lena Simine, 2021
+*mjakilgour at gmail dot com
 
 
 Copyright (C) 2021 Michael Kilgour and OpenDNA contributors
@@ -73,7 +73,7 @@ future features
 ==? cleave off non-folded sections? this way we can avoid expensive simulations of very long aptamers
 
 little things & known issues
-==> getNucDATraj doesn't wor for terminal 'chi' angles
+==> getNucDATraj doesn't work for terminal 'chi' angles
 ==> label bare exceptions
 ==> for long DNA sequences with extended unpaired 'tails', rectangular prism box may fail. However, cubic box would be very expensive. It's a pickle - in any case we may want to encode logic to automatically detect and adjust.
 ==> for tiny peptides, lightdock ANM may fail, and the whole run crashes 
@@ -122,14 +122,14 @@ params['equilibration time'] = 0.01  # initial equilibration time in nanoseconds
 params['sampling time'] = 1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
 params['smoothing time'] = 1  # time for pre-sampling relaxation
 params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
-params['time step'] = 3.0  # MD time step in fs
+params['time step'] = 2.0  # MD time step in fs
 params['print step'] = 10  # MD printout step in ps
 params['max aptamer sampling iterations'] = 20  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
 params['max complex sampling iterations'] = 5  # number of iterations for the binding complex
 params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged'
 params['docking steps'] = 200  # number of steps for docking simulations
-params['N 2D structures'] = 2 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer
-params['N docked structures'] = 3 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost)
+params['N 2D structures'] = 1 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer
+params['N docked structures'] = 1 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost)
 params['fold speed'] = 'normal' # 'quick' 'normal' 'long' # time to spend first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
 
 if params['test mode']: # shortcut for fast debugging
@@ -137,7 +137,7 @@ if params['test mode']: # shortcut for fast debugging
     params['sampling time'] = 0.001  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
     params['smoothing time'] = 0.001 # time for pre-sampling relaxation
     params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
-    params['time step'] = 3.0  # MD time step in fs
+    params['time step'] = 2.0  # MD time step in fs
     params['print step'] = .1  # MD printout step in ps
     params['max aptamer sampling iterations'] = 2  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
     params['max complex sampling iterations'] = 2  # number of iterations for the binding complex
@@ -167,6 +167,7 @@ params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
 params['hydrogen mass'] = 1.5  # in amu - we can increase the time if we increase this value
+params['peptide backbone constraint constant'] = 10000
 
 # paths
 if params['device'] == 'local':
@@ -211,4 +212,4 @@ params['analyte pdb'] = 'lib/peptide/peptide.pdb'  # optional analyte - currentl
 
 if __name__ == '__main__':
     opendna = opendna(params)  # instantiate the class
-    opendnaOutput = opendna.run() # retrive binding information (eventually this should become a normalized c-number)
+    opendnaOutput = opendna.run() # retrieve binding information (eventually this should become a normalized c-number)

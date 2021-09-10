@@ -2,7 +2,7 @@
 
 ### A fully-automated code for DNA aptamer 2D and 3D structure analysis, and binding analysis with small molecules and short peptides.
 
-**Michael Kilgour, Tao Liu, Lena Simine**
+**Michael Kilgour, Tao Liu, Ilya S. Dementyev, Lena Simine**
 
 _mjakilgour gmail com_
 
@@ -113,4 +113,12 @@ Temperature, pH and ionic strength are taken into account for 2D folding in NUPA
 params['temperature'] = 310 # Kelvin - used to predict secondary structure and for MD thermostatting
 params['ionic strength'] = .163 # mmol - used to predict secondary structure and add ions to simulation box
 params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
+```
+
+The peptide backbone constraint constant is the constant used to constrain backbone dihedrals. 
+A minimum of 10000, as it is currently set, is recommended for good constraints (deviations < 5° were always seen with this value).
+For more info, please read README_CONSTRAINTS.md.
+
+```
+params['peptide backbone constraint constant'] = 10000
 ```

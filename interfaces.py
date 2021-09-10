@@ -10,7 +10,7 @@ from analysisTools import *
 from simtk.openmm import *
 import simtk.unit as unit
 from simtk.openmm.app import *
-
+from numpy import pi
 
 '''
 => write docstrings
@@ -155,7 +155,7 @@ class ld(): # lightdock
 
     def runLightDock(self):
         # run setup
-        os.system(self.setupPath + ' ' + self.aptamerPDB2 + ' ' + self.peptidePDB2 + ' -anm -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
+        os.system(self.setupPath + ' ' + self.aptamerPDB2 + ' ' + self.peptidePDB2 + ' -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
 
         # run docking
         os.system(self.runPath + ' setup.json ' + str(self.dockingSteps) + ' -s dna >> outfiles/lightdockRun.out')
@@ -208,6 +208,7 @@ class omm(): # openmm
         self.structureName = structure.split('.')[0]
         self.waterModel = params['water model']
         self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
+        self.peptide = params['peptide']
 
         # System Configuration
         self.nonbondedMethod = params['nonbonded method']
@@ -232,9 +233,8 @@ class omm(): # openmm
 
         else:
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
-            self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
-
-
+            self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])      
+        
         #platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
             self.platform = Platform.getPlatformByName('CUDA')
@@ -256,6 +256,75 @@ class omm(): # openmm
         self.topology = self.pdb.topology
         self.positions = self.pdb.positions
         self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
+        
+        for atom in self.topology.atoms():
+            if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
+                printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
+        
+        if params['peptide backbone constraint constant'] != 0:
+            self.force = CustomTorsionForce('0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
+            self.force.addGlobalParameter('K', params['peptide backbone constraint constant'])
+            self.force.addPerTorsionParameter('theta0')
+            
+            self.angles_to_constrain = findAngles()
+            
+            self.phi_tup = ('C', 'N', 'CA', 'C')
+            self.psi_tup = ('N', 'CA', 'C', 'N')
+            self.angle_tups = self.phi_tup, self.psi_tup
+            radians = unit.radians
+            
+            rad_conv = pi / 180
+            self.nchains = len(self.topology._chains)
+            
+            printRecord("Number of chains = " + str(self.nchains))
+            printRecord("Beginning to iterate through chains...\n")
+            
+            for row in self.angles_to_constrain:
+                aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
+                aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
+                
+                printRecord(f"aa_id = {aa_id}, phi = {phi}, psi = {psi}, chain_id = {chain_id}")
+                printRecord("Printing first 5 atoms in topology.atoms()...")
+                
+                first5 = [atom for atom in self.topology.atoms()]
+                first5 = first5[:5]
+                
+                for atom in first5:
+                    printRecord(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
+                
+                self.da_atoms = [atom for atom in self.topology.atoms() if atom.residue.chain.index == chain_id and atom.name in {'N', 'CA', 'C'} and atom.residue.index in {aa_id, aa_id - 1}]
+
+                printRecord("Identified da_atoms.\n")
+
+                # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
+
+                printRecord("da_atoms length = " + str(len(self.da_atoms))) # returns 0 for some reason
+
+                for i in range(len(self.da_atoms) - 3):
+                    self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
+                    self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
+                    printRecord("Found tup and tupIndex.\n")
+
+                    if self.da_atoms[i + 3].residue.index == aa_id:
+                        printRecord("Beginning to add torsions...\n")
+
+                        if self.tup == self.phi_tup:
+                            self.force.addTorsion(self.tupIndex[0], 
+                                                  self.tupIndex[1], 
+                                                  self.tupIndex[2], 
+                                                  self.tupIndex[3], (phi * rad_conv,) * radians)
+                            printRecord("Successfully added a phi torsion restraint.\n")
+
+                        elif self.tup == self.psi_tup:
+                            self.force.addTorsion(self.tupIndex[0], 
+                                                  self.tupIndex[1], 
+                                                  self.tupIndex[2], 
+                                                  self.tupIndex[3], (psi * rad_conv,) * radians)
+                            printRecord("Successfully added a phi torsion restraint.\n")
+                                
+            self.system.addForce(self.force)
+            printRecord("Successfully added the force.\n")
+            
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)
         self.integrator.setConstraintTolerance(self.constraintTolerance)
         if params['platform'] == 'CUDA':
@@ -263,7 +332,8 @@ class omm(): # openmm
         elif params['platform'] == 'CPU':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
         self.simulation.context.setPositions(self.positions)
-
+            
+        printRecord("Positions set.\n")
 
     def doMD(self):
         if not os.path.exists(self.structureName.split('.')[0] + '_state.chk'):
@@ -272,7 +342,7 @@ class omm(): # openmm
             if self.quickSim: # if want to do it fast, loosen the tolerances
                 self.simulation.minimizeEnergy(tolerance = 20, maxIterations = 100) # default is 10 kJ/mol - also set a max number of iterations
             else:
-                self.simulation.minimizeEnergy()
+                self.simulation.minimizeEnergy() # (tolerance = 1 * unit.kilojoules / unit.mole)
             printRecord('Equilibrating...')
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
