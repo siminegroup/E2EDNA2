@@ -1,0 +1,7 @@
+# source leaprc.protein.ff14SB
+pdb4amber 6j2w.pdb > 6j2w_amb.pdb 2> pdb4amber_out.log
+source leaprc.DNA.OL15  # or leaprc.DNA.bsc1
+# source leaprc.RNA.OL3
+myPDB = loadPdb "6j2w_amb.pdb"
+saveAmberParm myPDB 6j2w_amb.top 6j2w_amb.crd
+quit

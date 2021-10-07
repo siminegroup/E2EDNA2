@@ -1,104 +1,34 @@
-# import statements
+"""
+from typing import Dict, Any, Union  # for the dictionary of params
+...
+params: Dict[str, Union[Union[str, int, bool, float], Any]] = {}  # set up as a dictionary
+==> To replace the params = {}
+"""
 from opendna import *
-from utils import *
-from simtk.openmm.app import *
+# from utils import *
+# from simtk.openmm.app import *
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-'''
-OpenDNA - an implementation of the "End-to-end DNA" Protocol for folding and structure evaluation of ssDNA aptamers 
-and analysis of their binding to analyte molecules.
-
-Implemented in the OpenMM molecular dynamics engine with auxiliary tools: seqfold, NUPACK, MacroMoleculeBuilder, MDAnalysis, and LightDock.
-
-Michael Kilgour*, Tao Liu, Ilya S. Dementyev and Lena Simine, 2021
-*mjakilgour at gmail dot com
-
-
-Copyright (C) 2021 Michael Kilgour and OpenDNA contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-
-To-Do:
-==> add multi-core support to lightdock, up to however many CPUs we've requested
-==> improve equilibration & sampling
-==> collation and final printout
-==> full trajectory combiner - for printouts
-==> it's possible that the 3D representative structure may have a different 2D structure than our 'official' 2D structure
-==> look at size vs time over a large aptamer trajectory to optimize smoothing timescale
-==> 'long' refold takes too long on big sequences and doesn't actually work that well - make a better/shorter one
-    ==> separate stages in MMB run and cutoff sim if everything is satisfied
-==> record actual number of 2d and docking structures attempted in the outfile - maybe in a 'topline' dictionary
-==> check MMB performance with physics turned off
-==> update to peptide + aptamer full range contact map?
-
-future features
-==> there are scripts which automate helicity mapping for 2D structures - can we use this to supplement / bypass MMB?
-==> upgrade 2d structure distance metric to accomodate 'close-to', not just == vs !=
-    -> the answer may honestly just be to look at the contact map and not any of this 2D crap
-==> finish README
-    ==> example
-==> write automated testing with all possible test modes
-==> specifically identify aptamer-analyte hydrogen bonds
-==> track post-complexation 2D trajectory and compare to pre-complexation, just like the 3D analysis
-==> enhanced sampling and/or replica exchange (see openmmtools for implementation)
-==> multi-state comparision in 2d and 3d w clustering
-==> binding free energy and/or kd calculation
-==> peptide restraints
-==> would be nice to recognize local but significant rearrangements rather than just global
-==> add nucleoside analytes
-    => force field - ambertools, LEAP + Antechamber
-    => docking - should work apparently
-    => analysis & automation
-==> implicit solvent - ambertools prmtop file required
-    -> may also be able to automatically parameterize nonstandard residues using Amber antechamber
-==? cleave off non-folded sections? this way we can avoid expensive simulations of very long aptamers
-
-little things & known issues
-==> getNucDATraj doesn't work for terminal 'chi' angles
-==> label bare exceptions
-==> for long DNA sequences with extended unpaired 'tails', rectangular prism box may fail. However, cubic box would be very expensive. It's a pickle - in any case we may want to encode logic to automatically detect and adjust.
-==> for tiny peptides, lightdock ANM may fail, and the whole run crashes 
-==> anm in LightDock is a bit funny, especially with small molecules may give odd behaviour
-==> mdtraj recentering code doesn't always work. not really necessary for nice movies given e.g. pymol movie mode, but might be worth fixing for quick visualizations
-==> we have Mg2+ in nupack fold calculations but not in MD sims
-
-'''
-
 params = {}
-params['device'] = 'local'  # 'local' or 'cluster'
+
+params['device'] = 'cluster'  # 'local' or 'cluster'
 params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
-params['platform precision'] = 'single'  # 'single' or 'double' only relevant on 'CUDA' platform
+params['platform precision'] = 'single'  # 'single' or 'double'. Only relevant on 'CUDA' platform
 
 if params['device'] == 'cluster':
-    cmdLineInputs = get_input()
+    cmdLineInputs = get_input()  # get input arguments from command lines
     params['run num'] = cmdLineInputs[0]  # option to get run num from command line (default zero)
-    params['sequence'] = cmdLineInputs[1] # sequence specified from command line
-    params['peptide'] = cmdLineInputs[2] # peptide specified from command line
-    params['max walltime'] = cmdLineInputs[3] # maximum walltime
+    params['sequence'] = cmdLineInputs[1]  # DNA aptamer sequence
+    params['peptide'] = cmdLineInputs[2]  # target peptide sequence
+    params['max walltime'] = cmdLineInputs[3]  # maximum walltime in hours
+    # code will adapt maximum sampling steps to finish in less than this time,
+    # or give up if this isn't enough time to complete even a minimum run.
 elif params['device'] == 'local':
-    params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run.
-    params['sequence'] = 'CCCGGGCCCGGG' # manually set sequence # ATP aptamer
-    params['peptide'] = 'YRRYRRYRRY'#'YQTQTNSPRRAR' # manually set peptide
-    params['max walltime'] = 3 * 24  # maximum walltime in hours - code will adapt maximum sampling steps to finish in less than this time, or give up if this isn't enough time to complete even a minimum run.
+    params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run
+    params['sequence'] = 'CCCGGGCCCGGG'  # manually set sequence # ATP aptamer
+    params['peptide'] = 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
+    params['max walltime'] = 3 * 24  # maximum walltime in hours
 
 '''
 Modes, in order of increasing cost
@@ -112,69 +42,75 @@ Modes, in order of increasing cost
 'full binding': 'full docking' + binding
 '''
 
-params['mode'] = 'full binding'  # what to do
-params['test mode'] = True # if true, changes params for a short simulation
-params['explicit run enumeration'] = False  # if True, the next run is fresh, in directory 'run%d'%run_num. If false, regular behaviour. Note: ONLY USE THIS FOR FRESH RUNS
+params['mode'] = 'full docking'  # 'full binding'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
+params['test mode'] = True
+params['explicit run enumeration'] = False
 
 # Pipeline parameters
-params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package setup for probability analysis
+params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package set up for probability analysis
 params['equilibration time'] = 0.01  # initial equilibration time in nanoseconds
 params['sampling time'] = 1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
-params['smoothing time'] = 1  # time for pre-sampling relaxation
-params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
+params['smoothing time'] = 1  # ns. MD relax after getting the initial 3D structure from user or MMB before sampling
+params['auto sampling'] = True  # 'True': run sampling till RC's equilibrate; 'False': just run sampling for 'sampling time'
 params['time step'] = 2.0  # MD time step in fs
-params['print step'] = 10  # MD printout step in ps
-params['max aptamer sampling iterations'] = 20  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
+params['print step'] = 10  # MD printout step in ps. ns > ps > fs
+params['max aptamer sampling iterations'] = 20   # number of allowable iterations before giving on auto-sampling - total max simulation length = this * sampling time
 params['max complex sampling iterations'] = 5  # number of iterations for the binding complex
-params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged'
+params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged' # TODO: where is the PCA used? to cluster conformations to obtain a representive one? # TODO: another clustering methods
 params['docking steps'] = 200  # number of steps for docking simulations
-params['N 2D structures'] = 1 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer
-params['N docked structures'] = 1 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost)
-params['fold speed'] = 'normal' # 'quick' 'normal' 'long' # time to spend first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
+params['N 2D structures'] = 1  # 2 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer # TODO: could expand the candidate size and do something with them
+params['N docked structures'] = 1  # 2 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost) # TODO: "it will go this time"?
+params['fold speed'] = 'normal'  # 'quick', 'normal' 'long' - time to spend on first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
 
-if params['test mode']: # shortcut for fast debugging
-    params['equilibration time'] = 0.001  # initial equilibration time in nanoseconds
-    params['sampling time'] = 0.001  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
-    params['smoothing time'] = 0.001 # time for pre-sampling relaxation
-    params['auto sampling'] = True  # 'True' run sampling until RC's equilibrate, 'False' just run sampling for 'sampling time'
-    params['time step'] = 2.0  # MD time step in fs
-    params['print step'] = .1  # MD printout step in ps
-    params['max aptamer sampling iterations'] = 2  # number of allowable iterations before giving up on auto-sampling - total max simulation length is this * sampling time
-    params['max complex sampling iterations'] = 2  # number of iterations for the binding complex
-    params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged'
-    params['docking steps'] = 10  # number of steps for docking simulations
-    params['N 2D structures'] = 2  # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer
-    params['N docked structures'] = 2  # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost)
-    params['fold speed'] = 'quick'  # 'quick' 'normal' 'long' # time to spend first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
+if params['test mode']:  # shortcut for debugging
+    params['equilibration time'] = 0.001
+    params['sampling time'] = 0.001
+    params['smoothing time'] = 0.001
+    params['auto sampling'] = True
+    params['time step'] = 2.0
+    params['print step'] = 0.1
+    params['max aptamer sampling iterations'] = 2
+    params['max complex sampling iterations'] = 2
+    params['autoMD convergence cutoff'] = 1e-2
+    params['docking steps'] = 10
+    params['N 2D structures'] = 1  # the clustering algorithm will stop when there are two structures left???
+    params['N docked structures'] = 1
+    params['fold speed'] = 'quick'
 
-# physical params
-params['pressure'] = 1  # atmospheres
-params['temperature'] = 310  # Kelvin - used to predict secondary structure and for MD thermostatting
-params['ionic strength'] = .163  # M - sodium concentraion - used to predict secondary structure and add ions to simulation box , must be 1100 > [Na] > 50 for nupack to run
-params['[Mg]'] = 0.05 # M - magnesium concentration - 0.2 > [Mg] > 0 - ONLY APPLIES TO NUPACK FOLD - DOES NOT ADD Mg TO MD SIMULATIONS
-params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH
+# Physical params
+params['pressure'] = 1  # atmosphere
+params['temperature'] = 310  # Kevin - used to predict secondary structure and for MD thermostat
+params['ionic strength'] = 0.163  # Molar - sodium concentration - used to predict secondary structure and add ions
+# to simulation box, must be 1100 M > [Na] > 50 for nupack to run
+# TODO: how about adding other ions? Expand the FF as well?
+params['[Mg]'] = 0.05  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT
+# add Mg to MD simulations
+params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
 
-# OpenMM Parameters
-params['force field'] = 'AMBER'  # this does nothing
-params['water model'] = 'tip3p'  # 'tip3p' (runs on amber 14), other explicit models easy to add
+# OpenMM params
+params['force field'] = 'AMBER'  # this does nothing. The force field is specified in __init__ of interfaces.py
+params['implicit solvent'] = True  # implicit solvent or explicit solvent
+params['water model'] = 'tip3p'  # 'tip3p' (runs on Amber 14), other explicit models are also easy to add
 params['box offset'] = 1.0  # nanometers
-params['barostat interval'] = 25
-params['friction'] = 1.0  # 1/picosecond
-params['nonbonded method'] = PME
+params['barostat interval'] = 25  # NOT USED.
+params['friction'] = 1.0  # 1/picoseconds: friction coefficient determines how strongly the system is coupled to the heat bath (OpenMM)
+params['nonbonded method'] = PME  # Particle Mesh Ewald: efficient full electrostatics method for use with periodic boundary conditions
 params['nonbonded cutoff'] = 1.0  # nanometers
 params['ewald error tolerance'] = 5e-4
 params['constraints'] = HBonds
 params['rigid water'] = True
 params['constraint tolerance'] = 1e-6
-params['hydrogen mass'] = 1.5  # in amu - we can increase the time if we increase this value
-params['peptide backbone constraint constant'] = 10000
+params['hydrogen mass'] = 1.5  # in a.m.u. - we can increase the sampling time if we use heavier hydrogen
+params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the peptide's dihedral angles. force constant k.
 
-# paths
+# Path
 if params['device'] == 'local':
-    params['workdir'] = '/home/mkilgour/mmruns' #'/mnt/c/Users/mikem/Desktop/mmruns'
-    params['mmb dir'] = '/mnt/c/Users/mikem/Desktop/software/Installer.2_14.Linux64'
-    params['mmb'] = '/mnt/c/Users/mikem/Desktop/software/Installer.2_14.Linux64/MMB.2_14.Linux64'
-    # lightdock python scripts
+    params['workdir'] = '/Users/taoliu/Desktop/opendnaruns'
+    params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.2_14.Linux64'
+    params['mmb'] = '/Users/taoliu/Desktop/software/Installer.2_14.Linux64/MMB.2_14.Linux64'
+
+    # lightdock python scripts: they will be copied to 'ld_scripts' in workdir
+    # therefore all addresses are relative to the workdir
     params['ld setup path'] = 'ld_scripts/lightdock3_setup.py'
     params['ld run path'] = 'ld_scripts/lightdock3.py'
     params['lgd generate path'] = '../ld_scripts/lgd_generate_conformations.py'
@@ -184,31 +120,35 @@ if params['device'] == 'local':
     params['lgd top path'] = 'ld_scripts/lgd_top.py'
 
 elif params['device'] == 'cluster':
-    params['workdir'] = '/home/kilgourm/scratch/mmruns'  # specify your working directory here
-    params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'  # 'C:/Users/mikem/Desktop/Installer.2_14.Windows/MMB.2_14.exe'
+    params['workdir'] = '/home/taoliu/scratch/opendnaruns'  # specify your working directory here. No / at the end
+    params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
-    # lightdock python scripts
+    # need to tell OS where to find the library files. All MMB files are in the same direcotory.
+    # In ~/.bash_profile: export DYLD_LIBRARY_PATH=<mmm dir above>
+
+    # lightdock python scripts: they will be copied to 'ld_scripts' in workdir
+    # thereofre all addresses are relative to the workdir
     params['ld setup path'] = 'python ld_scripts/lightdock3_setup.py'
     params['ld run path'] = 'python ld_scripts/lightdock3.py'
     params['lgd generate path'] = 'python ../ld_scripts/lgd_generate_conformations.py'
     params['lgd cluster path'] = 'python ../ld_scripts/lgd_cluster_bsas.py'
-    params['lg ant path'] = 'python ld_scripts/ant_thony.py'
+    params['lg ant path'] = 'python ld_scripts/ant_thony.py'  # ant? thony?
     params['lgd rank path'] = 'python ld_scripts/lgd_rank.py'
     params['lgd top path'] = 'python ld_scripts/lgd_top.py'
 
-# mmb control files
+# MMB control files
 params['mmb params'] = 'lib/mmb/parameters.csv'
 params['mmb normal template'] = 'lib/mmb/commands.template.dat'
-params['mmb quick template'] = 'lib/mmb/commands.template_quick.dat'
-params['mmb long template'] = 'lib/mmb/commands.template_long.dat'
+params['mmb quick template'] = 'lib/mmb/commands.template_quick.dat'  # fold speed: quick
+params['mmb long template'] = 'lib/mmb/commands.template_long.dat'  # fold speed: slow (ie, long)
 
-# structure files
+# structure files: peptide analyte (target)
 params['analyte pdb'] = 'lib/peptide/peptide.pdb'  # optional analyte - currently not used
 
 '''
 ==============================================================
 '''
-
 if __name__ == '__main__':
     opendna = opendna(params)  # instantiate the class
-    opendnaOutput = opendna.run() # retrieve binding information (eventually this should become a normalized c-number)
+    opendnaOutput = opendna.run()  # retrieve binding information (eventually this should become a normalized c-number)
+    # TODO: what is a c-number?
