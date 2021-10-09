@@ -42,9 +42,14 @@ Modes, in order of increasing cost
 'full binding': 'full docking' + binding
 '''
 
-params['mode'] = 'full docking'  # 'full binding'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
+params['mode'] = 'full binding'  # 'full binding'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
 params['test mode'] = True
 params['explicit run enumeration'] = False
+params['implicit solvent'] = True  # implicit solvent or explicit solvent
+if params['implicit solvent']:
+    params['implicit solvent model'] = HCT  # only meaningful if implicit solvent is True
+    params['leap template'] = 'leap_template.in'
+    # TODO add more options to params: implicitSolventSaltConc, soluteDielectric, solventDielectric, implicitSolventKappa
 
 # Pipeline parameters
 params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package set up for probability analysis
@@ -83,13 +88,11 @@ params['temperature'] = 310  # Kevin - used to predict secondary structure and f
 params['ionic strength'] = 0.163  # Molar - sodium concentration - used to predict secondary structure and add ions
 # to simulation box, must be 1100 M > [Na] > 50 for nupack to run
 # TODO: how about adding other ions? Expand the FF as well?
-params['[Mg]'] = 0.05  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT
-# add Mg to MD simulations
+params['[Mg]'] = 0.05  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to MD simulations
 params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
 
 # OpenMM params
 params['force field'] = 'AMBER'  # this does nothing. The force field is specified in __init__ of interfaces.py
-params['implicit solvent'] = True  # implicit solvent or explicit solvent
 params['water model'] = 'tip3p'  # 'tip3p' (runs on Amber 14), other explicit models are also easy to add
 params['box offset'] = 1.0  # nanometers
 params['barostat interval'] = 25  # NOT USED.
@@ -99,7 +102,7 @@ params['nonbonded cutoff'] = 1.0  # nanometers
 params['ewald error tolerance'] = 5e-4
 params['constraints'] = HBonds
 params['rigid water'] = True
-params['constraint tolerance'] = 1e-6
+params['constraint tolerance'] = 1e-6  # What is this tolerance for? For constraint?
 params['hydrogen mass'] = 1.5  # in a.m.u. - we can increase the sampling time if we use heavier hydrogen
 params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the peptide's dihedral angles. force constant k.
 
@@ -120,7 +123,7 @@ if params['device'] == 'local':
     params['lgd top path'] = 'ld_scripts/lgd_top.py'
 
 elif params['device'] == 'cluster':
-    params['workdir'] = '/home/taoliu/scratch/opendnaruns'  # specify your working directory here. No / at the end
+    params['workdir'] = '/home/taoliu/scratch/implicitSolvent/forOpenDNA/runs'  # specify your working directory here. No / at the end
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
     # need to tell OS where to find the library files. All MMB files are in the same direcotory.

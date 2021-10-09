@@ -217,11 +217,13 @@ class omm:
         """
         pass on the pre-set and user-defined params to openmm engine
         """
-        self.pdb = PDBFile(structure)
-        self.structureName = structure.split('.')[0]
-        self.waterModel = params['water model']  # in the implicit solvent case, this will be ignored
-        self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
+        self.structureName = structure.split('.')[0]  # e.g., structure: relaxedSequence_0_amb_processed.pdb
         self.peptide = params['peptide']
+
+        if implicitSolvent is False:
+            self.pdb = PDBFile(structure)
+            self.waterModel = params['water model']
+            self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
 
         # System configuration
         self.nonbondedMethod = params['nonbonded method']
@@ -261,26 +263,28 @@ class omm:
         self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
         self.dataReporter = StateDataReporter('log.txt', self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')        
-        self.checkpointReporter = CheckpointReporter(structure.split('.')[0] + '_state.chk', 10000)
+        self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
 
         # Prepare the simulation
         if implicitSolvent is False:
             # print_record('Building system...') # waste of space
             self.topology = self.pdb.topology
             self.positions = self.pdb.positions
-            # self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
             self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
             for atom in self.topology.atoms():
                 if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
                     print_record("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
             # TODO why looking for the TYR? covid peptide residue?
+
         else:  # create a system using prmtop file
-            self.prmtop = AmberPrmtopFile('6j2w_amb.top')  # change this file name
-            self.inpcrd = AmberInpcrdFile('6j2w_amb.crd')  # change this file name
+            self.solventModel = params['implicit solvent model']
+            print('\nCreating a simulation system under implicit solvent model of {}'.format(self.solventModel))
+            self.prmtop = AmberPrmtopFile(self.structureName + '.top')  # e.g. foldedSequence_amb_processed.top or relaxedSequence_0_amb_processed.top
+            self.inpcrd = AmberInpcrdFile(self.structureName + '.crd')
             self.topology = self.prmtop.topology
             self.positions = self.inpcrd.positions
 
-            self.system = self.prmtop.createSystem(implicitSolvent=HCT, implicitSolventSaltConc=0.0 * (unit.moles / unit.liter), nonbondedCutoff=1 * unit.nanometer, constraints=HBonds)
+            self.system = self.prmtop.createSystem(implicitSolvent=self.solventModel, implicitSolventSaltConc=0.0 * (unit.moles / unit.liter), nonbondedCutoff=1 * unit.nanometer, constraints=HBonds)
             # self.simulation.context.setPositions(inpcrd.positions)
             print('Initial positions set.')
 
@@ -359,7 +363,7 @@ class omm:
         # done with constraint
 
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
-        self.integrator.setConstraintTolerance(self.constraintTolerance)
+        self.integrator.setConstraintTolerance(self.constraintTolerance)  # What is this tolerance for? For constraint?
         if params['platform'] == 'CUDA':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
         elif params['platform'] == 'CPU':
@@ -368,8 +372,8 @@ class omm:
 
         print_record("Positions set.\n")
 
-    def doMD(self):
-        if not os.path.exists(self.structureName.split('.')[0] + '_state.chk'):
+    def doMD(self):  # no need to be aware of the implicitSolvent
+        if not os.path.exists(self.structureName + '_state.chk'):
             # Minimize and Equilibrate
             print_record('Performing energy minimization...')
             if self.quickSim:  # if want to do it fast, loosen the tolerances
@@ -380,7 +384,7 @@ class omm:
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
         else:  # no checkpoint file
-            self.simulation.loadCheckpoint(self.structureName.split('.')[0] + '_state.chk')
+            self.simulation.loadCheckpoint(self.structureName + '_state.chk')
 
         # Simulation
         print_record('Simulating...')
@@ -392,7 +396,7 @@ class omm:
         with Timer() as md_time:
             self.simulation.step(self.steps)  # run the dynamics
 
-        self.simulation.saveCheckpoint(self.structureName.split('.')[0] + '_state.chk')
+        self.simulation.saveCheckpoint(self.structureName + '_state.chk')
 
         self.ns_per_day = (self.steps * self.dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
 

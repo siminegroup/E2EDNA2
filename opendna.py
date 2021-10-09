@@ -17,9 +17,10 @@ from analysisTools import *
 '''
 To-do:
 1. if we were to pick up from chk, skip the prerequisite steps
-2. Implicit solvent
+2. Implicit solvent    
     -- add more options to the implicit solvent branch: let user specify more detail of this mode
     -- works on GPU?
+    -- Other than: MDSmoothing, autoMD, omm class: need to specify implicit solvent in other methods? e.g., analyzeTrajectory
 
 '''
 
@@ -146,6 +147,8 @@ class opendna:
                 os.mkdir(self.workDir)
 
             os.mkdir(self.workDir + '/outfiles')
+            copyfile(self.params['leap template'], self.workDir + '/leap_template.in')
+
             # copy structure files
             copyfile(self.params['analyte pdb'], self.workDir + '/analyte.pdb')
 
@@ -305,7 +308,7 @@ class opendna:
                 intervalLength += 5  # on repeated attempts, try harder
                 # TODO: what does intervalLength do in nupack???
 
-        self.pdbDict['mmb folded sequence {}'.format(self.i)] = mmb.foldedSequence  # mmb.foldedSequence is defined in the run()
+        self.pdbDict['mmb folded sequence {}'.format(self.i)] = mmb.foldedSequence  # mmb.foldedSequence = foldedSequence_{}.pdb: defined in the mmb.run()
         os.system('mv commands.run* ' + mmb.fileDump)  # mmb.fileDump is a directory for intermediate files during running MMB
         print_record("Folded Sequence")
 
@@ -313,9 +316,9 @@ class opendna:
         """
         Run a short MD sampling to relax the coarse MMB structure
         Relaxation time in nanoseconds, print time in picoseconds
-        :param implicitSolvent:
         :param structure:
         :param relaxationTime: does not seem to be used???
+        :param implicitSolvent:
         :return:
         """
         structureName = structure.split('.')[0]
@@ -323,23 +326,34 @@ class opendna:
         if implicitSolvent is False:
             # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
             prepPDB(structure, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
-            processedStructure = structureName + '_processed.pdb'
-            processedStructureTrajectory = structureName + '_processed_trajectory.dcd'
+
             print('Done preparing files with waterbox. Start openmm.')
 
         else:  # prepare prmtop and crd file using LEap in ambertools
-            print('Chose implicit solvent.\nRunning LEap to generate .prmtop and .crd...')
+            print('Implicit solvent: running LEap to generate .prmtop and .crd for folded aptamer...')
+            #os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
+            copyfile(structure, structureName + '_amb_processed.pdb')  # For now, skip pdb4amber, which caused disagreement of atom numbers between pdb and traj files in MDAanlysis
+            copyfile('./leap_template.in', 'leap.in')
+            replaceText('leap.in', 'myDNASEQ', structureName)
             os.system('tleap -f leap.in > leap.out')
             os.system('tail -1 leap.out')  # show last line
+            structureName += '_amb'  # after pdb4amber and saveAmberParm, the file name became structureName_amb_processed.pdb/top/crd
 
-        omm = interfaces.omm(processedStructure, self.params, implicitSolvent)
+        processedStructure = structureName + '_processed.pdb'
+        processedStructureTrajectory = structureName + '_processed_trajectory.dcd'
+        omm = interfaces.omm(structure=processedStructure, params=self.params, implicitSolvent=implicitSolvent)
         self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
 
         print_record('Pre-relaxation simulation speed %.1f' % self.ns_per_day + 'ns/day')  # print out sampling speed
 
-        cleanTrajectory(processedStructure, processedStructureTrajectory)  # clean up trajectory for later use. by doing what?
+        if implicitSolvent is False:
+            cleanTrajectory(processedStructure, processedStructureTrajectory)  # remove water and salt from trajectory
+        else:  # no water or salt to remove
+            copyfile(processedStructure, 'clean_' + processedStructure)  # TODO no cleaning for now
+            copyfile(processedStructureTrajectory, 'clean_' + processedStructureTrajectory)  # TODO no cleaning for now
+
         self.dcdDict['relaxed sequence {}'.format(self.i)] = 'clean_' + processedStructureTrajectory
-        self.pdbDict['relaxed sequence {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)
+        self.pdbDict['relaxed sequence {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)  # specify the file name for final frame, ie, relaxed sequence
         extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed sequence {}'.format(self.i)])  # extract final frame
 
     def runFreeAptamer(self, aptamer, implicitSolvent=False):
@@ -349,14 +363,25 @@ class opendna:
         :param aptamer:
         :return:
         """
-        structureName = aptamer.split('.')[0]
+        structureName = aptamer.split('.')[0]  # e.g., aptamer: "relaxedSequence_0.pdb"
         print_record('Running free aptamer dynamics')
-        # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
-        prepPDB(aptamer, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
+        if implicitSolvent is False:
+            # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
+            prepPDB(aptamer, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
+        else:  # prepare prmtop and crd file using LEap in ambertools
+            print('Implicit solvent: running LEap to generate .prmtop and .crd for relaxed aptamer...')
+            # os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
+            copyfile(structure, structureName + '_amb_processed.pdb')  # For now, skip pdb4amber, which caused disagreement of atom numbers between pdb and traj files in MDAanlysis
+            copyfile('./leap_template.in', 'leap.in')
+            replaceText('leap.in', 'myDNASEQ', structureName)
+            os.system('tleap -f leap.in > leap.out')
+            os.system('tail -1 leap.out')  # show last line
+            structureName += '_amb'  # after pdb4amber and saveAmberParm, the file name became structureName_amb_processed.pdb/top/crd
+
         processedAptamer = structureName + '_processed.pdb'
         processedAptamerTrajectory = structureName + '_processed_complete_trajectory.dcd'  # this is output file of autoMD
 
-        self.autoMD(processedAptamer)  # run MD sampling till converged to equilibrium sampling of RC's
+        self.autoMD(structure=processedAptamer, binding=False, implicitSolvent=implicitSolvent)  # run MD sampling till converged to equilibrium sampling of RC's
 
         print_record('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
         self.checkRuntime()
@@ -432,7 +457,7 @@ class opendna:
 
         return bindingDict
 
-    def autoMD(self, structure, binding=False):
+    def autoMD(self, structure, binding=False, implicitSolvent=False):
         """
         Run MD till either for a set amount of time or till the dynamics 'converge'
         Optionally, sample after we reach convergence ("equilibrium") -- not implemented yet (?)
@@ -446,10 +471,10 @@ class opendna:
             maxIter = self.params['max aptamer sampling iterations']
         cutoff = self.params['autoMD convergence cutoff']
 
-        structureName = structure.split('.')[0]
+        structureName = structure.split('.')[0]  # e.g., structure: relaxedSequence_0_amb_processed.pdb
         if self.params['auto sampling'] is False:  # just run MD for the given sampling time
             self.analyteUnbound = False
-            omm = interfaces.omm(structure, self.params)
+            omm = interfaces.omm(structure=structure, params=self.params, implicitSolvent=implicitSolvent)
             self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
             # print('Generated:', structureName + '_trajectory.dcd')
             os.replace(structureName + '_trajectory.dcd', structureName + "_complete_trajectory.dcd")
@@ -462,7 +487,7 @@ class opendna:
 
             while (converged is False) and (iter < maxIter):
                 iter += 1
-                omm = interfaces.omm(structure, self.params)
+                omm = interfaces.omm(structure=structure, params=self.params, implicitSolvent=implicitSolvent)
                 self.ns_per_day = omm.doMD()
 
                 if iter > 1:  # if we have multiple trajectory segments, combine them
