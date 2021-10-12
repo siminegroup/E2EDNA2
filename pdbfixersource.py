@@ -39,6 +39,15 @@ from simtk.openmm.app.internal.pdbstructure import PdbStructure
 from simtk.openmm.app.internal.pdbx.reader.PdbxReader import PdbxReader
 from simtk.openmm.app.element import hydrogen, oxygen
 from simtk.openmm.app.forcefield import NonbondedGenerator
+# # importing 'simtk.openmm' is deprecated.  Import 'openmm' instead
+#import openmm as mm
+#import openmm.app as app
+#import openmm.unit as unit
+#from openmm.app.internal.pdbstructure import PdbStructure
+#from openmm.app.internal.pdbx.reader.PdbxReader import PdbxReader
+#from openmm.app.element import hydrogen, oxygen
+#from openmm.app.forcefield import NonbondedGenerator
+
 
 # Support Cythonized functions in OpenMM 7.3
 # and also implementations in older versions.
