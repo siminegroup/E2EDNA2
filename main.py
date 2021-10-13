@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 params = {}
 
-params['device'] = 'cluster'  # 'local' or 'cluster'
+params['device'] = 'local'  # 'local' or 'cluster'
 params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double'. Only relevant on 'CUDA' platform
 
@@ -26,8 +26,8 @@ if params['device'] == 'cluster':
     # or give up if this isn't enough time to complete even a minimum run.
 elif params['device'] == 'local':
     params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run
-    params['sequence'] = 'CCCGGGCCCGGG'  # manually set sequence # ATP aptamer
-    params['peptide'] = 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
+    params['sequence'] = 'AACGCTTTTTGCGTT'  # 'CCCGGGCCCGGG'  # manually set sequence # ATP aptamer
+    params['peptide'] = 'YQTQTNSPRRAR'  # 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
     params['max walltime'] = 3 * 24  # maximum walltime in hours
 
 '''
@@ -42,12 +42,17 @@ Modes, in order of increasing cost
 'full binding': 'full docking' + binding
 '''
 
-params['mode'] = 'full binding'  # 'full binding'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
+params['skip MMB'] = True  # if True, it will skip '2d analysis' and 'do MMB'
+if params['skip MMB'] is True:
+    params['folded initial structure'] = 'foldedSequence_0.pdb'  # if skipping MMB, must provide a folded structure
+# if there are >1 folded structures or 2nd structures?
+
+params['mode'] = 'free aptamer'  # 'full binding'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
 params['test mode'] = True
 params['explicit run enumeration'] = False
 params['implicit solvent'] = True  # implicit solvent or explicit solvent
 if params['implicit solvent']:
-    params['implicit solvent model'] = HCT  # only meaningful if implicit solvent is True
+    params['implicit solvent model'] = OBC1  # only meaningful if implicit solvent is True
     params['leap template'] = 'leap_template.in'
     # TODO add more options to params: implicitSolventSaltConc, soluteDielectric, solventDielectric, implicitSolventKappa
 
@@ -56,7 +61,7 @@ params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPAC
 params['equilibration time'] = 0.01  # initial equilibration time in nanoseconds
 params['sampling time'] = 1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
 params['smoothing time'] = 1  # ns. MD relax after getting the initial 3D structure from user or MMB before sampling
-params['auto sampling'] = True  # 'True': run sampling till RC's equilibrate; 'False': just run sampling for 'sampling time'
+params['auto sampling'] = False  # 'True': run sampling till RC's equilibrate; 'False': just run sampling for 'sampling time'
 params['time step'] = 2.0  # MD time step in fs
 params['print step'] = 10  # MD printout step in ps. ns > ps > fs
 params['max aptamer sampling iterations'] = 20   # number of allowable iterations before giving on auto-sampling - total max simulation length = this * sampling time
@@ -69,9 +74,9 @@ params['fold speed'] = 'normal'  # 'quick', 'normal' 'long' - time to spend on f
 
 if params['test mode']:  # shortcut for debugging
     params['equilibration time'] = 0.001
-    params['sampling time'] = 0.001
-    params['smoothing time'] = 0.001
-    params['auto sampling'] = True
+    params['sampling time'] = 0.0001
+    params['smoothing time'] = 0.0001
+    params['auto sampling'] = False
     params['time step'] = 2.0
     params['print step'] = 0.1
     params['max aptamer sampling iterations'] = 2
@@ -108,9 +113,9 @@ params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the
 
 # Path
 if params['device'] == 'local':
-    params['workdir'] = '/Users/taoliu/Desktop/opendnaruns'
-    params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.2_14.Linux64'
-    params['mmb'] = '/Users/taoliu/Desktop/software/Installer.2_14.Linux64/MMB.2_14.Linux64'
+    params['workdir'] = '/Users/taoliu/PycharmProjects/myOpenDNA/forCluster/ImSolv/skipMMBLocal/runs'
+    params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/lib'
+    params['mmb'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/bin/MMB'
 
     # lightdock python scripts: they will be copied to 'ld_scripts' in workdir
     # therefore all addresses are relative to the workdir
