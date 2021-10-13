@@ -143,7 +143,7 @@ class opendna:
             if self.params['run num'] == 0:  # auto-increment the max run_num folder
                 self.makeNewWorkingDirectory()
             else:  # create a working directory defined by the user
-                self.workDir = self.params['workdir'] + '/run%d' % self.params['run_num']
+                self.workDir = self.params['workdir'] + '/run%d' % self.params['run num']
                 os.mkdir(self.workDir)
 
             os.mkdir(self.workDir + '/outfiles')
@@ -332,7 +332,7 @@ class opendna:
         else:  # prepare prmtop and crd file using LEap in ambertools
             print('Implicit solvent: running LEap to generate .prmtop and .crd for folded aptamer...')
             #os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
-            copyfile(structure, structureName + '_amb_processed.pdb')  # For now, skip pdb4amber, which caused disagreement of atom numbers between pdb and traj files in MDAanlysis
+            copyfile(structure, structureName + '_amb_processed.pdb')
             copyfile('./leap_template.in', 'leap.in')
             replaceText('leap.in', 'myDNASEQ', structureName)
             os.system('tleap -f leap.in > leap.out')
@@ -370,8 +370,7 @@ class opendna:
             prepPDB(aptamer, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
         else:  # prepare prmtop and crd file using LEap in ambertools
             print('Implicit solvent: running LEap to generate .prmtop and .crd for relaxed aptamer...')
-            # os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
-            copyfile(structure, structureName + '_amb_processed.pdb')  # For now, skip pdb4amber, which caused disagreement of atom numbers between pdb and traj files in MDAanlysis
+            os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
             copyfile('./leap_template.in', 'leap.in')
             replaceText('leap.in', 'myDNASEQ', structureName)
             os.system('tleap -f leap.in > leap.out')
@@ -387,8 +386,14 @@ class opendna:
         self.checkRuntime()
         print("Checked time. Start cleaning")
 
-        cleanTrajectory(processedAptamer, processedAptamerTrajectory)  # clean up trajectory for later use. by doing what?
-        print("Cleaned traj. Start analyzing.")
+        if implicitSolvent is False:
+            cleanTrajectory(processedAptamer, processedAptamerTrajectory)  # clean up trajectory for later use. by doing what?
+            print("Cleaned traj. Start analyzing.")    
+        else:  # no water or salt to remove
+            copyfile(processedAptamer, 'clean_' + processedAptamer)  # TODO no cleaning for now
+            copyfile(processedAptamerTrajectory, 'clean_' + processedAptamerTrajectory)  # TODO no cleaning for now
+            print("Copied traj. Start analyzing.")
+            
         self.dcdDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamerTrajectory
         self.pdbDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamer
         aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
