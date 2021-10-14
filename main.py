@@ -97,6 +97,11 @@ params['[Mg]'] = 0.05  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONL
 params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
 
 # OpenMM params
+# Currently, if there is a chk file, automatically resume from the chk file. 
+# User needs to specify the chk file here so that it'll be copied to the workdir
+params['pick up from chk'] = False
+if params['pick up from chk'] is True:
+    params['chk file'] = 'foldedSequence_0_amb_processed_state.chk'  # or 'relaxedSequence_0_amb_processed_state.chk'
 params['force field'] = 'AMBER'  # this does nothing. The force field is specified in __init__ of interfaces.py
 params['water model'] = 'tip3p'  # 'tip3p' (runs on Amber 14), other explicit models are also easy to add
 params['box offset'] = 1.0  # nanometers
@@ -106,7 +111,7 @@ params['nonbonded method'] = PME  # Particle Mesh Ewald: efficient full electros
 params['nonbonded cutoff'] = 1.0  # nanometers
 params['ewald error tolerance'] = 5e-4
 params['constraints'] = HBonds
-params['rigid water'] = True
+params['rigid water'] = True  # By default, OpenMM makes water molecules completely rigid, constraining both their bond lengths and angles. If False, it's good to reduce integration step size to 0.5 fs
 params['constraint tolerance'] = 1e-6  # What is this tolerance for? For constraint?
 params['hydrogen mass'] = 1.5  # in a.m.u. - we can increase the sampling time if we use heavier hydrogen
 params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the peptide's dihedral angles. force constant k.

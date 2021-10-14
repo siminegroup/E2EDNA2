@@ -16,21 +16,19 @@ from analysisTools import *
 # noinspection PyPep8Naming  #meaning??
 '''
 To-do:
-1. if we were to pick up from chk, skip the prerequisite steps
-2. Implicit solvent    
+1. Implicit solvent    
     -- add more options to the implicit solvent branch: let user specify more detail of this mode    
     -- Other than: MDSmoothing, autoMD, omm class: need to specify implicit solvent in other methods? e.g., analyzeTrajectory
 Doing:
-1. skip MMB locally.
 
 Done:
-1. 
+1. skip MMB locally.
 '''
 
 
 class opendna:
     def __init__(self, params):
-        self.workDir = []
+        self.workDir = ""  # rather use an empty string, not an empty list
         self.params = params
         self.sequence = self.params['sequence']
         self.peptide = self.params['peptide']
@@ -132,18 +130,7 @@ class opendna:
             self.actionDict['do smoothing'] = True
             self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = True
-            self.actionDict['do binding'] = True
-
-        # If we have a folded structure to start with, then skip MMB:
-        if self.params['skip MMB'] is True:  # otherwise, 'do 2d analysis' and 'do MMB' are always True
-            self.actionDict['do 2d analysis'] = False  
-            self.actionDict['do MMB'] = False
-            print_record('Skipping 2D analysis and MMB folding. Starting with an folded structure: {}.'.format(self.params['folded initial structure']))
-            
-            if not os.path.isfile('./' + self.params['folded initial structure']):
-                print_record('Designated folded structure does not exist! Terminating the pipeline.')
-                self.terminateRun()
-                # maybe do it via "raise an error"?
+            self.actionDict['do binding'] = True        
 
     def setup(self):
         """
@@ -161,27 +148,45 @@ class opendna:
                 os.mkdir(self.workDir)
         else:
             self.workDir = self.params['workdir'] + '/' + 'run%d' % self.params['run num']
-            # TODO: Next, use the chk file to resume previous sampling...
 
         # copy relevant files to the workDir
         os.mkdir(self.workDir + '/outfiles')
         copyfile(self.params['leap template'], self.workDir + '/leap_template.in')
-
         # copy structure files
         copyfile(self.params['analyte pdb'], self.workDir + '/analyte.pdb')  # ie, target of the aptamer
 
-        # copy lightdock scripts
-        if self.actionDict['do docking'] is True:
-            copytree('lib/lightdock', self.workDir + '/ld_scripts')  # if destination dir does not already exist, create one then copy the whole source dir
 
-        if self.params['skip MMB'] is False:
+        # If we have a folded structure to start with, then skip MMB:
+        if self.params['skip MMB'] is True:  # otherwise, 'do 2d analysis' and 'do MMB' are always True
+            self.actionDict['do 2d analysis'] = False  
+            self.actionDict['do MMB'] = False
+            print_record('Skipping 2D analysis and MMB folding. Starting with an folded structure: {}.'.format(self.params['folded initial structure']), self.workDir+'/')
+            
+            if not os.path.isfile('./' + self.params['folded initial structure']):
+            # if not os.path.exists(self.params['folded initial structure']):
+                print_record('Designated folded structure does not exist! Terminating the pipeline.', self.workDir+'/')
+                self.terminateRun()  # maybe do it via "raise an error"?
+            else:
+                print_record('Copying the folded structure: {} to workdir.'.format(self.params['folded initial structure']), self.workDir+'/')
+                copyfile(self.params['folded initial structure'], self.workDir + '/foldedSequence_0.pdb')
+        else:
             # copy MMB params and command script
             copyfile(self.params['mmb params'], self.workDir + '/parameters.csv')
             copyfile(self.params['mmb normal template'], self.workDir + '/commands.template.dat')
             copyfile(self.params['mmb quick template'], self.workDir + '/commands.template_quick.dat')
-            copyfile(self.params['mmb long template'], self.workDir + '/commands.template_long.dat')
-        else:
-            copyfile(self.params['folded initial structure'], self.workDir + '/foldedSequence_0.pdb')
+            copyfile(self.params['mmb long template'], self.workDir + '/commands.template_long.dat')        
+        
+        if self.params['pick up from chk'] is True:
+            print_record('Copying the checkpoint file: {} to workdir.'.format(self.params['chk file']), self.workDir+'/')
+            if os.path.exists(self.params['chk file']):
+                copyfile(self.params['chk file'], self.workDir + '/' + self.params['chk file'])
+            else:
+                print_record('Designated checkpoint file does not exist! Terminating the pipeline.', self.workDir+'/')
+                self.terminateRun()
+
+        # copy lightdock scripts
+        if self.actionDict['do docking'] is True:
+            copytree('lib/lightdock', self.workDir + '/ld_scripts')  # if destination dir does not already exist, create one then copy the whole source dir
 
         # copy csv file (dihedral restraints) if restraints are turned on
         if self.params['peptide backbone constraint constant'] != 0:

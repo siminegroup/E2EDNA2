@@ -10,13 +10,13 @@ from shutil import copyfile
 from numpy import pi
 from nupack import *
 
-from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
-from simtk.openmm.app import *
-import simtk.unit as unit
+# from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
+# from simtk.openmm.app import *
+# import simtk.unit as unit
 
-# from openmm import *
-# from openmm.app import *
-# import openmm.unit as unit
+from openmm import *
+from openmm.app import *
+import openmm.unit as unit
 
 from utils import *
 from analysisTools import *
@@ -226,7 +226,7 @@ class omm:
             self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
 
         # System configuration
-        self.nonbondedMethod = params['nonbonded method']
+        self.nonbondedMethod = params['nonbonded method']  # Currently PME!!! It's used with periodic boundary condition applied
         self.nonbondedCutoff = params['nonbonded cutoff'] * unit.nanometer
         self.ewaldErrorTolerance = params['ewald error tolerance']
         self.constraints = params['constraints']
@@ -262,7 +262,7 @@ class omm:
         self.reportSteps = int(params['print step'] * 1000 / params['time step'])  # report steps in ps, time step in fs
         self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
-        self.dataReporter = StateDataReporter('log.txt', self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')        
+        self.dataReporter = StateDataReporter('log.txt', self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
         self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
 
         # Prepare the simulation
@@ -363,11 +363,16 @@ class omm:
         # done with constraint
 
         self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
+        # self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
+        print("Using LangevinMiddleIntegrator integrator, at T={} \n".format(self.temperature))
+        
         self.integrator.setConstraintTolerance(self.constraintTolerance)  # What is this tolerance for? For constraint?
+        
         if params['platform'] == 'CUDA':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
         elif params['platform'] == 'CPU':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
+            
         self.simulation.context.setPositions(self.positions)
 
         print_record("Positions set.\n")
@@ -383,8 +388,9 @@ class omm:
             print_record('Equilibrating...')
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
-        else:  # no checkpoint file
-            self.simulation.loadCheckpoint(self.structureName + '_state.chk')
+        else:
+            self.simulation.loadCheckpoint(self.structureName + '_state.chk')  # Resume the simulation
+            print_record('Resuming the previous simulation process from checkpoint: ' + self.structureName + '_state.chk')
 
         # Simulation
         print_record('Simulating...')
@@ -396,7 +402,7 @@ class omm:
         with Timer() as md_time:
             self.simulation.step(self.steps)  # run the dynamics
 
-        self.simulation.saveCheckpoint(self.structureName + '_state.chk')
+        self.simulation.saveCheckpoint(self.structureName + '_state.chk')  # Update the chk file with info from the final step
 
         self.ns_per_day = (self.steps * self.dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
 
