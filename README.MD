@@ -122,3 +122,19 @@ For more info, please read README_CONSTRAINTS.md.
 ```
 params['peptide backbone constraint constant'] = 10000
 ```
+#### Implicit Solvent
+```
+params['implicit solvent'] = True
+if params['implicit solvent']:
+    params['implicit solvent model'] = OBC1  # only meaningful if implicit solvent is True
+    params['leap template'] = 'leap_template.in'
+    # TODO add more options to params: implicitSolventSaltConc, soluteDielectric, solventDielectric, implicitSolventKappa
+```
+
+#### Starting with a folded DNA aptamer structure (instead of just a FASTA sequence)
+```
+params['skip MMB'] = True  # it will skip '2d analysis' and 'do MMB'
+if params['skip MMB'] is True:
+    params['folded initial structure'] = 'foldedSequence_0.pdb'  # if wishing to skip MMB, must provide a folded structure
+```
+
