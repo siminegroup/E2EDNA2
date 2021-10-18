@@ -248,6 +248,7 @@ class omm:
         else:
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
+        self.timeStep = params['time step']
 
         # Platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
@@ -278,7 +279,7 @@ class omm:
 
         else:  # create a system using prmtop file
             self.solventModel = params['implicit solvent model']
-            print('\nCreating a simulation system under implicit solvent model of {}'.format(self.solventModel))
+            print_record('Creating a simulation system under implicit solvent model of {}'.format(self.solventModel))
             self.prmtop = AmberPrmtopFile(self.structureName + '.top')  # e.g. foldedSequence_amb_processed.top or relaxedSequence_0_amb_processed.top
             self.inpcrd = AmberInpcrdFile(self.structureName + '.crd')
             self.topology = self.prmtop.topology
@@ -286,7 +287,7 @@ class omm:
 
             self.system = self.prmtop.createSystem(implicitSolvent=self.solventModel, implicitSolventSaltConc=0.0 * (unit.moles / unit.liter), nonbondedCutoff=1 * unit.nanometer, constraints=HBonds)
             # self.simulation.context.setPositions(inpcrd.positions)
-            print('Initial positions set.')
+            # print('Initial positions set.')
 
             if self.inpcrd.boxVectors is not None:
                 self.simulation.context.setPeriodicBoxVectors(*self.inpcrd.boxVectors)
@@ -362,9 +363,10 @@ class omm:
             print_record("Successfully added the force.\n")
         # done with constraint
 
-        self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
-        # self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
-        print("Using LangevinMiddleIntegrator integrator, at T={} \n".format(self.temperature))
+        # self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
+        # print("Using LangevinMiddleIntegrator integrator, at T={}.".format(self.temperature))
+        self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
+        print_record("Using LangevinIntegrator integrator, at T={}.".format(self.temperature))
         
         self.integrator.setConstraintTolerance(self.constraintTolerance)  # What is this tolerance for? For constraint?
         
@@ -375,7 +377,7 @@ class omm:
             
         self.simulation.context.setPositions(self.positions)
 
-        print_record("Positions set.\n")
+        print_record("Initial positions set.\n")
 
     def doMD(self):  # no need to be aware of the implicitSolvent
         if not os.path.exists(self.structureName + '_state.chk'):
@@ -385,7 +387,7 @@ class omm:
                 self.simulation.minimizeEnergy(tolerance=20, maxIterations=100)  # default is 10 kJ/mol - also set a max number of iterations
             else:
                 self.simulation.minimizeEnergy()  # (tolerance = 1 * unit.kilojoules / unit.mole)
-            print_record('Equilibrating...')
+            print_record('Equilibrating({} steps, time step={} fs)...'.format(self.equilibrationSteps, self.timeStep))            
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
         else:
@@ -393,7 +395,7 @@ class omm:
             print_record('Resuming the previous simulation process from checkpoint: ' + self.structureName + '_state.chk')
 
         # Simulation
-        print_record('Simulating...')
+        print_record('Simulating({} steps, time step={} fs)...'.format(self.steps, self.timeStep))
         self.simulation.reporters.append(self.dcdReporter)
         # self.simulation.reporters.append(self.pdbReporter)
         self.simulation.reporters.append(self.dataReporter)
@@ -405,8 +407,13 @@ class omm:
         self.simulation.saveCheckpoint(self.structureName + '_state.chk')  # Update the chk file with info from the final step
 
         self.ns_per_day = (self.steps * self.dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
-
+    
         return self.ns_per_day
+
+    def extractLastFrame(self, lastFrameFileName):
+        lastpositions = self.simulation.context.getState(getPositions=True).getPositions()
+        PDBFile.writeFile(self.topology, lastpositions, open(lastFrameFileName, 'w'))
+        print_record('OpenMM: save the last frame into: {}'.format(lastFrameFileName))
 
 
 class ld:  # lightdock

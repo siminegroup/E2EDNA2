@@ -160,7 +160,7 @@ class opendna:
         if self.params['skip MMB'] is True:  # otherwise, 'do 2d analysis' and 'do MMB' are always True
             self.actionDict['do 2d analysis'] = False  
             self.actionDict['do MMB'] = False
-            print_record('Skipping 2D analysis and MMB folding. Starting with an folded structure: {}.'.format(self.params['folded initial structure']), self.workDir+'/')
+            print_record('Skipping 2D analysis and MMB folding. Starting with an folded structure.', self.workDir+'/')
             
             if not os.path.isfile('./' + self.params['folded initial structure']):
             # if not os.path.exists(self.params['folded initial structure']):
@@ -293,9 +293,11 @@ class opendna:
 
         return outputDict
 
-    # =======================================================
-    # ====== supporting functions are followed (part1) ======
-    # =======================================================
+    # ======================================================================================
+    # ======================================================================================
+    # ====================== supporting functions are followed (part1) =====================
+    # ======================================================================================
+    # ======================================================================================
     def getSecondaryStructure(self, sequence):
         """
         get the secondary structure(s) for a given sequence
@@ -365,7 +367,7 @@ class opendna:
         :return:
         """
         structureName = structure.split('.')[0]
-        print_record('Running relaxation (smoothing)')
+        print_record('\nRunning relaxation (smoothing)')
         if implicitSolvent is False:
             # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
             prepPDB(structure, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
@@ -373,13 +375,14 @@ class opendna:
             print('Done preparing files with waterbox. Start openmm.')
 
         else:  # prepare prmtop and crd file using LEap in ambertools
-            print('Implicit solvent: running LEap to generate .prmtop and .crd for folded aptamer...')
+            print_record('Implicit solvent: running LEap to generate .prmtop and .crd for folded aptamer...')
             #os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
             copyfile(structure, structureName + '_amb_processed.pdb')
             copyfile('./leap_template.in', 'leap.in')
             replaceText('leap.in', 'myDNASEQ', structureName)
             os.system('tleap -f leap.in > leap.out')
             os.system('tail -1 leap.out')  # show last line
+            # print_record(readFinalLines('leap.out', 1))  # show last line. problematic
             structureName += '_amb'  # after pdb4amber and saveAmberParm, the file name became structureName_amb_processed.pdb/top/crd
 
         processedStructure = structureName + '_processed.pdb'
@@ -395,10 +398,17 @@ class opendna:
             copyfile(processedStructure, 'clean_' + processedStructure)  # TODO no cleaning for now
             copyfile(processedStructureTrajectory, 'clean_' + processedStructureTrajectory)  # TODO no cleaning for now
 
-        self.dcdDict['relaxed sequence {}'.format(self.i)] = 'clean_' + processedStructureTrajectory
-        self.pdbDict['relaxed sequence {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)  # specify the file name for final frame, ie, relaxed sequence        
-        extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed sequence {}'.format(self.i)])  # extract final frame        
-        # TODO: Current warning: UserWarning: Unit cell dimensions not found. CRYST1 record set to unitary values. I think: pdb file doesn't contain waterbox info or any cell info. Can we add this to implicit solvent?
+        self.dcdDict['relaxed sequence {}'.format(self.i)] = 'clean_' + processedStructureTrajectory        
+        self.pdbDict['relaxed sequence {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)  # specify the file name for final frame, ie, relaxed sequence
+        
+        # extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed sequence {}'.format(self.i)])  # extract final frame        
+        # # Current warning from MDA: UserWarning: Unit cell dimensions not found. CRYST1 record set to unitary values. I think: MDA cannot find unit cell dimension info. Can we add info when using implicit solvent?            
+
+        # Another possible way to extract the last frame is to use OpenMM:            
+        omm.extractLastFrame(self.pdbDict['relaxed sequence {}'.format(self.i)])
+        # # testing
+        # extractFrame(processedStructure, processedStructureTrajectory, -1, "MDA_relaxed.pdb")
+        # omm.extractLastFrame("OpenMM_relaxed.pdb")
 
         self.pdbDict['representative aptamer {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)  # in "smooth dock" mode
 
@@ -410,18 +420,19 @@ class opendna:
         :return:
         """
         structureName = aptamer.split('.')[0]  # e.g., aptamer: "relaxedSequence_0.pdb"
-        print_record('Running free aptamer dynamics')
+        print_record('\nRunning free aptamer dynamics')
         if implicitSolvent is False:
             # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
             prepPDB(aptamer, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)
         else:  # prepare prmtop and crd file using LEap in ambertools
-            print('Implicit solvent: running LEap to generate .prmtop and .crd for relaxed aptamer...')
+            print_record('Implicit solvent: running LEap to generate .prmtop and .crd for relaxed aptamer...')
             # os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
             copyfile(aptamer, structureName + '_amb_processed.pdb')
             copyfile('./leap_template.in', 'leap.in')
             replaceText('leap.in', 'myDNASEQ', structureName)
             os.system('tleap -f leap.in > leap.out')
             os.system('tail -1 leap.out')  # show last line
+            # print_record(readFinalLines('leap.out', 1))  # show last line. problematic            
             structureName += '_amb'  # after pdb4amber and saveAmberParm, the file name became structureName_amb_processed.pdb/top/crd
 
         processedAptamer = structureName + '_processed.pdb'
@@ -431,7 +442,7 @@ class opendna:
 
         print_record('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
         self.checkRuntime()
-        print("Checked time. Start cleaning")
+        print("\nChecked time. Try cleaning")
 
         if implicitSolvent is False:
             cleanTrajectory(processedAptamer, processedAptamerTrajectory)  # clean up trajectory for later use. by doing what?
@@ -439,11 +450,12 @@ class opendna:
         else:  # no water or salt to remove
             copyfile(processedAptamer, 'clean_' + processedAptamer)  # TODO no cleaning for now
             copyfile(processedAptamerTrajectory, 'clean_' + processedAptamerTrajectory)  # TODO no cleaning for now
-            print("Copied traj. Start analyzing.")
+            print("No cleaning in implicit solvent, just copied traj. Start analyzing.")
             
         self.dcdDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamerTrajectory
         self.pdbDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamer
-        aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
+        # aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
+        aptamerDict = {}
         # TODO: analyzeTraj --> getNucDAtraj --> Dihedral: raise ValueError("All AtomGroups must contain 4 atoms")        
         self.pdbDict['representative aptamer {}'.format(self.i)] = 'repStructure_{}.pdb'.format(self.i)
 
