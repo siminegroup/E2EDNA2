@@ -387,7 +387,7 @@ class opendna:
 
         processedStructure = structureName + '_processed.pdb'
         processedStructureTrajectory = structureName + '_processed_trajectory.dcd'
-        omm = interfaces.omm(structure=processedStructure, params=self.params, implicitSolvent=implicitSolvent)
+        omm = interfaces.omm(structure=processedStructure, params=self.params, simTime=self.params['smoothing time'], implicitSolvent=implicitSolvent)
         self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
 
         print_record('Pre-relaxation simulation speed %.1f' % self.ns_per_day + 'ns/day')  # print out sampling speed
@@ -454,8 +454,10 @@ class opendna:
             
         self.dcdDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamerTrajectory
         self.pdbDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamer
-        # aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
-        aptamerDict = {}
+        aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
+        # Within analyzeTrajectory, the last step is also to save an representative frame. We can also replace it using OpenMM??
+            # self.omm.extractLastFrame('repStructure_%d' % self.i + '.pdb', representativeIndex) # need more scripting to complete it
+        # aptamerDict = {}
         # TODO: analyzeTraj --> getNucDAtraj --> Dihedral: raise ValueError("All AtomGroups must contain 4 atoms")        
         self.pdbDict['representative aptamer {}'.format(self.i)] = 'repStructure_{}.pdb'.format(self.i)
 
@@ -543,7 +545,7 @@ class opendna:
             self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
             # print('Generated:', structureName + '_trajectory.dcd')
             os.replace(structureName + '_trajectory.dcd', structureName + "_complete_trajectory.dcd")
-            # print('Replaced ^ with:', structureName + '_complete_trajectory.dcd')
+            print('Replaced ^ with:', structureName + '_complete_trajectory.dcd')
 
         elif self.params['auto sampling'] is True:  # run MD till convergence (equilibrium)
             converged = False
@@ -589,14 +591,15 @@ class opendna:
         # 2D structure analysis
         pairTraj = getPairTraj(wcTraj)
         secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
-        print('Predicted 2D structure :' + self.ssAnalysis['2d string'][self.i])
+        if self.params['skip MMB'] is False:
+            print('Predicted 2D structure :' + self.ssAnalysis['2d string'][self.i])  # if we did not fold the structure, we probably do not know the secondary structure.
         print('Actual 2D structure    :' + configToString(secondaryStructure))
 
         # 3D structure analysis
         mixedTrajectory = np.concatenate((baseDistTraj.reshape(len(baseDistTraj), int(baseDistTraj.shape[-2] * baseDistTraj.shape[-1])), nucleicAnglesTraj.reshape(len(nucleicAnglesTraj), int(nucleicAnglesTraj.shape[-2] * nucleicAnglesTraj.shape[-1]))), axis=1)  # mix up all our info
         representativeIndex, pcTrajectory, eigenvalues = isolateRepresentativeStructure(mixedTrajectory)
 
-        # save this structure a a separate file
+        # save this structure a separate file
         extractFrame(structure, trajectory, representativeIndex, 'repStructure_%d' % self.i + '.pdb')
 
         # we also need  function which processes the energies spat out by the trajectory logs
