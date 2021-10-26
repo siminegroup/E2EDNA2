@@ -10,13 +10,13 @@ from shutil import copyfile
 from numpy import pi
 from nupack import *
 
-from simtk.openmm import *
-from simtk.openmm.app import *  # unused?
-# from openmm import *
-# from openmm.app import *  # unused?
-
+from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
+from simtk.openmm.app import *
 import simtk.unit as unit
-# import openmm.unit as unit  # original: import simtk.unit as unit
+
+# from openmm import *
+# from openmm.app import *
+# import openmm.unit as unit
 
 from utils import *
 from analysisTools import *
@@ -212,17 +212,20 @@ class mmb():  # MacroMolecule Builder (MMB)
 
 
 # openmm
-class omm():
+class omm:
     def __init__(self, structure, params, simTime=None):
         """
         pass on the pre-set and user-defined params to openmm engine
         """
-        self.pdb = PDBFile(structure)
         self.structureName = structure.split('.')[0]
-        self.waterModel = params['water model']
-        self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
         self.peptide = params['peptide']
-
+        self.chkFile = params['chk file']  # if not picking up, this is empty string ""
+        
+        # Even resuming a sampling, still need a .pdb file to create a simulation system. 
+        self.pdb = PDBFile(structure)  # this step could be long if the pdb is large (with water molecules etc)        
+        self.waterModel = params['water model']
+        self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')                
+        
         # System configuration
         self.nonbondedMethod = params['nonbonded method']
         self.nonbondedCutoff = params['nonbonded cutoff'] * unit.nanometer
@@ -244,10 +247,14 @@ class omm():
         if simTime != None:  # we can override the simulation time here
             self.steps = int(simTime * 1e6 // params['time step'])
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
-        else:
+            self.simTime = simTime
+        else:  # if not specified, use 'sampling time'
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
-
+            self.simTime = params['sampling time']
+        self.timeStep = params['time step']
+        
+        # need these? will .chk file specify these?
         # Platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
             self.platform = Platform.getPlatformByName('CUDA')
@@ -261,19 +268,26 @@ class omm():
         self.reportSteps = int(params['print step'] * 1000 / params['time step'])  # report steps in ps, time step in fs
         self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
-        self.dataReporter = StateDataReporter('log.txt', self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')        
-        self.checkpointReporter = CheckpointReporter(structure.split('.')[0] + '_state.chk', 10000)
+        if simTime is None:
+            logFileName = 'log.txt'
+        else:  # MD smoothing: simTime is specified as 'smoothing time'
+            logFileName = 'log_smoothing.txt'
+
+        # Can resumed run append the old log.txt file?
+        self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')        
+        self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
 
         # Prepare the simulation
-        # print_record('Building system...') # waste of space
+        # printRecord('Building system...') # waste of space
+        
         self.topology = self.pdb.topology
         self.positions = self.pdb.positions
-        # self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
         self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
         for atom in self.topology.atoms():
             if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
-                print_record("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
+                printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
         # TODO why looking for the TYR? covid peptide residue?
+            
 
         # Apply constraint if specified so
         if params['peptide backbone constraint constant'] != 0:
@@ -293,85 +307,95 @@ class omm():
             rad_conv = pi / 180
             self.nchains = len(self.topology._chains)
 
-            print_record("Number of chains = " + str(self.nchains))
-            print_record("Beginning to iterate through chains...\n")
+            printRecord("Number of chains = " + str(self.nchains))
+            printRecord("Beginning to iterate through chains...\n")
 
             for row in self.angles_to_constrain:
                 aa_id, phi, psi, chain_id = row[0], row[1], row[2], row[3]
                 aa_id, phi, psi, chain_id = int(aa_id), float(phi), float(psi), int(chain_id)
 
-                print_record(f"aa_id = {aa_id}, phi = {phi}, psi = {psi}, chain_id = {chain_id}")
-                print_record("Printing first 5 atoms in topology.atoms()...")
+                printRecord(f"aa_id = {aa_id}, phi = {phi}, psi = {psi}, chain_id = {chain_id}")
+                printRecord("Printing first 5 atoms in topology.atoms()...")
 
                 # first5 = [atom for atom in self.topology.atoms()]
                 # first5 = first5[:5]
 
                 # for atom in first5:
-                # print_record(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
+                # printRecord(f"Atom name={atom.name}, Atom residue chain index = {atom.residue.chain.index}, Atom residue index = {atom.residue.index}")
 
                 self.da_atoms = [atom for atom in self.topology.atoms() if
                                  atom.residue.chain.index == chain_id and atom.name in {'N', 'CA',
                                                                                         'C'} and atom.residue.index in {
                                      aa_id, aa_id - 1}]
 
-                print_record("Identified da_atoms.\n")
+                printRecord("Identified da_atoms.\n")
 
                 # aa_id - 1 is included to account for the atoms in the previous residue being part of the current residue's dihedrals
 
-                print_record("da_atoms length = " + str(len(self.da_atoms)))  # returns 0 for some reason
+                printRecord("da_atoms length = " + str(len(self.da_atoms)))  # returns 0 for some reason
 
                 for i in range(len(self.da_atoms) - 3):
                     self.tup = tuple([atom.name for atom in self.da_atoms[i:i + 4]])
                     self.tupIndex = tuple([atom.index for atom in self.da_atoms[i:i + 4]])
-                    print_record("Found tup and tupIndex.\n")
+                    printRecord("Found tup and tupIndex.\n")
 
                     if self.da_atoms[i + 3].residue.index == aa_id:
-                        print_record("Beginning to add torsions...\n")
+                        printRecord("Beginning to add torsions...\n")
 
                         if self.tup == self.phi_tup:
                             self.force.addTorsion(self.tupIndex[0],
                                                   self.tupIndex[1],
                                                   self.tupIndex[2],
                                                   self.tupIndex[3], (phi * rad_conv,) * radians)
-                            print_record("Successfully added a phi torsion restraint.\n")
+                            printRecord("Successfully added a phi torsion restraint.\n")
 
                         elif self.tup == self.psi_tup:
                             self.force.addTorsion(self.tupIndex[0],
                                                   self.tupIndex[1],
                                                   self.tupIndex[2],
                                                   self.tupIndex[3], (psi * rad_conv,) * radians)
-                            print_record("Successfully added a phi torsion restraint.\n")
+                            printRecord("Successfully added a phi torsion restraint.\n")
 
             self.system.addForce(self.force)
-            print_record("Successfully added the force.\n")
+            printRecord("Successfully added the force.\n")
         # done with constraint
 
-        self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
+        # # Need to create a Simulation class, even to load checkpoint file
+        # self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
+        self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
         self.integrator.setConstraintTolerance(self.constraintTolerance)
         if params['platform'] == 'CUDA':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
         elif params['platform'] == 'CPU':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
-        self.simulation.context.setPositions(self.positions)
-
-        print_record("Positions set.\n")
+        
+        if params['pick up from chk'] is False:
+            self.simulation.context.setPositions(self.positions)
+            printRecord("Initial positions set.")
+        else:  # if resuming a run, the initial position comes from the chk file.
+            pass
 
     def doMD(self):
-        if not os.path.exists(self.structureName.split('.')[0] + '_state.chk'):
+        # # automatically resume sampling if there is .chk file
+        # if not os.path.exists(self.structureName + '_state.chk'):
+        if not self.chkFile:  # let user choose the checkpoint file name
+            
             # Minimize and Equilibrate
-            print_record('Performing energy minimization...')
+            printRecord('Performing energy minimization...')
             if self.quickSim: # if want to do it fast, loosen the tolerances
                 self.simulation.minimizeEnergy(tolerance=20, maxIterations=100)  # default is 10 kJ/mol - also set a max number of iterations
             else:
                 self.simulation.minimizeEnergy()  # (tolerance = 1 * unit.kilojoules / unit.mole)
-            print_record('Equilibrating...')
+            printRecord('Equilibrating({} steps, time step={} fs)...'.format(self.equilibrationSteps, self.timeStep))            
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
-        else:  # no checkpoint file
-            self.simulation.loadCheckpoint(self.structureName.split('.')[0] + '_state.chk')
+        else:
+            printRecord("Loading checkpoint file: " + self.chkFile + " to resume sampling")
+            # self.simulation.loadCheckpoint(self.structureName.split('.')[0] + '_state.chk')
+            self.simulation.loadCheckpoint(self.chkFile)
 
         # Simulation
-        print_record('Simulating...')
+        printRecord('Simulating ({} steps, time steps={} fs, time={} ns)...'.format(self.steps, self.timeStep, self.simTime))
         self.simulation.reporters.append(self.dcdReporter)
         # self.simulation.reporters.append(self.pdbReporter)
         self.simulation.reporters.append(self.dataReporter)
@@ -380,7 +404,7 @@ class omm():
         with Timer() as md_time:
             self.simulation.step(self.steps)  # run the dynamics
 
-        self.simulation.saveCheckpoint(self.structureName.split('.')[0] + '_state.chk')
+        self.simulation.saveCheckpoint(self.structureName + '_state.chk')
 
         self.ns_per_day = (self.steps * self.dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
 

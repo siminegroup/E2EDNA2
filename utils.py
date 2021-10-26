@@ -1,6 +1,11 @@
 """
 Utitilies -- how to intuitively distinguish it from analysisTools.py?
 """
+from simtk.openmm.app import *  # eg. PDBFile
+import simtk.unit as unit
+# from openmm.app import *
+# import openmm.unit as unit
+
 import argparse
 import os
 import csv
@@ -8,13 +13,9 @@ import numpy as np
 import time
 
 import Bio.PDB  # biopython
-import simtk.unit as unit
-# import openmm.unit as unit
 import mdtraj as md
 import MDAnalysis as mda
 
-from simtk.openmm.app import *  # eg. PDBFile
-# from openmm.app import *
 from pdbfixersource import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
 from collections import Counter
 
@@ -62,7 +63,7 @@ class Timer:
         self.end = time.time()
         self.interval = self.end - self.start
 
-def print_record(statement):
+def printRecord(statement):
     """
     print a string to command line output and a text file
     :param statement:
@@ -239,7 +240,7 @@ def findAngles():
                    resdict.items()}  # 3-letter a.a. code easier to work with for OpenMM
 
     with open("backbone_dihedrals.csv") as csv_file:
-        print_record("Reading CSV file...")
+        printRecord("Reading CSV file...")
         read_csv = csv.reader(csv_file, delimiter=",")
         residue_nums = []
         rows = []
@@ -251,7 +252,7 @@ def findAngles():
             row_lengths.add(len(row))
 
         #         if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
-        #             print_record("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
+        #             printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
         #             exit()
 
         if len(row_lengths) != 1:  # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
@@ -261,20 +262,20 @@ def findAngles():
                 if len(rows[i]) != 4:
                     rows_unequal.append(i + 1)
 
-            print_record("ERROR: Incorrect number of inputs for rows:")
+            printRecord("ERROR: Incorrect number of inputs for rows:")
 
             for unequal_row in rows_unequal:
-                print_record(unequal_row)
+                printRecord(unequal_row)
 
-            print_record("Exiting run.")
+            printRecord("Exiting run.")
             exit()
 
         elif mode(residue_nums) != residue_nums:
-            print_record("ERROR: More than one input row for a residue_num in backbone_dihedrals.csv; exiting run.")
+            printRecord("ERROR: More than one input row for a residue_num in backbone_dihedrals.csv; exiting run.")
             exit()
 
         else:  # everything should be correct here
-            print_record("Finding angles to constrain...")
+            printRecord("Finding angles to constrain...")
             angles_to_constrain = []
 
             for i in range(len(rows)):
@@ -306,18 +307,18 @@ def buildPeptide(peptide, customAngles=False):
     print('custom angles=', customAngles)
     geo = Geometry.geometry(peptide[0])
     # angles_to_constrain = findAngles()  # all values in the list are strings
-    # print_record("Found angles_to_constrain successfully, beginning to constrain...\n")
+    # printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
 
     if customAngles:
-        print_record("CustomAngles on\n")
+        printRecord("CustomAngles on\n")
         angles_to_constrain = findAngles()  # all values in the list are strings
-        print_record("Found angles_to_constrain successfully, beginning to constrain...\n")
+        printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
         phis = {row[0]: float(row[1]) for row in angles_to_constrain}
         psis = {row[0]: float(row[2]) for row in angles_to_constrain}
 
         for row in angles_to_constrain:
             if int(row[0]) == 0:
-                print_record('phi[0] and psi[0]:', phis[row[0]], psis[row[0]], "\n")  # only used for debugging
+                printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]], "\n")  # only used for debugging
                 geo.phi, geo.psi = phis[row[0]], psis[row[0]]
 
     structure = PeptideBuilder.initialize_res(peptide[0])
@@ -328,17 +329,17 @@ def buildPeptide(peptide, customAngles=False):
         if customAngles:
             for row in angles_to_constrain:
                 if int(row[0]) == i:
-                    print_record(f'phi[{i}] and psi[{i}]: {phis[str(i)]}, {psis[str(i)]}\n')  # only used for debugging
+                    printRecord(f'phi[{i}] and psi[{i}]: {phis[str(i)]}, {psis[str(i)]}\n')  # only used for debugging
                     geo.phi, geo.psi = phis[str(i)], psis[str(i)]
 
-        print_record("Adding Residue...\n")
+        printRecord("Adding Residue...\n")
         PeptideBuilder.add_residue(structure, geo)
 
     if customAngles:
         constrain_str = " with custom angles & constraints"
     else:
         constrain_str = ""
-    print_record("Successfully built peptide" + constrain_str + "\n")
+    printRecord("Successfully built peptide" + constrain_str + "\n")
 
 #     PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
 

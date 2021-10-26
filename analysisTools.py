@@ -1,5 +1,5 @@
 # Tools for trajecotry analysis
-from utils import print_record
+from utils import printRecord
 import numpy as np
 
 import sklearn.cluster as cluster  # provide agglomerative clustering
@@ -24,7 +24,7 @@ def getSeqfoldStructure(sequence, temperature):
     :return:
     """
     dg(sequence, temp=temperature)  # get energy of the structure
-    # print_record(round(sum(s.e for s in structs), 2))  # predicted energy of the final structure
+    # printRecord(round(sum(s.e for s in structs), 2))  # predicted energy of the final structure
 
     structs = fold(sequence)  # identify structural features
     desc = ["."] * len(sequence)
@@ -91,7 +91,7 @@ def configToString(config):
                 stringList[pair[1]] = '('
                 stringList[pair[0]] = ')'  # indexing
             string = ''.join(stringList)
-            # print_record(str(pair) + string)  # for debugging
+            # printRecord(str(pair) + string)  # for debugging
 
     return string
 
@@ -242,7 +242,7 @@ def checkTrajPCASlope(topology, trajectory, printStep):
     normedSlope = slopes * (eigenvalues / np.sum(eigenvalues)) # normalize the components contributions by their eigenvalues
     combinedSlope = np.linalg.norm(normedSlope)
 
-    print_record('PCA slope average is %.4f' % combinedSlope)
+    printRecord('PCA slope average is %.4f' % combinedSlope)
 
     return combinedSlope
 
@@ -441,7 +441,7 @@ def getPairTraj(wcTraj):
             problems.append(pairingErrors)  # collect problems timepoint-by-timepoint
 
     if problems != []:
-        print_record('Encountered error in pairing algorithm!')  # should not be possible, currently
+        printRecord('Encountered error in pairing algorithm!')  # should not be possible, currently
 
     return pairedBases
 
@@ -463,7 +463,7 @@ def analyzeSecondaryStructure(pairTraj):
         bestClusterRep = topClusterReps[0]
         singleVsClusterDistance = getSecondaryStructureDistance([bestSingleStructure,bestClusterRep])[0,1]
         if singleVsClusterDistance > 0.1:
-            print_record('Best 2D cluster representative is more than 10% different from best single structure')
+            printRecord('Best 2D cluster representative is more than 10% different from best single structure')
 
         return bestClusterRep
     else:  # if we only found a single conformation (unlikely except for very short time dynamics)
@@ -583,7 +583,7 @@ def trajectoryPCA(n_components, trajectory, transform):
 
     if n_components > trajectory.shape[-1]:  # if the trajectory is small-dimensional, reduce the number of principal components
         n_components = trajectory.shape[-1]
-        print_record('Warning, attempting PCA on a low-dimensional trajectory!')
+        printRecord('Warning, attempting PCA on a low-dimensional trajectory!')
 
     pca1 = PCA(n_components=n_components)
     model = pca1.fit(trajectory)

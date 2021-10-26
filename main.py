@@ -1,9 +1,8 @@
 # from typing import Dict, Any, Union  # for the dictionary of params
 
 from opendna import *
-from utils import *
+# from utils import *
 # from simtk.openmm.app import *
-# TODO: do we need the two above?
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 # TODO what this mean?
@@ -11,7 +10,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 params = {}
 # params: Dict[str, Union[Union[str, int, bool, float], Any]] = {}  # set up as a dictionary
 params['device'] = 'cluster'  # 'local' or 'cluster'
-params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
+params['platform'] = 'CUDA'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double'. Only relevant on 'CUDA' platform
 
 if params['device'] == 'cluster':
@@ -23,7 +22,7 @@ if params['device'] == 'cluster':
     # code will adapt maximum sampling steps to finish in less than this time,
     # or give up if this isn't enough time to complete even a minimum run.
 elif params['device'] == 'local':
-    params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run
+    params['run num'] = 3  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run
     params['sequence'] = 'CCCGGGCCCGGG'  # manually set sequence # ATP aptamer
     params['peptide'] = 'YRRYRRYRRY' # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
     params['max walltime'] = 3 * 24  # maximum walltime in hours
@@ -39,6 +38,10 @@ Modes, in order of increasing cost
 'full docking': 'free aptamer' + docking
 'full binding': 'full docking' + binding
 '''
+params['skip MMB'] = False  # if True, it will skip '2d analysis' and 'do MMB'
+if params['skip MMB'] is True:
+    params['folded initial structure'] = 'foldedSequence_0.pdb'  # if skipping MMB, must provide a folded structure
+# if there are >1 folded structures or 2nd structures?
 
 params['mode'] = 'free aptamer'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
 params['test mode'] = False
@@ -46,12 +49,12 @@ params['explicit run enumeration'] = False
 
 # Pipeline parameters
 params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package set up for probability analysis
-params['equilibration time'] = 0.01  # initial equilibration time in nanoseconds
-params['sampling time'] = 1  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
-params['smoothing time'] = 0.1  # ns. MD relax after getting the initial 3D structure from user or MMB before sampling
+params['equilibration time'] = 0.1  # initial equilibration time in nanoseconds
+params['sampling time'] = 10  #1 # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
+params['smoothing time'] = 1  # ns. MD relax after getting the initial 3D structure from user or MMB before sampling
 params['auto sampling'] = False  # 'True': run sampling till RC's equilibrate; 'False': just run sampling for 'sampling time'
 params['time step'] = 2.0  # MD time step in fs
-params['print step'] = 10  # MD printout step in ps. ns > ps > fs
+params['print step'] = 5  # MD printout step in ps. ns > ps > fs
 params['max aptamer sampling iterations'] = 20   # number of allowable iterations before giving on auto-sampling - total max simulation length = this * sampling time
 params['max complex sampling iterations'] = 5  # number of iterations for the binding complex
 params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged' # TODO: where is the PCA used? to cluster conformations to obtain a representive one? # TODO: another clustering methods
@@ -59,6 +62,7 @@ params['docking steps'] = 200  # number of steps for docking simulations
 params['N 2D structures'] = 1  # 2 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer # TODO: could expand the candidate size and do something with them
 params['N docked structures'] = 1  # 2 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost) # TODO: "it will go this time"?
 params['fold speed'] = 'normal'  # 'quick', 'normal' 'long' - time to spend on first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
+params['foldFidelity'] = 0.9  # if folding fidelity < this value, refold; unless the fold speed is 'quick'
 
 if params['test mode']:  # shortcut for debugging
     params['equilibration time'] = 0.001
@@ -86,6 +90,22 @@ params['[Mg]'] = 0.05  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONL
 params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH TODO: by which software? Amber?
 
 # openMM params
+params['pick up from chk'] = True
+if params['pick up from chk'] is True:
+    params['chk file'] = 'relaxedSequence_0_processed_state.chk'
+    # CAUTIOUS: a .chk file created on CUDA platform cannot be run on a CPU platform.
+    '''
+    A checkpoint contains data that is highly specific to the Context from which it was created.
+        It depends on the details of the System, the Platform being used, and the hardware and software
+        of the computer it was created on.  If you try to load it on a computer with different hardware,
+        or for a System that is different in any way, loading is likely to fail.  Checkpoints created
+        with different versions of OpenMM are also often incompatible.  If a checkpoint cannot be loaded,
+        that is signaled by throwing an exception.
+    '''
+    params['resumed structureFile'] = 'relaxedSequence_0_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
+else:
+    params['chk file'] = ""  # empty string
+
 params['force field'] = 'AMBER'  # this does nothing...
 params['water model'] = 'tip3p'  # 'tip3p' (runs on Amber 14), other explicit models are also easy to add
 params['box offset'] = 1.0  # nanometers
@@ -103,9 +123,9 @@ params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the
 
 # Path
 if params['device'] == 'local':
-    params['workdir'] = '/Users/taoliu/Desktop/opendnaruns'
-    params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.2_14.Linux64'
-    params['mmb'] = '/Users/taoliu/Desktop/software/Installer.2_14.Linux64/MMB.2_14.Linux64'
+    params['workdir'] = '/Users/taoliu/PycharmProjects/myOpenDNA/uOttawaTest/runs'
+    params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/lib'
+    params['mmb'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/bin/MMB'
 
     # lightdock python scripts: they will be copied to 'ld_scripts' in workdir
     # thereofre all addresses are relative to the workdir
@@ -118,14 +138,15 @@ if params['device'] == 'local':
     params['lgd top path'] = 'ld_scripts/lgd_top.py'
 
 elif params['device'] == 'cluster':
-    params['workdir'] = '/home/taoliu/scratch/opendnaruns'  # specify your working directory here. No / at the end
+    # params['workdir'] = '/home/taoliu/scratch/uOttawaExplicitSolvent/runs'  # specify your working directory here. No / at the end
+    params['workdir'] = '/home/taoliu/scratch/uOttawaExplicitSolvent/resumeSamplingTest/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
     # need to tell OS where to find the library files. All MMB files are in the same direcotory.
     # In ~/.bash_profile: export DYLD_LIBRARY_PATH=<mmm dir above>
 
     # lightdock python scripts: they will be copied to 'ld_scripts' in workdir
-    # thereofre all addresses are relative to the workdir
+    # therefore all addresses are relative to the workdir
     params['ld setup path'] = 'python ld_scripts/lightdock3_setup.py'
     params['ld run path'] = 'python ld_scripts/lightdock3.py'
     params['lgd generate path'] = 'python ../ld_scripts/lgd_generate_conformations.py'
