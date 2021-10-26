@@ -151,7 +151,8 @@ class opendna:
 
         # copy relevant files to the workDir
         os.mkdir(self.workDir + '/outfiles')
-        copyfile(self.params['leap template'], self.workDir + '/leap_template.in')
+        if self.params['implicit solvent'] is True:
+            copyfile(self.params['leap template'], self.workDir + '/leap_template.in')
         # copy structure files
         copyfile(self.params['analyte pdb'], self.workDir + '/analyte.pdb')  # ie, target of the aptamer
 
@@ -175,8 +176,13 @@ class opendna:
             copyfile(self.params['mmb normal template'], self.workDir + '/commands.template.dat')
             copyfile(self.params['mmb quick template'], self.workDir + '/commands.template_quick.dat')
             copyfile(self.params['mmb long template'], self.workDir + '/commands.template_long.dat')        
-        
+               
         if self.params['pick up from chk'] is True:
+            # everything before MD sampling is skipped
+            self.actionDict['do 2d analysis'] = False  
+            self.actionDict['do MMB'] = False            
+            self.actionDict['do smoothing'] = False
+        
             printRecord('Copying the checkpoint file: {} to workdir.'.format(self.params['chk file']), self.workDir+'/')
             if os.path.exists(self.params['chk file']):
                 copyfile(self.params['chk file'], self.workDir + '/' + self.params['chk file'])
@@ -245,20 +251,23 @@ class opendna:
             printRecord('Running over %d' % len(self.pairLists) + ' possible 2D structures')
             num_2dSS = len(self.pairLists)
 
-        else:  # skipped MMB
-            printRecord('Starting with an existing folded strcuture.')
-            num_2dSS = 1
+        elif self.params['pick up from chk'] is True:  
+            printRecord('Skip all the steps before MD sampling to resume previous sampling from .chk file')
+            num_2dSS = 1  # quick and dirty
 
+        else:  # just skipped nupack or seqfold
+            printRecord('Starting with an existing folded strcuture.')
+            num_2dSS = 1  # quick and dirty
 
         for self.i in range(num_2dSS):  # loop over all possible secondary structures
             
-            if self.params['skip MMB'] is False:
+            if self.actionDict['do 2d analysis'] is True:  # self.ssAnalysis only exists if we "do 2d analysis"
                 printRecord('2D structure #{} is {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
                 self.pairList = np.asarray(self.pairLists[self.i])  # be careful!!!: .pairList vs. .pairLists
 
             if self.actionDict['do MMB']:  # fold 2D into 3D
                 self.foldSequence(self.sequence, self.pairList)
-            else:  # skipped MMB
+            elif self.params['pick up from chk'] is False:  # start with a folded initial structure: skipped MMB but will MD smooth
                 self.pdbDict['folded sequence {}'.format(self.i)] = self.params['folded initial structure']
                 self.pdbDict['representative aptamer {}'.format(self.i)] = self.params['folded initial structure']  # in "coarse dock" mode.
 
@@ -342,7 +351,9 @@ class opendna:
         printRecord("Folding Sequence. Fold speed={}".format(self.params['fold speed']))        
 
         mmb = interfaces.mmb(sequence, pairList, self.params, self.i)
-        foldFidelity = mmb.run()
+        MDAfoldFidelity, MMBfoldFidelity = mmb.run()
+        foldFidelity = MMBfoldFidelity
+
         printRecord('Initial fold fidelity = %.3f' % foldFidelity)
         attempts = 1
         if self.params['fold speed'] != 'quick':  # don't rerun if we're quick folding
@@ -547,7 +558,7 @@ class opendna:
             self.analyteUnbound = False
             omm = interfaces.omm(structure=structure, params=self.params, implicitSolvent=implicitSolvent)
             self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
-            # print('Generated:', structureName + '_trajectory.dcd')
+            print('Generated:', structureName + '_trajectory.dcd')
             os.replace(structureName + '_trajectory.dcd', structureName + "_complete_trajectory.dcd")
             print('Replaced ^ with:', structureName + '_complete_trajectory.dcd')
 
@@ -596,8 +607,8 @@ class opendna:
         pairTraj = getPairTraj(wcTraj)
         secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
         if self.params['skip MMB'] is False:
-            print('Predicted 2D structure :' + self.ssAnalysis['2d string'][self.i])  # if we did not fold the structure, we probably do not know the secondary structure.
-        print('Actual 2D structure    :' + configToString(secondaryStructure))
+            printRecord('Predicted 2D structure :' + self.ssAnalysis['2d string'][self.i])  # if we did not fold the structure, we probably do not know the secondary structure.
+        printRecord('Actual 2D structure    :' + configToString(secondaryStructure))
 
         # 3D structure analysis
         mixedTrajectory = np.concatenate((baseDistTraj.reshape(len(baseDistTraj), int(baseDistTraj.shape[-2] * baseDistTraj.shape[-1])), nucleicAnglesTraj.reshape(len(nucleicAnglesTraj), int(nucleicAnglesTraj.shape[-2] * nucleicAnglesTraj.shape[-1]))), axis=1)  # mix up all our info
@@ -664,8 +675,7 @@ class opendna:
         dockingStructures = self.params['N docked structures']
         aptamerSteps = self.params['max aptamer sampling iterations']
         complexSteps = self.params['max complex sampling iterations']
-        maxNS = dt * (
-                    ssStructures * aptamerSteps + ssStructures * dockingStructures * complexSteps)  # maximum possible sampling time in nanoseconds
+        maxNS = dt * (ssStructures * aptamerSteps + ssStructures * dockingStructures * complexSteps)  # maximum possible sampling time in nanoseconds
         projectedMaxRuntime = maxNS / self.ns_per_day * 24  # how many hours needed to complete our maximum sampling time
 
         return projectedMaxRuntime

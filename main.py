@@ -15,6 +15,8 @@ params = {}
 params['device'] = 'local'  # 'local' or 'cluster'
 if params['device'] == 'local':  # this is for running MMB. Consult the admin for cluster if running into problems.
     params['local device platform'] = 'macos'  # macos, or linux or windows
+else:
+    params['local device platform'] = ""  # leave it blank or specify the cluster's OS
 params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double'. Only relevant on 'CUDA' platform
 
@@ -52,7 +54,7 @@ params['mode'] = 'free aptamer'  # 'full binding'  # 'full docking'  #'smooth do
 params['test mode'] = True
 params['explicit run enumeration'] = False
 params['implicit solvent'] = True  # implicit solvent or explicit solvent
-if params['implicit solvent']:
+if params['implicit solvent'] is True:
     params['implicit solvent model'] = HCT  # only meaningful if implicit solvent is True
     params['leap template'] = 'leap_template.in'
     params['implicit solvent salt conc'] = 0.163  # molar/unit

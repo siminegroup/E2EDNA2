@@ -132,7 +132,7 @@ class mmb:  # MacroMolecule Builder (MMB)
         self.fold()
         self.check2DAgreement()
 
-        return self.foldFidelity
+        return self.MDAfoldFidelity, self.MMBfoldFidelity
 
     # # myOwn
     def generateCommandFile(self):
@@ -189,8 +189,9 @@ class mmb:  # MacroMolecule Builder (MMB)
                 else:
                     os.mkdir(self.fileDump)
                 os.system('mv last* ' + self.fileDump)
-                os.system('mv trajectory.* ' + self.fileDump)
+                os.system('mv trajectory.* ' + self.fileDump)                
                 # os.system('mv watch.* ' + self.fileDump)
+                os.system('mv match.4*.pdb ' + self.fileDump)  # the intermediate files are updated during each stage
             except:  # TODO look up this warning: do not use bare except; Too broad except clause
                 pass
 
@@ -199,13 +200,20 @@ class mmb:  # MacroMolecule Builder (MMB)
         check agreement between prescribed 2D structure and the actual fold
         :return:
         """
-        # # do it with MDA: MD_Analysis
-        # u = mda.Universe(self.foldedSequence)
-        # wcTraj = getWCDistTraj(u)
-        # pairTraj = getPairTraj(wcTraj)
-        # trueConfig = pairListToConfig(self.pairList, len(self.sequence))
-        # foldDiscrepancy = getSecondaryStructureDistance([pairTraj[0], trueConfig])[0,1]
-        # self.foldFidelity = 1-foldDiscrepancy
+        # do it with MDA: MDAnalysis
+        u = mda.Universe(self.foldedSequence)
+        # extract distance info through the trajectory
+        wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding)
+        pairTraj = getPairTraj(wcTraj)        
+        
+        # 2D structure analysis        
+        secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
+        printRecord('2D structure after MMB folding:' + configToString(secondaryStructure))
+
+        # MDAnalysis: fidelity score
+        trueConfig = pairListToConfig(self.pairList, len(self.sequence))
+        foldDiscrepancy = getSecondaryStructureDistance([pairTraj[0], trueConfig])[0,1]
+        self.MDAfoldFidelity = 1-foldDiscrepancy
 
         # do it with MMB
         f = open('outfiles/fold.out')
@@ -224,7 +232,7 @@ class mmb:  # MacroMolecule Builder (MMB)
                     scores.append(numerator/denominator)
 
         scores = np.asarray(scores)
-        self.foldFidelity = np.amax(scores)  # the score would increase with more and more stages
+        self.MMBfoldFidelity = np.amax(scores)  # the score would increase with more and more stages
 
 
 # openmm
@@ -268,7 +276,6 @@ class omm:
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
             self.simTime = params['sampling time']
         self.timeStep = params['time step']
-        
 
         # Platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
@@ -283,9 +290,9 @@ class omm:
         self.reportSteps = int(params['print step'] * 1000 / params['time step'])  # report steps in ps, time step in fs
         self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
-        if simTime is not None:
+        if simTime is None:
             logFileName = 'log.txt'
-        else:  # MD smoothing
+        else:  # MD smoothing: simTime is specified as 'smoothing time'
             logFileName = 'log_smoothing.txt'
         self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
         self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
@@ -398,7 +405,7 @@ class omm:
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
             
         self.simulation.context.setPositions(self.positions)
-        printRecord("Initial positions set.\n")
+        printRecord("Initial positions set.")
 
     def doMD(self):  # no need to be aware of the implicitSolvent
         # if not os.path.exists(self.structureName + '_state.chk'):
@@ -415,8 +422,9 @@ class omm:
             self.simulation.step(self.equilibrationSteps)
         else:
             # self.simulation.loadCheckpoint(self.structureName + '_state.chk')  # Resume the simulation
+            printRecord("Loading checkpoint file: " + self.chkFile + " to resume sampling")
             self.simulation.loadCheckpoint(self.chkFile)  # Resume the simulation
-            printRecord('Resuming the previous simulation process from checkpoint: ' + self.structureName + '_state.chk')
+            # printRecord('Resuming the previous simulation process from checkpoint: ' + self.structureName + '_state.chk')
 
         # Simulation
         printRecord('Simulating({} steps, time step={} fs, simTime={} ns)...'.format(self.steps, self.timeStep, self.simTime))
