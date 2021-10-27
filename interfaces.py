@@ -13,7 +13,6 @@ from nupack import *
 from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
 from simtk.openmm.app import *
 import simtk.unit as unit
-
 # from openmm import *
 # from openmm.app import *
 # import openmm.unit as unit
@@ -26,7 +25,7 @@ from analysisTools import *
 # package simtk is created with packages "openmm" and "unit" inside but literally import the stand-alone openmm.
 
 
-class nupack():
+class nupack:
     def __init__(self, sequence, temperature, ionicStrength, mgConc=0):
         self.sequence = sequence
         self.temperature = temperature
@@ -100,7 +99,7 @@ class nupack():
             self.ssDict['num pins'][i] = nPins
 
 
-class mmb():  # MacroMolecule Builder (MMB)
+class mmb:  # MacroMolecule Builder (MMB)
     def __init__(self, sequence, pairList, params, ind1, intervalLength=None):
         if params['fold speed'] == 'quick':
             self.template = 'commands.template_quick.dat'  # only for debugging runs - very short
@@ -114,6 +113,11 @@ class mmb():  # MacroMolecule Builder (MMB)
         self.temperature = params['temperature']
         self.pairList = pairList
         self.mmbPath = params['mmb']
+        
+        # Conditions used to decide how to run MMB executable
+        self.mmbDylidPath = params['mmb dir']
+        self.device = params['device']
+        self.localDevicePlatform = params['local device platform']
 
         self.ind1 = ind1
         self.foldedSequence = 'foldedSequence_{}.pdb'.format(ind1)  # output structures of MMB
@@ -127,7 +131,7 @@ class mmb():  # MacroMolecule Builder (MMB)
         self.fold()
         self.check2DAgreement()
 
-        return self.foldFidelity
+        return self.MDAfoldFidelity, self.MMBfoldFidelity
 
     # # myOwn
     def generateCommandFile(self):
@@ -165,16 +169,28 @@ class mmb():  # MacroMolecule Builder (MMB)
         while (result is None) and (attempts < 100):
             try:
                 attempts += 1
-                os.system(self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')
+                
+                if (self.device == 'local') and (self.localDevicePlatform == 'macos'):  # special care for macos
+                    os.system('export DYLD_LIBRARY_PATH=' + self.mmbDylidPath + ';' + self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')    
+                else:
+                    os.system(self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')  # should we append new outputs to the fold.out?
+                
                 os.replace('frame.pdb', self.foldedSequence)
-
                 result = 1
                 # clean up
                 self.fileDump = 'mmbFiles_%d' % self.ind1
-                os.mkdir(self.fileDump)
+                if os.path.isdir('./' + self.fileDump):  # this is refolding the sequence
+                    self.fileDump = self.fileDump + '/refolding'
+                    if os.path.isdir('./' + self.fileDump):
+                        pass
+                    else:
+                        os.mkdir(self.fileDump)
+                else:
+                    os.mkdir(self.fileDump)
                 os.system('mv last* ' + self.fileDump)
-                os.system('mv trajectory.* ' + self.fileDump)
-                os.system('mv watch.* ' + self.fileDump)
+                os.system('mv trajectory.* ' + self.fileDump)                
+                # os.system('mv watch.* ' + self.fileDump)
+                os.system('mv match.4*.pdb ' + self.fileDump)  # the intermediate files are updated during each stage
             except:  # TODO look up this warning: do not use bare except; Too broad except clause
                 pass
 
@@ -183,13 +199,20 @@ class mmb():  # MacroMolecule Builder (MMB)
         check agreement between prescribed 2D structure and the actual fold
         :return:
         """
-        # # do it with MDA: MD_Analysis
-        # u = mda.Universe(self.foldedSequence)
-        # wcTraj = getWCDistTraj(u)
-        # pairTraj = getPairTraj(wcTraj)
-        # trueConfig = pairListToConfig(self.pairList, len(self.sequence))
-        # foldDiscrepancy = getSecondaryStructureDistance([pairTraj[0], trueConfig])[0,1]
-        # self.foldFidelity = 1-foldDiscrepancy
+        # do it with MDA: MDAnalysis
+        u = mda.Universe(self.foldedSequence)
+        # extract distance info through the trajectory
+        wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding)
+        pairTraj = getPairTraj(wcTraj)        
+        
+        # 2D structure analysis        
+        secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
+        printRecord('2D structure after MMB folding (from MDAnalysis): ' + configToString(secondaryStructure))
+
+        # MDAnalysis: fidelity score
+        trueConfig = pairListToConfig(self.pairList, len(self.sequence))
+        foldDiscrepancy = getSecondaryStructureDistance([pairTraj[0], trueConfig])[0,1]
+        self.MDAfoldFidelity = 1-foldDiscrepancy
 
         # do it with MMB
         f = open('outfiles/fold.out')
@@ -208,26 +231,26 @@ class mmb():  # MacroMolecule Builder (MMB)
                     scores.append(numerator/denominator)
 
         scores = np.asarray(scores)
-        self.foldFidelity = np.amax(scores)
+        self.MMBfoldFidelity = np.amax(scores)  # the score would increase with more and more stages
 
 
 # openmm
 class omm:
-    def __init__(self, structure, params, simTime=None):
+    def __init__(self, structure, params, simTime=None, implicitSolvent=False):
         """
         pass on the pre-set and user-defined params to openmm engine
         """
-        self.structureName = structure.split('.')[0]
+        self.structureName = structure.split('.')[0]  # e.g., structure: relaxedSequence_0_amb_processed.pdb
         self.peptide = params['peptide']
         self.chkFile = params['chk file']  # if not picking up, this is empty string ""
-        
-        # Even resuming a sampling, still need a .pdb file to create a simulation system. 
-        self.pdb = PDBFile(structure)  # this step could be long if the pdb is large (with water molecules etc)        
-        self.waterModel = params['water model']
-        self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')                
-        
+
+        if implicitSolvent is False:
+            self.pdb = PDBFile(structure)
+            self.waterModel = params['water model']
+            self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
+
         # System configuration
-        self.nonbondedMethod = params['nonbonded method']
+        self.nonbondedMethod = params['nonbonded method']  # Currently PME!!! It's used with periodic boundary condition applied
         self.nonbondedCutoff = params['nonbonded cutoff'] * unit.nanometer
         self.ewaldErrorTolerance = params['ewald error tolerance']
         self.constraints = params['constraints']
@@ -237,24 +260,22 @@ class omm:
 
         # Integration options
         self.dt = params['time step'] / 1000 * unit.picosecond
-        # On GitHub: picoseconds. I checked the source code of unit package, only "picosecond:
 
         self.temperature = params['temperature'] * unit.kelvin
         self.friction = params['friction'] / unit.picosecond
         self.quickSim = params['test mode']
 
         # Simulation options
-        if simTime != None:  # we can override the simulation time here
+        if simTime is not None:  # override the default "sampling time": e.g., when running smoothing.
             self.steps = int(simTime * 1e6 // params['time step'])
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
             self.simTime = simTime
-        else:  # if not specified, use 'sampling time'
+        else:  # default sampling time = params['sampling time']
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
             self.simTime = params['sampling time']
         self.timeStep = params['time step']
         
-        # need these? will .chk file specify these?
         # Platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
             self.platform = Platform.getPlatformByName('CUDA')
@@ -265,6 +286,7 @@ class omm:
         else:
             self.platform = Platform.getPlatformByName('CPU')
 
+        # Can resumed run append the old log.txt or .dcd file?
         self.reportSteps = int(params['print step'] * 1000 / params['time step'])  # report steps in ps, time step in fs
         self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
@@ -272,27 +294,40 @@ class omm:
             logFileName = 'log.txt'
         else:  # MD smoothing: simTime is specified as 'smoothing time'
             logFileName = 'log_smoothing.txt'
-
-        # Can resumed run append the old log.txt file?
-        self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, separator='\t')        
-        self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
-
+        self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
+                
+        if params['pick up from chk'] is False:  # or if not self.chkFile:
+            self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
+        else:  # ie, we are resuming a sampling, chkFile must exist.
+            self.checkpointReporter = CheckpointReporter(self.chkFile, 10000)                   
+            
         # Prepare the simulation
         # printRecord('Building system...') # waste of space
-        
-        self.topology = self.pdb.topology
-        self.positions = self.pdb.positions
-        self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
-        for atom in self.topology.atoms():
-            if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
-                printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
-        # TODO why looking for the TYR? covid peptide residue?
-            
+        if implicitSolvent is False:            
+            self.topology = self.pdb.topology
+            self.positions = self.pdb.positions
+            self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
+            for atom in self.topology.atoms():
+                if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
+                    printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
+            # TODO why looking for the TYR? covid peptide residue?
+
+        else:  # create a system using prmtop file
+            self.solventModel = params['implicit solvent model']
+            self.solventSaltConc = params['implicit solvent salt conc']
+            printRecord('Creating a simulation system under implicit solvent model of {}'.format(self.solventModel))
+            self.prmtop = AmberPrmtopFile(self.structureName + '.top')  # e.g. foldedSequence_amb_processed.top or relaxedSequence_0_amb_processed.top
+            self.inpcrd = AmberInpcrdFile(self.structureName + '.crd')
+            self.topology = self.prmtop.topology
+            self.positions = self.inpcrd.positions
+
+            self.system = self.prmtop.createSystem(implicitSolvent=self.solventModel, implicitSolventSaltConc=self.solventSaltConc * (unit.moles / unit.liter), nonbondedCutoff=1 * unit.nanometer, constraints=HBonds)
+            if self.inpcrd.boxVectors is not None:
+                self.simulation.context.setPeriodicBoxVectors(*self.inpcrd.boxVectors)
 
         # Apply constraint if specified so
         if params['peptide backbone constraint constant'] != 0:
-            self.force = CustomTorsionForce(
-                '0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
+            self.force = CustomTorsionForce('0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
             self.force.addGlobalParameter('K', params['peptide backbone constraint constant'])
             self.force.addPerTorsionParameter('theta0')
 
@@ -362,8 +397,12 @@ class omm:
 
         # # Need to create a Simulation class, even to load checkpoint file
         # self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
+        # print("Using LangevinMiddleIntegrator integrator, at T={}.".format(self.temperature))
         self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
-        self.integrator.setConstraintTolerance(self.constraintTolerance)
+        printRecord("Using LangevinIntegrator integrator, at T={}.".format(self.temperature))
+        
+        self.integrator.setConstraintTolerance(self.constraintTolerance)  # What is this tolerance for? For constraint?
+        
         if params['platform'] == 'CUDA':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
         elif params['platform'] == 'CPU':
@@ -372,17 +411,19 @@ class omm:
         if params['pick up from chk'] is False:
             self.simulation.context.setPositions(self.positions)
             printRecord("Initial positions set.")
-        else:  # if resuming a run, the initial position comes from the chk file.
-            pass
+        else:
+            pass  # if resuming a run, the initial position comes from the chk file.        
 
-    def doMD(self):
-        # # automatically resume sampling if there is .chk file
+    def doMD(self):  # no need to be aware of the implicitSolvent
+        '''
+        automatically resume sampling if there is .chk file
+        '''
         # if not os.path.exists(self.structureName + '_state.chk'):
-        if not self.chkFile:  # let user choose the checkpoint file name
-            
+        if not self.chkFile:
+            # User did not specify a .chk file ==> we are doing a fresh sampling, not resuming.
             # Minimize and Equilibrate
             printRecord('Performing energy minimization...')
-            if self.quickSim: # if want to do it fast, loosen the tolerances
+            if self.quickSim:  # if want to do it fast, loosen the tolerances
                 self.simulation.minimizeEnergy(tolerance=20, maxIterations=100)  # default is 10 kJ/mol - also set a max number of iterations
             else:
                 self.simulation.minimizeEnergy()  # (tolerance = 1 * unit.kilojoules / unit.mole)
@@ -390,12 +431,12 @@ class omm:
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
         else:
-            printRecord("Loading checkpoint file: " + self.chkFile + " to resume sampling")
-            # self.simulation.loadCheckpoint(self.structureName.split('.')[0] + '_state.chk')
-            self.simulation.loadCheckpoint(self.chkFile)
+            # Resume a sampling: no need to minimize and equilibrate
+            printRecord("Loading checkpoint file: " + self.chkFile + " to resume sampling")            
+            self.simulation.loadCheckpoint(self.chkFile)  # Resume the simulation
 
         # Simulation
-        printRecord('Simulating ({} steps, time steps={} fs, time={} ns)...'.format(self.steps, self.timeStep, self.simTime))
+        printRecord('Simulating({} steps, time step={} fs, simTime={} ns)...'.format(self.steps, self.timeStep, self.simTime))
         self.simulation.reporters.append(self.dcdReporter)
         # self.simulation.reporters.append(self.pdbReporter)
         self.simulation.reporters.append(self.dataReporter)
@@ -404,11 +445,21 @@ class omm:
         with Timer() as md_time:
             self.simulation.step(self.steps)  # run the dynamics
 
-        self.simulation.saveCheckpoint(self.structureName + '_state.chk')
+        # Update the chk file with info from the final step
+        if not self.chkFile:
+            # User did not specify a .chk file ==> we are doing a fresh sampling, not resuming.
+            self.simulation.saveCheckpoint(self.structureName + '_state.chk')
+        else:
+            self.simulation.saveCheckpoint(self.chkFile)
 
         self.ns_per_day = (self.steps * self.dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
-
+    
         return self.ns_per_day
+
+    def extractLastFrame(self, lastFrameFileName):
+        lastpositions = self.simulation.context.getState(getPositions=True).getPositions()
+        PDBFile.writeFile(self.topology, lastpositions, open(lastFrameFileName, 'w'))
+        printRecord('OpenMM: save the last frame into: {}'.format(lastFrameFileName))
 
 
 class ld:  # lightdock
@@ -423,7 +474,7 @@ class ld:  # lightdock
         self.aptamerPDB = aptamer
         self.peptidePDB = peptide
 
-        self.glowWorms = 300 # params['glowworms']
+        self.glowWorms = 300  # params['glowworms']
         self.dockingSteps = params['docking steps']
         self.numTopStructures = params['N docked structures']
 
