@@ -10,13 +10,12 @@ from shutil import copyfile
 from numpy import pi
 from nupack import *
 
-# from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
-# from simtk.openmm.app import *
-# import simtk.unit as unit
-
-from openmm import *
-from openmm.app import *
-import openmm.unit as unit
+from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
+from simtk.openmm.app import *
+import simtk.unit as unit
+# from openmm import *
+# from openmm.app import *
+# import openmm.unit as unit
 
 from utils import *
 from analysisTools import *
@@ -208,7 +207,7 @@ class mmb:  # MacroMolecule Builder (MMB)
         
         # 2D structure analysis        
         secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
-        printRecord('2D structure after MMB folding:' + configToString(secondaryStructure))
+        printRecord('2D structure after MMB folding (from MDAnalysis): ' + configToString(secondaryStructure))
 
         # MDAnalysis: fidelity score
         trueConfig = pairListToConfig(self.pairList, len(self.sequence))
@@ -258,12 +257,12 @@ class omm:
         self.rigidWater = params['rigid water']
         self.constraintTolerance = params['constraint tolerance']
         self.hydrogenMass = params['hydrogen mass'] * unit.amu
+        self.temperature = params['temperature'] * unit.kelvin
 
         # Integration options
         self.dt = params['time step'] / 1000 * unit.picosecond
+        # self.friction = params['friction'] / unit.picosecond  # relocate it right before Integrator setup
 
-        self.temperature = params['temperature'] * unit.kelvin
-        self.friction = params['friction'] / unit.picosecond
         self.quickSim = params['test mode']
 
         # Simulation options
@@ -276,7 +275,7 @@ class omm:
             self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
             self.simTime = params['sampling time']
         self.timeStep = params['time step']
-
+        
         # Platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
             self.platform = Platform.getPlatformByName('CUDA')
@@ -287,6 +286,7 @@ class omm:
         else:
             self.platform = Platform.getPlatformByName('CPU')
 
+        # Can resumed run append the old log.txt or .dcd file?
         self.reportSteps = int(params['print step'] * 1000 / params['time step'])  # report steps in ps, time step in fs
         self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
@@ -295,36 +295,80 @@ class omm:
         else:  # MD smoothing: simTime is specified as 'smoothing time'
             logFileName = 'log_smoothing.txt'
         self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
-        self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
-
-        # Prepare the simulation
+                
+        if params['pick up from chk'] is False:  # or if not self.chkFile:
+            self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
+        else:  # ie, we are resuming a sampling, chkFile must exist.
+            self.checkpointReporter = CheckpointReporter(self.chkFile, 10000)                   
+            
+        # Prepare the simulation        
         if implicitSolvent is False:
-            # printRecord('Building system...') # waste of space
             self.topology = self.pdb.topology
             self.positions = self.pdb.positions
-            self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, ewaldErrorTolerance=self.ewaldErrorTolerance, hydrogenMass=self.hydrogenMass)
+            printRecord('Creating a simulation system under explicit solvent')
+
+            self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, hydrogenMass=self.hydrogenMass, ewaldErrorTolerance=self.ewaldErrorTolerance)
+            # ewaldErrorTolerance: as "**args": Arbitrary additional keyword arguments may also be specified. This allows extra parameters to be specified that are specific to particular force fields.
+
             for atom in self.topology.atoms():
                 if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
                     printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
             # TODO why looking for the TYR? covid peptide residue?
 
-        else:  # create a system using prmtop file
-            self.solventModel = params['implicit solvent model']
-            self.solventSaltConc = params['implicit solvent salt conc']
-            printRecord('Creating a simulation system under implicit solvent model of {}'.format(self.solventModel))
+        else:  # create a system using prmtop file and use implicit solvent
             self.prmtop = AmberPrmtopFile(self.structureName + '.top')  # e.g. foldedSequence_amb_processed.top or relaxedSequence_0_amb_processed.top
             self.inpcrd = AmberInpcrdFile(self.structureName + '.crd')
             self.topology = self.prmtop.topology
             self.positions = self.inpcrd.positions
+            printRecord('Creating a simulation system under implicit solvent model of {}'.format(params['implicit solvent model']))
+            
+            self.implicitSolventModel = params['implicit solvent model']
+            self.implicitSolventSaltConc = params['implicit solvent salt conc'] * (unit.moles / unit.liter)
+            self.implicitSolventKappa = params['implicit solvent Kappa']  # add this in main_resume/main.py
+            self.soluteDielectric = params['soluteDielectric']
+            self.solventDielectric = params['solventDielectric']
 
-            self.system = self.prmtop.createSystem(implicitSolvent=self.solventModel, implicitSolventSaltConc=self.solventSaltConc * (unit.moles / unit.liter), nonbondedCutoff=1 * unit.nanometer, constraints=HBonds)
+            self.system = self.prmtop.createSystem(nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater,
+                                                   implicitSolvent=self.implicitSolventModel, implicitSolventSaltConc=self.implicitSolventSaltConc, implicitSolventKappa=self.implicitSolventKappa, temperature=self.temperature,
+                                                   soluteDielectric=self.soluteDielectric, solventDielectric=self.solventDielectric, removeCMMotion=True, hydrogenMass=self.hydrogenMass, ewaldErrorTolerance=self.ewaldErrorTolerance, switchDistance=0.0*unit.nanometer)
+            '''
+            temperature : 
+                Temperture of the system, only used to compute the Debye length from implicitSolventSoltConc
+            implicitSolventSaltConc : 
+                Concentration of all cations (or anions): because it's to replace ionic strength, which = [cation] = [anion] for any monovalent electrolyte
+                The salt concentration for GB calculations (modelled as a debye screening parameter). 
+                It's converted to the debye length (kappa) using the provided temperature and solventDielectric
+            implicitSolventKappa: 
+                float unit of 1/length: 1/angstroms. No need to * unit.xxx; 
+                If this value is set, implicitSolventSaltConc will be ignored. 
+                If not set, it's calculated as follows in OpenMM:                     
+                    implicitSolventKappa = 50.33355 * sqrt(implicitSolventSaltConc / solventDielectric / temperature)
+                    # The constant is 1 / sqrt( epsilon_0 * kB / (2 * NA * q^2 * 1000) ),
+                    # where NA is avogadro's number, epsilon_0 is the permittivity of free space, q is the elementary charge (this number matches Amber's kappa conversion factor)
+                    # The equation above is for Debye screening parameter, Kappa, for a monovalent electrolyte in an electrolyte or a colloidal suspension. Debye length = 1/Kappa
+                    # Then Multiply by 0.73 to account for ion exclusions, and multiply by 10 to convert to 1/nm from 1/angstroms
+                    implicitSolventKappa *= 7.3
+            soluteDielectric :
+                The solute dielectric constant to use in the implicit solvent model.
+                Default value = 1.0, meaning no screening effect at all.
+            solventDielectric :
+                The solvent dielectric constant to use in the implicit solvent model.
+                Default value = 78.5, which is the value for water.
+                This offers a way to model non-aqueous system.
+            rigidWater: default = True
+                If true, water molecules will be fully rigid regardless of the value passed for the constraints argument.
+                Even using implicit solvent models, the simulation system could still contain water molecules, but just not from the solvent.
+            switchDistance: 
+                The distance at which the potential energy switching function is turned on for Lennard-Jones interactions. 
+                If the switchDistance is 0 or evaluates to boolean False, no switching function will be used. 
+                Values greater than nonbondedCutoff or less than 0 raise ValueError
+            '''
             if self.inpcrd.boxVectors is not None:
                 self.simulation.context.setPeriodicBoxVectors(*self.inpcrd.boxVectors)
 
         # Apply constraint if specified so
         if params['peptide backbone constraint constant'] != 0:
-            self.force = CustomTorsionForce(
-                '0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
+            self.force = CustomTorsionForce('0.5*K*dtheta^2; dtheta = min(diff, 2*' + str(round(pi, 3)) + '-diff); diff = abs(theta - theta0)')
             self.force.addGlobalParameter('K', params['peptide backbone constraint constant'])
             self.force.addPerTorsionParameter('theta0')
 
@@ -392,8 +436,10 @@ class omm:
             printRecord("Successfully added the force.\n")
         # done with constraint
 
+        # # Need to create a Simulation class, even to load checkpoint file
         # self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
         # print("Using LangevinMiddleIntegrator integrator, at T={}.".format(self.temperature))
+        self.friction = params['friction'] / unit.picosecond
         self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
         printRecord("Using LangevinIntegrator integrator, at T={}.".format(self.temperature))
         
@@ -403,14 +449,20 @@ class omm:
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
         elif params['platform'] == 'CPU':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
-            
-        self.simulation.context.setPositions(self.positions)
-        printRecord("Initial positions set.")
+        
+        if params['pick up from chk'] is False:
+            self.simulation.context.setPositions(self.positions)
+            printRecord("Initial positions set.")
+        else:
+            pass  # if resuming a run, the initial position comes from the chk file.        
 
     def doMD(self):  # no need to be aware of the implicitSolvent
+        '''
+        automatically resume sampling if there is .chk file
+        '''
         # if not os.path.exists(self.structureName + '_state.chk'):
-        if not self.chkFile:  # let user choose the checkpoint file name
-
+        if not self.chkFile:
+            # User did not specify a .chk file ==> we are doing a fresh sampling, not resuming.
             # Minimize and Equilibrate
             printRecord('Performing energy minimization...')
             if self.quickSim:  # if want to do it fast, loosen the tolerances
@@ -421,10 +473,9 @@ class omm:
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
             self.simulation.step(self.equilibrationSteps)
         else:
-            # self.simulation.loadCheckpoint(self.structureName + '_state.chk')  # Resume the simulation
-            printRecord("Loading checkpoint file: " + self.chkFile + " to resume sampling")
+            # Resume a sampling: no need to minimize and equilibrate
+            printRecord("Loading checkpoint file: " + self.chkFile + " to resume sampling")            
             self.simulation.loadCheckpoint(self.chkFile)  # Resume the simulation
-            # printRecord('Resuming the previous simulation process from checkpoint: ' + self.structureName + '_state.chk')
 
         # Simulation
         printRecord('Simulating({} steps, time step={} fs, simTime={} ns)...'.format(self.steps, self.timeStep, self.simTime))
@@ -436,7 +487,12 @@ class omm:
         with Timer() as md_time:
             self.simulation.step(self.steps)  # run the dynamics
 
-        self.simulation.saveCheckpoint(self.structureName + '_state.chk')  # Update the chk file with info from the final step
+        # Update the chk file with info from the final step
+        if not self.chkFile:
+            # User did not specify a .chk file ==> we are doing a fresh sampling, not resuming.
+            self.simulation.saveCheckpoint(self.structureName + '_state.chk')
+        else:
+            self.simulation.saveCheckpoint(self.chkFile)
 
         self.ns_per_day = (self.steps * self.dt) / (md_time.interval * unit.seconds) / (unit.nanoseconds / unit.day)
     

@@ -11,28 +11,41 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 params = {}
-
-params['device'] = 'local'  # 'local' or 'cluster'
-if params['device'] == 'local':  # this is for running MMB. Consult the admin for cluster if running into problems.
-    params['local device platform'] = 'macos'  # macos, or linux or windows
-else:
-    params['local device platform'] = ""  # leave it blank or specify the cluster's OS
-params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
+params['device'] = 'cluster'  # 'local' or 'cluster'
+params['platform'] = 'CUDA'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double'. Only relevant on 'CUDA' platform
 
 if params['device'] == 'cluster':
+    params['local device platform'] = ""  # leave it blank or specify the cluster's OS. This is for running MMB. Consult the admin for cluster if running into problems.
     cmdLineInputs = get_input()  # get input arguments from command lines
-    params['run num'] = cmdLineInputs[0]  # option to get run num from command line (default zero)
+                                 # remember to edit the method "get_input()" in utils.py!!!`
+    params['run num'] = cmdLineInputs[0]   # option to get run num from command line (default zero)
     params['sequence'] = cmdLineInputs[1]  # DNA aptamer sequence
-    params['peptide'] = cmdLineInputs[2]  # target peptide sequence
+    params['peptide'] = cmdLineInputs[2]   # target peptide sequence
     params['max walltime'] = cmdLineInputs[3]  # maximum walltime in hours
-    # code will adapt maximum sampling steps to finish in less than this time,
-    # or give up if this isn't enough time to complete even a minimum run.
+                                               # After free aptamer MD, "sampling time" might be reduced to ensure bindingDynamics to finish before time out.
+                                               # Or give up if this isn't enough time to complete even a minimum run.
+    # Physical params
+    params['temperature'] = cmdLineInputs[4]     # Kevin - used to predict secondary structure and for MD thermostat
+    params['pH'] = cmdLineInputs[5]              # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
+    params['ionicStrength'] = cmdLineInputs[6]   # Molar - sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run
+                                                 # TODO: how about adding other ions? Expand the FF as well?
+    params['[Mg]'] = cmdLineInputs[7]            # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to MD simulations
+    params['implicit solvent model'] = cmdLineInputs[8]
+    params['pressure'] = 1                       # atmosphere
+
 elif params['device'] == 'local':
-    params['run num'] = 0  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run
-    params['sequence'] = 'AACGCTTTTTGCGTT'  # 'CCCGGGCCCGGG'  # manually set sequence # ATP aptamer
-    params['peptide'] = 'YQTQTNSPRRAR'  # 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
+    params['local device platform'] = 'macos'  # macos, or linux or windows
+    params['run num'] = 1  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run
+    params['sequence'] = 'CCTGGGGGAGTATTGCGGAGGAAGG'  # AACGCTTTTTGCGTT # 'CCCGGGCCCGGG'  # manually set sequence # ATP aptamer
+    params['peptide'] = 'A'  # 'YQTQTNSPRRAR'  # 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
     params['max walltime'] = 3 * 24  # maximum walltime in hours
+    # Physical params
+    params['pressure'] = 0  # atmosphere
+    params['temperature'] = 298 # Kevin - used to predict secondary structure and for MD thermostat
+    params['ionicStrength'] = 0.150  # Molar - sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run    
+    params['[Mg]'] = 0.005  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to OpenMM simulation: currently only monovalent ions are supported for explicit solvent.
+    params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
 
 '''
 Modes, in order of increasing cost
@@ -51,25 +64,20 @@ if params['skip MMB'] is True:
 # if there are >1 folded structures or 2nd structures?
 
 params['mode'] = 'free aptamer'  # 'full binding'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
-params['test mode'] = True
-params['explicit run enumeration'] = False
-params['implicit solvent'] = True  # implicit solvent or explicit solvent
-if params['implicit solvent'] is True:
-    params['implicit solvent model'] = HCT  # only meaningful if implicit solvent is True
-    params['leap template'] = 'leap_template.in'
-    params['implicit solvent salt conc'] = 0.163  # molar/unit
-    # TODO add more options to params: implicitSolventSaltConc, soluteDielectric, solventDielectric, implicitSolventKappa
+params['test mode'] = False
+params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use "False" here
 
 # Pipeline parameters
 params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package set up for probability analysis
 params['N 2D structures'] = 1  # 2 # max number of 2D structures to be considered (true number may be smaller depending on clustering)- the cost of this code is roughly linear in this integer # TODO: could expand the candidate size and do something with them
 params['fold speed'] = 'normal'  # 'quick', 'normal', 'long' - time to spend on first fold attempt - faster is cheaper but may not reach correct configuration, particularly for larger aptamers. 'normal' is default
-params['equilibration time'] = 0.001  # 0.01 # initial equilibration time in nanoseconds
-params['smoothing time'] = 0.05  # 1 # ns. MD relax after getting the initial 3D structure from user or MMB before sampling
-params['sampling time'] = 0.5  # 1 # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
+params['foldFidelity'] = 0.9  # if folding fidelity < this value, refold; unless the fold speed is 'quick'
+params['equilibration time'] = 0.1  # 0.01 # initial equilibration time in nanoseconds
+params['smoothing time'] = 1  # ns. MD relax after getting the initial 3D structure from user or MMB before sampling
+params['sampling time'] = 100  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
 params['auto sampling'] = False  # 'True': run sampling till RC's equilibrate; 'False': just run sampling for 'sampling time'
 params['time step'] = 2.0  # MD time step in fs
-params['print step'] = 1  #10 # MD printout step in ps. ns > ps > fs
+params['print step'] = 10 # MD printout step in ps. ns > ps > fs
 params['max aptamer sampling iterations'] = 20   # number of allowable iterations before giving on auto-sampling - total max simulation length = this * sampling time
 params['max complex sampling iterations'] = 5  # number of iterations for the binding complex
 params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA slopes be to count as 'converged' # TODO: where is the PCA used? to cluster conformations to obtain a representive one? # TODO: another clustering methods
@@ -90,40 +98,67 @@ if params['test mode']:  # shortcut for debugging
     params['autoMD convergence cutoff'] = 1e-2
     params['docking steps'] = 10
     params['N docked structures'] = 1
-    
-# Physical params
-params['pressure'] = 1  # atmosphere
-params['temperature'] = 310  # Kevin - used to predict secondary structure and for MD thermostat
-params['ionic strength'] = 0.163  # Molar - sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run
-# TODO: how about adding other ions? Expand the FF as well?
-params['[Mg]'] = 0.05  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to MD simulations
-params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
 
 # OpenMM params
 # Currently, if there is a chk file, automatically resume from the chk file. 
 # User needs to specify the chk file here so that it'll be copied to the workdir
 params['pick up from chk'] = False
-if params['pick up from chk'] is True:
-    params['chk file'] = 'foldedSequence_0_amb_processed_state.chk'  # or 'relaxedSequence_0_amb_processed_state.chk'
+if params['pick up from chk']:
+    params['chk file'] = 'relaxedSequence_0_processed_state.chk'
+    # CAUTIOUS: a .chk file created on CUDA platform cannot be run on a CPU platform.
+    '''
+    A checkpoint contains data that is highly specific to the Context from which it was created.
+        It depends on the details of the System, the Platform being used, and the hardware and software
+        of the computer it was created on.  If you try to load it on a computer with different hardware,
+        or for a System that is different in any way, loading is likely to fail.  Checkpoints created
+        with different versions of OpenMM are also often incompatible.  If a checkpoint cannot be loaded,
+        that is signaled by throwing an exception.
+    '''
+    if params['implicit solvent'] is False:
+        params['resumed structurePDB'] = 'relaxedSequence_0_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
+    else:
+        params['resumed structurePrmtop'] = 'relaxedSequence_0_processed.top'
+        params['resumed structureInpcrd'] = 'relaxedSequence_0_processed.crd'
 else:
-    params['chk file'] = ""  # empty string
+    params['chk file'] = ""  # empty string <==> not resume a sampling from .chk file
+
+# The following three are only used in explicit solvent
 params['force field'] = 'AMBER'  # this does nothing. The force field is specified in __init__ of interfaces.py
 params['water model'] = 'tip3p'  # 'tip3p' (runs on Amber 14), other explicit models are also easy to add
 params['box offset'] = 1.0  # nanometers
+
 params['barostat interval'] = 25  # NOT USED.
 params['friction'] = 1.0  # 1/picoseconds: friction coefficient determines how strongly the system is coupled to the heat bath (OpenMM)
-params['nonbonded method'] = PME  # Particle Mesh Ewald: efficient full electrostatics method for use with periodic boundary conditions
+# OpenMM parameters for either explicit or implicit solvent when createSystem()
+params['nonbonded method'] = PME  # Particle Mesh Ewald: efficient full electrostatics method for use with periodic boundary conditions to calculate long-range interactions
+                                    #  use PME for long-range electrostatics, cutoff for short-range interactions
 params['nonbonded cutoff'] = 1.0  # nanometers
-params['ewald error tolerance'] = 5e-4
+params['ewald error tolerance'] = 5e-4  # In implicit solvent: this is the error tolerance to use if nonbondedMethod is Ewald, PME, or LJPME; In explicit solvent, it's "**args": Arbitrary additional keyword arguments
 params['constraints'] = HBonds
 params['rigid water'] = True  # By default, OpenMM makes water molecules completely rigid, constraining both their bond lengths and angles. If False, it's good to reduce integration step size to 0.5 fs
 params['constraint tolerance'] = 1e-6  # What is this tolerance for? For constraint?
 params['hydrogen mass'] = 1.5  # in a.m.u. - we can increase the sampling time if we use heavier hydrogen
 params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the peptide's dihedral angles. force constant k.
 
+params['implicit solvent'] = True  # implicit solvent or explicit solvent
+if params['implicit solvent']:
+    params['nonbonded method'] = CutoffNonPeriodic  # or NoCutoff
+    ''' When building a system in implicit solvent, there's no periodic boundary condition; so cannot use Ewald, PME, or LJPME => either NoCutoff or CutoffNonPeriodic.
+    Question: what about params['ewald error tolerance']???? It doesn't matter or will cause conflict? Check source code.
+        But can still specify cutoff for electrostatic interactions => params['nonbonded cutoff'] still works
+        More on PBC: Periodic boundary conditions are used to avoid surface effects in explicit solvent simulations. Since implicit solvent simulations do not have solvent boundaries (the continuum goes on forever), 
+        there is rarely a reason to use periodic boundary conditions in implicit solvent simulations.'''
+    params['leap template'] = 'leap_template.in'
+    # params['implicit solvent model'] = HCT  # only meaningful if implicit solvent is True
+    params['implicit solvent salt conc'] = 0.150  # molar/unit. Salt conc in solvent: converted to debye length (kappa) using the provided temperature and solventDielectric (see interfaces.py for detailed walk-through)
+                                                    # need to be user input
+    params['implicit solvent Kappa'] = None  # Debye screening parameter (reciprocal of Debye_length). 1/angstroms. If it's specfied, will ignore "salt conc". 
+    params['soluteDielectric'] = 1.0  # default value = 1.0, meaning no screening effect at all.
+    params['solventDielectric'] = 78.5  # water: 78.5; This offers a way to model non-aqueous system.
+
 # Path
 if params['device'] == 'local':
-    params['workdir'] = '/Users/taoliu/PycharmProjects/myOpenDNA/forCluster/ImSolv/skipMMBLocal/runs'
+    params['workdir'] = '/Users/taoliu/PycharmProjects/myOpenDNA/TestImpSolv/mcKeague/runs'
     params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/lib'
     params['mmb'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/bin/MMB'
 
@@ -138,7 +173,7 @@ if params['device'] == 'local':
     params['lgd top path'] = 'ld_scripts/lgd_top.py'
 
 elif params['device'] == 'cluster':
-    params['workdir'] = '/home/taoliu/scratch/implicitSolvent/forOpenDNA/runs'  # specify your working directory here. No / at the end
+    params['workdir'] = '/home/taoliu/scratch/mcKeague/implicitSolvent/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
     # need to tell OS where to find the library files. All MMB files are in the same direcotory.
