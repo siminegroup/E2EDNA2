@@ -173,8 +173,14 @@ class opendna:
         os.chdir(self.workDir)
         printRecord('Simulating {} with {}'.format(self.sequence, self.peptide))
 
-        if self.params['device'] == 'local':
-            os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir']  # export the path to the MMB library - only necessary in WSL environments
+        if (self.params['skip MMB'] is False) and (self.params['device'] == 'local'):
+            if self.params['local device platform'] == 'linux':
+                os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir']  
+                # Michael: export the path to the MMB library - only necessary in WSL environments. No need on Windows machine
+            else:
+                pass
+                # Tao: do NOT use os.environ["DYLD_LIBRARY_PATH"] for macos machine! It wouldn't help MMB locate the library AND it would confuse OpenMM python package.
+                # Tao: see the MMB class on how to run MMB on macos machine.
 
     def makeNewWorkingDirectory(self):
         """
@@ -207,6 +213,7 @@ class opendna:
         outputDict = {}
         outputDict['params'] = self.params
         np.save('opendnaOutput', outputDict)  # Save an array to a binary file in NumPy ``.npy`` format.
+        
         if self.actionDict['do 2d analysis']:   # get secondary structure
             self.pairLists = self.getSecondaryStructure(self.sequence)
             outputDict['2d analysis'] = self.ssAnalysis
@@ -224,6 +231,7 @@ class opendna:
             num_2dSS = 1  # quick and dirty
 
         for self.i in range(num_2dSS):  # loop over all possible secondary structures
+
             if self.actionDict['do 2d analysis'] is True:  # self.ssAnalysis only exists if we "do 2d analysis"
                 printRecord('2D structure #{} is {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
                 self.pairList = np.asarray(self.pairLists[self.i])  # be careful!!!: .pairList vs. .pairLists
@@ -234,7 +242,7 @@ class opendna:
                 self.pdbDict['folded sequence {}'.format(self.i)] = self.params['folded initial structure']
                 self.pdbDict['representative aptamer {}'.format(self.i)] = self.params['folded initial structure']  # in "coarse dock" mode.
 
-            if self.actionDict['do smoothing']:
+            if self.actionDict['do smoothing']:  # need to be completed with "skip MMB". Check mcKeague/opendna_resumed.py
                 self.MDSmoothing(self.pdbDict['mmb folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'])  # relax for xx nanoseconds
 
             if self.actionDict['get equil repStructure']:  # def did smoothing if want an equil structure
@@ -360,15 +368,18 @@ class opendna:
         :param aptamer:
         :return:
         """
-        structureName = aptamer.split('.')[0]
-        processedAptamer = structureName + '_processed.pdb'
-        processedAptamerTrajectory = structureName + '_processed_complete_trajectory.dcd'  # this is output file of autoMD
+        printRecord('\nRunning free aptamer dynamics')
+        structureName = aptamer.split('.')[0]  # aptamer: eg, "relaxedSequence_0.pdb" or, if to resume a run: "relaxedSequence_0_processed.pdb"        
 
         if self.params['pick up from chk'] is True:
             printRecord('Resuming a previous free aptamer dynamics')
-            self.autoMD(structure=aptamer, binding=False,)  # Eg, relaxedSequence_0_processed.pdb
+            self.autoMD(structure=aptamer, binding=False)  # Eg, relaxedSequence_0_processed.pdb
+            processedAptamer = aptamer
+            processedAptamerTrajectory = structureName + '_complete_trajectory.dcd'
         else:
             printRecord('Running free aptamer dynamics')
+            processedAptamer = structureName + '_processed.pdb'
+            processedAptamerTrajectory = structureName + '_processed_complete_trajectory.dcd'  # this is output file of autoMD
             # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
             prepPDB(aptamer, self.params['box offset'], self.params['pH'], self.params['ionic strength'], MMBCORRECTION=True, waterBox=True)            
             self.autoMD(structure=processedAptamer, binding=False)  # run MD sampling till converged to equilibrium sampling of RC's
