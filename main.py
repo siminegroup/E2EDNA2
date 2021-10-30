@@ -31,7 +31,7 @@ if params['device'] == 'cluster':
     params['ionicStrength'] = cmdLineInputs[6]   # Molar - sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run
                                                  # TODO: how about adding other ions? Expand the FF as well?
     params['[Mg]'] = cmdLineInputs[7]            # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to MD simulations
-    params['implicit solvent model'] = cmdLineInputs[8]
+    params['impSolv'] = cmdLineInputs[8]         # this is a string, cannot be used as parameter in prmtop.createSys()!
     params['pressure'] = 1                       # atmosphere
 
 elif params['device'] == 'local':
@@ -140,8 +140,24 @@ params['constraint tolerance'] = 1e-6  # What is this tolerance for? For constra
 params['hydrogen mass'] = 1.5  # in a.m.u. - we can increase the sampling time if we use heavier hydrogen
 params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the peptide's dihedral angles. force constant k.
 
+# Specify implicit solvent model
 params['implicit solvent'] = True  # implicit solvent or explicit solvent
 if params['implicit solvent']:
+    # Select an implicit solvent model
+    if params['impSolv'] == 'HCT':
+        params['implicit solvent model'] = HCT
+    elif params['impSolv'] == 'OBC1':
+        params['implicit solvent model'] = OBC1
+    elif params['impSolv'] == 'OBC2':
+        params['implicit solvent model'] = OBC2
+    elif params['impSolv'] == 'GBn':
+        params['implicit solvent model'] = GBn
+    elif params['impSolv'] == 'GBn2':
+        params['implicit solvent model'] = GBn2
+    else:
+        raise ValueError('Illegal choice of implicit solvent model. Currently supported: HCT, OBC1, OBC2, GBn or GBn2')
+        # sys.exit()
+
     params['nonbonded method'] = CutoffNonPeriodic  # or NoCutoff
     ''' When building a system in implicit solvent, there's no periodic boundary condition; so cannot use Ewald, PME, or LJPME => either NoCutoff or CutoffNonPeriodic.
     Question: what about params['ewald error tolerance']???? It doesn't matter or will cause conflict? Check source code.
@@ -149,8 +165,7 @@ if params['implicit solvent']:
         More on PBC: Periodic boundary conditions are used to avoid surface effects in explicit solvent simulations. Since implicit solvent simulations do not have solvent boundaries (the continuum goes on forever), 
         there is rarely a reason to use periodic boundary conditions in implicit solvent simulations.'''
     params['leap template'] = 'leap_template.in'
-    # params['implicit solvent model'] = HCT  # only meaningful if implicit solvent is True
-    params['implicit solvent salt conc'] = 0.150  # molar/unit. Salt conc in solvent: converted to debye length (kappa) using the provided temperature and solventDielectric (see interfaces.py for detailed walk-through)
+    params['implicit solvent salt conc'] = params['ionicStrength']  # molar/unit. Salt conc in solvent: converted to debye length (kappa) using the provided temperature and solventDielectric (see interfaces.py for detailed walk-through)
                                                     # need to be user input
     params['implicit solvent Kappa'] = None  # Debye screening parameter (reciprocal of Debye_length). 1/angstroms. If it's specfied, will ignore "salt conc". 
     params['soluteDielectric'] = 1.0  # default value = 1.0, meaning no screening effect at all.

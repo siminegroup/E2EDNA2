@@ -53,5 +53,5 @@ date -u
 # python ./main.py --run_num=2 --sequence='AGCCTCGTCTGTTCTCCCGGCAGTGTGGGCGAATCTATGCGTACCGTTCGATATCGTGGGGAAGACAAGCAGACGT' --peptide='A' --walltime=60 --temperature=298 --pH=7.4 --ionicStrength=0.137 --Mg=0.05 --impSolv=HCT
 
 # ATP:
-python ./main.py --run_num=3 --sequence='CCTGGGGGAGTATTGCGGAGGAAGG' --peptide='A' --walltime=10 --temperature=298 --pH=7.4 --ionicStrength=0.150 --Mg=0.005 --impSolv=HCT
+python ./main.py --run_num=3 --sequence='CCTGGGGGAGTATTGCGGAGGAAGG' --peptide='A' --walltime=10 --temperature=298 --pH=7.4 --ionicStrength=0.150 --Mg=0.005 --impSolv='HCT'
 date -u
