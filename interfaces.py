@@ -30,7 +30,6 @@ class nupack:
         self.sequence = sequence
         self.temperature = temperature
         self.ionicStrength = ionicStrength
-        self.naConc = ionicStrength
         self.mgConc = mgConc
         self.R = 0.0019872  # ideal gas constant in kcal/mol/K
 
@@ -115,7 +114,7 @@ class mmb:  # MacroMolecule Builder (MMB)
         self.mmbPath = params['mmb']
         
         # Conditions used to decide how to run MMB executable
-        self.mmbDylidPath = params['mmb dir']
+        self.mmbDylibPath = params['mmb dir']
         self.device = params['device']
         self.localDevicePlatform = params['local device platform']
 
@@ -171,7 +170,7 @@ class mmb:  # MacroMolecule Builder (MMB)
                 attempts += 1
                 
                 if (self.device == 'local') and (self.localDevicePlatform == 'macos'):  # special care for macos
-                    os.system('export DYLD_LIBRARY_PATH=' + self.mmbDylidPath + ';' + self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')    
+                    os.system('export DYLD_LIBRARY_PATH=' + self.mmbDylibPath + ';' + self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')    
                 else:
                     os.system(self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')  # should we append new outputs to the fold.out?
                 
