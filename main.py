@@ -41,12 +41,13 @@ elif params['device'] == 'local':
     params['peptide'] = 'A'  # 'YQTQTNSPRRAR'  # 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
     params['max walltime'] = 3 * 24  # maximum walltime in hours
     # Physical params
-    params['pressure'] = 0  # atmosphere
+    params['pressure'] = 1  # atmosphere
     params['temperature'] = 298 # Kevin - used to predict secondary structure and for MD thermostat
     params['ionicStrength'] = 0.150  # Molar - sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run    
     params['[Mg]'] = 0.005  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to OpenMM simulation: currently only monovalent ions are supported for explicit solvent.
     params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
-
+    params['impSolv'] = 'HCT'  # 'HCT', 'OBC1', 'OBC2', 'GBn' or 'GBn2'
+    
 '''
 Modes, in order of increasing cost
 '2d structure': ssString, pair list and probability
