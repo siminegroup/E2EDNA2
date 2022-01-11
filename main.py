@@ -176,7 +176,7 @@ if params['implicit solvent']:
 if params['device'] == 'local':
     params['workdir'] = '/Users/taoliu/PycharmProjects/myOpenDNA/TestImpSolv/mcKeague/runs'
     params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/lib'
-    params['mmb'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/bin/MMB'
+    params['mmb']     = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/bin/MMB'  # MMB executable
 
     # lightdock python scripts: they will be copied to 'ld_scripts' in workdir
     # therefore all addresses are relative to the workdir
@@ -193,7 +193,6 @@ elif params['device'] == 'cluster':
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
     # need to tell OS where to find the library files. All MMB files are in the same direcotory.
-    # In ~/.bash_profile: export DYLD_LIBRARY_PATH=<mmm dir above>
 
     # lightdock python scripts: they will be copied to 'ld_scripts' in workdir
     # thereofre all addresses are relative to the workdir
