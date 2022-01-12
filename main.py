@@ -75,6 +75,9 @@ params['fold speed'] = 'normal'  # 'quick', 'normal', 'long' - time to spend on 
 params['foldFidelity'] = 0.9  # if folding fidelity < this value, refold; unless the fold speed is 'quick'
 params['equilibration time'] = 0.1  # 0.01 # initial equilibration time in nanoseconds
 params['smoothing time'] = 1  # ns. MD relax after getting the initial 3D structure from user or MMB before sampling
+# smoothing is skipped in this case: after skipping MMB and under "free aptamer" mode: no need to run separate smoothing.
+params['skip smoothing'] = False
+
 params['sampling time'] = 100  # sampling time in nanoseconds - in auto-sampling, this is the segment-length for each segment
 params['auto sampling'] = False  # 'True': run sampling till RC's equilibrate; 'False': just run sampling for 'sampling time'
 params['time step'] = 2.0  # MD time step in fs
