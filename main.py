@@ -11,7 +11,7 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 params = {}
-params['device'] = 'cluster'  # 'local' or 'cluster'
+params['device'] = 'local'  # 'local' or 'cluster'
 params['platform'] = 'CUDA'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double'. Only relevant on 'CUDA' platform
 
@@ -38,7 +38,7 @@ elif params['device'] == 'local':
     params['local device platform'] = 'macos'  # macos, or linux or windows
     params['run num'] = 1  # manual setting, for 0, do a fresh run, for != 0, pickup on a previous run
     params['sequence'] = 'CCTGGGGGAGTATTGCGGAGGAAGG'  # AACGCTTTTTGCGTT # 'CCCGGGCCCGGG'  # manually set sequence # ATP aptamer
-    params['peptide'] = 'A'  # 'YQTQTNSPRRAR'  # 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
+    params['peptide'] = False  # 'YQTQTNSPRRAR'  # 'YRRYRRYRRY'  # 'YQTQTNSPRRAR' # manually set peptide # if no peptide, use ``False``
     params['max walltime'] = 3 * 24  # maximum walltime in hours
     # Physical params
     params['pressure'] = 1  # atmosphere
@@ -207,7 +207,7 @@ elif params['device'] == 'cluster':
     params['lgd rank path'] = 'python ld_scripts/lgd_rank.py'
     params['lgd top path'] = 'python ld_scripts/lgd_top.py'
 
-# MMB control files
+# MMB control files: be sure to download them from this GitHub repo together witht code.
 params['mmb params'] = 'lib/mmb/parameters.csv'
 params['mmb normal template'] = 'lib/mmb/commands.template.dat'
 params['mmb quick template'] = 'lib/mmb/commands.template_quick.dat'  # fold speed: quick
