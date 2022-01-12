@@ -1,4 +1,4 @@
-# E2EDNA - OpenMM Implementation - OpenDNA!
+# E2EDNA - OpenMM Implementation - E2EDNA 2.0!
 
 ### A fully-automated code for DNA aptamer 2D and 3D structure analysis, and binding analysis with small molecules and short peptides.
 
@@ -6,13 +6,19 @@
 
 _mjakilgour gmail com_
 
-## INSTALLATION
+For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (https://doi.org/10.1021/acs.jcim.1c00696)
+
+## Installation
 * Get the repository
 ```
 git clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_CALLED
 ```
-* Setup python environment with the following packages
-  * Note to Simine Group Members running on Compute Canada - skip this section and go directly to paths. Your virtual environment is automatically setup via the instructions in EXAMPLE_SUB.sh
+* Set up a Python environment with the following packages
+  * Note to Simine Group Members running on Compute Canada clusters: skip this section and go directly to paths. Your virtual environment is automatically setup via the instructions in [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh) in the [``TL-cluster-code``](https://github.com/InfluenceFunctional/OpenDNA/tree/TL-cluster-code) branch. Modify this bash script accordingly for other types of computing clusters.
+  * For local runs, follow the [``EXAMPLE_SUB.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/EXAMPLE_SUB.sh) in the [``main``](https://github.com/InfluenceFunctional/OpenDNA) branch to install required packages and their dependences.
+  * In particular, as to the ``MacroMoleculeBuilder (MMB)`` module:
+    * Download appropriate version for your system from [SimTK](https://simtk.org/projects/rnatoolbox): old and new versions have been tested and seem to work.
+  * As shown in the [``requirements.txt``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/requirements.txt), the required dependences are as follows. Use ``pip install -r requirements.txt`` to install them all in once:
 ```
 biopython==1.78
 certifi==2020.12.5
@@ -40,17 +46,19 @@ scikit_learn==0.24.2
 Cython==0.29.23
 mdtraj==1.9.5
 ```
-* Download appropriate MacroMoleculeBuilder for your system from [SimTK here](https://simtk.org/projects/rnatoolbox) - old and new versions have been tested and seem to work. We'll need the 'Installer' directory and MMB executable. 
-* Create working directory where runs will take place on your system. 
-  Each new run will create a serially-numbered directory in this folder containing all the relevant outputs.
-* Set paths in main.py and submission shell script, if relevant (example enclosed). Note, there is a toggle for running on a 'local' machine vs 'cluster', with distinct paths for e.g., developing on a local vs cluster environment.
-```
-* params['mmb'] --> set to the MacroMoleculeBuilder executable on your system
-* params['mmb dir'] --> set to the MMB directory, usually a name like /Installer.#_##.Linux
-- params['mmb template'] and params['mmb params'] --> included in this repository, should not have to be changed
-* params['ld path'] --> paths to various lightdock python scripts (included in this repository, alternatively automatically come with a lightdock pip installation). Depending on your installation, you may need to call 'python' before these scripts in the path.
-* params['workdir'] --> the working directory you created in the previous step
-```
+* Create a working directory where runs will take place on your system.
+  * Each new run will create a serially-numbered directory in this folder containing all the relevant outputs.
+* If running on a cluster, customize your submission shell script (example: [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh)). 
+* Specify the file paths in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py):
+  * Note that there is a toggle for running on a ``local`` machine vs. a computing ``cluster``.
+  * ``params['workdir']``: set to the working directory you created in the previous step.
+  * ``params['mmb dir']``: set to the MMB directory for its library files. Usually a name like ``/Installer.#_##.Linux(or OSX)/lib``, depending on the software version.
+  * ``params['mmb']``: set to the MMB executable on your system.
+  * ``params['mmb params']``: path to the MMB parameter file in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. Modifying this file is highly not recommended.
+  * ``params['mmb normal template']``, ``params['mmb quick template']`` and ``params['mmb long template']``: paths to 3 template protocols of running MMB (``normal``, ``quick``, and ``long`` modes) in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. They do not need to be changed unless to create your own MMB folding protocol.
+  * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts in [``lib/ld_scripts/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/ld_scripts) of this repository. 
+    * Alternatively, these scripts automatically come with an installation of ``pip install lightdock``. Depending on your installation, you may need to add ``python`` in the paths of these scripts, as shown in the paths for a ``cluster`` run.
+
 
 ## Modes
 OpenDNA takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
@@ -71,10 +79,10 @@ This code implements several distinct analysis modes so users may customize the 
 ## Running a job
 
 ### Quickstart
-* Set 'params' in main.py
+* Set 'params' in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py)
 * Set sequence = 'ATGC' where ATGC is your desired FASTA sequence
 * Set peptide = 'YYYY' where YYYY is your desired peptide (restricted structures TBD)
-* Run main, with desired run num. Zero for a fresh run, nonzero for either picking up on a prior run or explicitly enumerated new run (TEST)
+* Run [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py), with desired run num. Zero for a fresh run, nonzero for either picking up on a prior run or explicitly enumerated new run (TEST)
 
 `python main.py --run-num=0` In cluster mode, or set manually in local mode
 
