@@ -1,10 +1,8 @@
 """
 Utitilies -- how to intuitively distinguish it from analysisTools.py?
 """
-from simtk.openmm.app import *  # eg. PDBFile
-import simtk.unit as unit
-# from openmm.app import *
-# import openmm.unit as unit
+from openmm.app import *
+import openmm.unit as unit
 
 import argparse
 import os
