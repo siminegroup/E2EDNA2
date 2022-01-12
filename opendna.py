@@ -199,7 +199,7 @@ class opendna:
 
         # move to working dir
         os.chdir(self.workDir)
-        if self.peptide is False
+        if self.peptide is False:
             printRecord('Simulating free aptamer: {}'.format(self.sequence))
         else:
             printRecord('Simulating {} with {}'.format(self.sequence, self.peptide))
