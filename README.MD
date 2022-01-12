@@ -54,9 +54,9 @@ mdtraj==1.9.5
   * ``params['workdir']``: set to the working directory you created in the previous step.
   * ``params['mmb dir']``: set to the MMB directory for its library files. Usually a name like ``/Installer.#_##.Linux(or OSX)/lib``, depending on the software version.
   * ``params['mmb']``: set to the MMB executable on your system.
-  * ``params['mmb params']``: path to the MMB parameter file in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. Modifying this file is highly not recommended.
+  * ``params['mmb params']``: path to the MMB parameter file in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. Modifying this file is highly not recommended. **Be sure to downlaod the entire ``lib/`` together with code.**
   * ``params['mmb normal template']``, ``params['mmb quick template']`` and ``params['mmb long template']``: paths to 3 template protocols of running MMB (``normal``, ``quick``, and ``long`` modes) in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. They do not need to be changed unless to create your own MMB folding protocol.
-  * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts in [``lib/ld_scripts/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/lightdock) of this repository. 
+  * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts, providing they are in a working directory. No need to change these paths. The paths are used to automatically copy the scripts to ``ld_scripts/`` within a working directory from [``lib/lightdock/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/lightdock).
     * Alternatively, these scripts automatically come with an installation of ``pip install lightdock``. Depending on your installation, you may need to add ``python`` in the paths of these scripts, as shown in the paths for a ``cluster`` run.
 
 
