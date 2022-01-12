@@ -10,12 +10,9 @@ from shutil import copyfile
 from numpy import pi
 from nupack import *
 
-from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
-from simtk.openmm.app import *
-import simtk.unit as unit
-# from openmm import *
-# from openmm.app import *
-# import openmm.unit as unit
+from openmm import *
+from openmm.app import *
+import openmm.unit as unit
 
 from utils import *
 from analysisTools import *
