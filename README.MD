@@ -1,4 +1,5 @@
 # E2EDNA - OpenMM Implementation - OpenDNA!
+# This branch is created for running the pipeline on computing clusters such as Compute Canada.
 
 ### A fully-automated code for DNA aptamer 2D and 3D structure analysis, and binding analysis with small molecules and short peptides.
 
