@@ -132,7 +132,6 @@ class mmb:  # MacroMolecule Builder (MMB)
 
         return self.MDAfoldFidelity, self.MMBfoldFidelity
 
-    # # myOwn
     def generateCommandFile(self):
         copyfile(self.template, self.comFile)  # make a command file
         replaceText(self.comFile, 'SEQUENCE', self.sequence)
@@ -147,19 +146,6 @@ class mmb:  # MacroMolecule Builder (MMB)
         for i in range(len(self.pairList)):
             filledString = 'baseInteraction A {} WatsonCrick A {} WatsonCrick Cis'.format(self.pairList[i, 0], self.pairList[i, 1])
             addLine(self.comFile, filledString, lineNum + 1)
-    # def generateCommandFile(self):
-    #     copyfile(self.template, self.comFile)  # make command file
-    #     replaceText(self.comFile, 'SEQUENCE', self.sequence)
-    #     replaceText(self.comFile, 'TEMPERATURE', str(self.temperature - 273)) # probably not important, but we can add the temperature in C
-    #     if self.foldSpeed == 'long':
-    #         replaceText(self.comFile, 'INTERVAL', str(self.intervalLength))
-
-    #     baseString = '#baseInteraction A IND WatsonCrick A IND2 WatsonCrick Cis'
-    #     lineNum = findLine(self.comFile, baseString)  # find the line number to start enumerating base pairs
-
-    #     for i in range(len(self.pairList)):
-    #         filledString = 'baseInteraction A {} WatsonCrick A {} WatsonCrick Cis'.format(self.pairList[i, 0], self.pairList[i, 1])
-    #         addLine(self.comFile, filledString, lineNum + 1)
 
     def fold(self):
         # run fold - sometimes this errors for no known reasons - keep trying till it works
@@ -260,8 +246,7 @@ class omm:
 
         # Integration options
         self.dt = params['time step'] / 1000 * unit.picosecond
-        # self.friction = params['friction'] / unit.picosecond  # relocate it right before Integrator setup
-
+        
         self.quickSim = params['test mode']
 
         # Simulation options
@@ -308,11 +293,6 @@ class omm:
 
             self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, hydrogenMass=self.hydrogenMass, ewaldErrorTolerance=self.ewaldErrorTolerance)
             # ewaldErrorTolerance: as "**args": Arbitrary additional keyword arguments may also be specified. This allows extra parameters to be specified that are specific to particular force fields.
-
-            for atom in self.topology.atoms():
-                if atom.residue.name == 'Y' or atom.residue.name == 'TYR':
-                    printRecord("The first amino acid of the peptide (TYR) belongs to chain ID = " + str(atom.residue.chain.index))
-            # TODO why looking for the TYR? covid peptide residue?
 
         else:  # create a system using prmtop file and use implicit solvent
             self.prmtop = AmberPrmtopFile(self.structureName + '.top')  # e.g. foldedSequence_amb_processed.top or relaxedSequence_0_amb_processed.top
