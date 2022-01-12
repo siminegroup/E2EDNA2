@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 params = {}
 params['device'] = 'local'  # 'local' or 'cluster'
-params['platform'] = 'CUDA'  # 'CUDA' or 'CPU'
+params['platform'] = 'CPU'  # 'CUDA' or 'CPU'
 params['platform precision'] = 'single'  # 'single' or 'double'. Only relevant on 'CUDA' platform
 
 if params['device'] == 'cluster':
@@ -46,8 +46,9 @@ elif params['device'] == 'local':
     params['ionicStrength'] = 0.150  # Molar - sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run    
     params['[Mg]'] = 0.005  # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to OpenMM simulation: currently only monovalent ions are supported for explicit solvent.
     params['pH'] = 7.4  # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
-    params['impSolv'] = 'HCT'  # 'HCT', 'OBC1', 'OBC2', 'GBn' or 'GBn2'
-    
+    params['implicit solvent'] = False  # implicit solvent or explicit solvent
+    if params['implicit solvent'] is True:
+        params['impSolv'] = 'HCT'  # 'HCT', 'OBC1', 'OBC2', 'GBn' or 'GBn2'
 '''
 Modes, in order of increasing cost
 '2d structure': ssString, pair list and probability
@@ -145,7 +146,6 @@ params['hydrogen mass'] = 1.5  # in a.m.u. - we can increase the sampling time i
 params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the peptide's dihedral angles. force constant k.
 
 # Specify implicit solvent model
-params['implicit solvent'] = False  # implicit solvent or explicit solvent
 if params['implicit solvent']:
     # Select an implicit solvent model
     if params['impSolv'] == 'HCT':
