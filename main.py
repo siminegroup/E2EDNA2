@@ -145,7 +145,7 @@ params['hydrogen mass'] = 1.5  # in a.m.u. - we can increase the sampling time i
 params['peptide backbone constraint constant'] = 0  # 10000  # constraint on the peptide's dihedral angles. force constant k.
 
 # Specify implicit solvent model
-params['implicit solvent'] = True  # implicit solvent or explicit solvent
+params['implicit solvent'] = False  # implicit solvent or explicit solvent
 if params['implicit solvent']:
     # Select an implicit solvent model
     if params['impSolv'] == 'HCT':
