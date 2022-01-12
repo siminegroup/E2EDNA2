@@ -257,7 +257,7 @@ class opendna:
             printRecord('Skip all the steps before MD sampling to resume previous sampling from .chk file')
             num_2dSS = 1  # quick and dirty
 
-        else:  # just skipped nupack or seqfold
+        else:  # just skipped nupack or seqfold and MMB
             printRecord('Starting with an existing folded strcuture.')
             num_2dSS = 1  # quick and dirty
 
@@ -269,15 +269,19 @@ class opendna:
 
             if self.actionDict['do MMB']:  # fold 2D into 3D
                 self.foldSequence(self.sequence, self.pairList)
-            elif self.params['pick up from chk'] is False:  # start with a folded initial structure: skipped MMB but will do MD smooth
+            elif self.params['pick up from chk'] is False:  # skipped MMB but not to pick up a MD => this is to start with a folded initial structure: skipped MMB but will do MD smooth
                 self.pdbDict['folded sequence {}'.format(self.i)] = self.params['folded initial structure']
                 self.pdbDict['representative aptamer {}'.format(self.i)] = self.params['folded initial structure']  # in "coarse dock" mode.
 
-            if self.actionDict['do smoothing']:
-                if self.params['skip MMB'] is False:
-                    self.MDSmoothing(self.pdbDict['mmb folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
-                else:
-                    self.MDSmoothing(self.pdbDict['folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
+            if self.params['skip smoothing'] is True:
+                printRecord('\nSkipping smoothing and starting MD sampling using the folded structure.')
+                self.pdbDict['relaxed sequence {}'.format(self.i)] = 'foldedSequence_0.pdb'
+            else:    
+                if self.actionDict['do smoothing']:
+                    if self.params['skip MMB'] is False:
+                        self.MDSmoothing(self.pdbDict['mmb folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
+                    else:
+                        self.MDSmoothing(self.pdbDict['folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
 
             if self.actionDict['get equil repStructure']:  # definitely did smoothing if want an equil structure                    
                 if self.params['pick up from chk'] is False:
@@ -433,10 +437,6 @@ class opendna:
         # Another possible way to extract the last frame is to use OpenMM:            
         omm.extractLastFrame(self.pdbDict['relaxed sequence {}'.format(self.i)])
         
-        # # testing
-        # extractFrame(processedStructure, processedStructureTrajectory, -1, "MDA_relaxed.pdb")
-        # omm.extractLastFrame("OpenMM_relaxed.pdb")
-
         self.pdbDict['representative aptamer {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)  # in "smooth dock" mode
 
     def runFreeAptamer(self, aptamer, implicitSolvent=False):
