@@ -56,7 +56,7 @@ mdtraj==1.9.5
   * ``params['mmb']``: set to the MMB executable on your system.
   * ``params['mmb params']``: path to the MMB parameter file in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. Modifying this file is highly not recommended.
   * ``params['mmb normal template']``, ``params['mmb quick template']`` and ``params['mmb long template']``: paths to 3 template protocols of running MMB (``normal``, ``quick``, and ``long`` modes) in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. They do not need to be changed unless to create your own MMB folding protocol.
-  * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts in [``lib/ld_scripts/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/ld_scripts) of this repository. 
+  * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts in [``lib/ld_scripts/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/lightdock) of this repository. 
     * Alternatively, these scripts automatically come with an installation of ``pip install lightdock``. Depending on your installation, you may need to add ``python`` in the paths of these scripts, as shown in the paths for a ``cluster`` run.
 
 
