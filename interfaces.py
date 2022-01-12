@@ -26,7 +26,7 @@ class nupack:
     def __init__(self, sequence, temperature, ionicStrength, mgConc=0):
         self.sequence = sequence
         self.temperature = temperature
-        self.ionicStrength = ionicStrength
+        self.naConc = ionicStrength
         self.mgConc = mgConc
         self.R = 0.0019872  # ideal gas constant in kcal/mol/K
 
