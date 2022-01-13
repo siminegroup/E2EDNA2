@@ -66,7 +66,7 @@ if params['skip MMB'] is True:
 # if there are >1 folded structures or 2nd structures?
 
 params['mode'] = 'free aptamer'  # 'full binding'  # 'full docking'  #'smooth dock'  #'coarse dock'  #'free aptamer'  # '3d smooth' # 'full binding'  # specify what to do
-params['test mode'] = False
+params['test mode'] = True  # run in test mode for default
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use "False" here
 
 # Pipeline parameters
@@ -89,15 +89,15 @@ params['autoMD convergence cutoff'] = 1e-2  # how small should average of PCA sl
 params['docking steps'] = 200  # number of steps for docking simulations
 params['N docked structures'] = 1  # 2 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost) # TODO: "it will go this time"?
 
-if params['test mode']:  # shortcut for debugging
+if params['test mode'] is True:  # shortcut for debugging or running the code for the first time (validation)
     params['N 2D structures'] = 1  # the clustering algorithm will stop when there are two structures left???
-    params['fold speed'] = 'quick'
-    params['equilibration time'] = 0.001
-    params['smoothing time'] = 0.0001
-    params['sampling time'] = 0.0001
+    params['fold speed'] = 'normal'  # 'quick'
+    params['equilibration time'] = 0.1
+    params['smoothing time'] = 1
+    params['sampling time'] = 1
     params['auto sampling'] = False
     params['time step'] = 2.0
-    params['print step'] = 0.1
+    params['print step'] = 10
     params['max aptamer sampling iterations'] = 2
     params['max complex sampling iterations'] = 2
     params['autoMD convergence cutoff'] = 1e-2
