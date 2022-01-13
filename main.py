@@ -92,12 +92,12 @@ params['N docked structures'] = 1  # 2 # number of docked structures to output f
 if params['test mode'] is True:  # shortcut for debugging or running the code for the first time (validation)
     params['N 2D structures'] = 1  # the clustering algorithm will stop when there are two structures left???
     params['fold speed'] = 'normal'  # 'quick'
-    params['equilibration time'] = 0.1
-    params['smoothing time'] = 1
-    params['sampling time'] = 1
+    params['equilibration time'] = 0.0001  # ns. 50 steps
+    params['smoothing time'] = 0.001       # ns. 500 steps
+    params['sampling time'] = 0.002        # ns. 1000 steps
     params['auto sampling'] = False
-    params['time step'] = 2.0
-    params['print step'] = 10
+    params['time step'] = 2.0             # fs
+    params['print step'] = 0.05            # ps. print out every 25 steps
     params['max aptamer sampling iterations'] = 2
     params['max complex sampling iterations'] = 2
     params['autoMD convergence cutoff'] = 1e-2
