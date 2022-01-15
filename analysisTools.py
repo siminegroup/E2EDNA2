@@ -620,6 +620,8 @@ def bindingAnalysis(bindu, freeu, peptide, sequence):
     """
     analyze the binding of analyte to aptamer by computing relative distances
     :param u:
+    :peptide: peptide sequence
+    :sequence: aptamer sequence
     :return:
     """
     assert bindu.segments.n_segments == 2
@@ -673,8 +675,7 @@ def getConformationChange(bindu, freeu):
 
 def checkMidTrajectoryBinding(structure, trajectory, peptide, sequence, params, cutoffTime=1):
     """
-    check if the analyte has come unbound from the aptamer
-    and stayed unbound for a certain amount of time
+    check if the analyte has come unbound from the aptamer and stayed unbound for a certain amount of time
     :return: True or False
     """
     u = mda.Universe(structure, trajectory)  # load up trajectory
