@@ -310,7 +310,7 @@ def mode(lst):
     return mode_list
 
 
-def buildPeptide(peptide, customAngles=False):
+def buildPeptide(peptideSeq, peptidePDB, customAngles=False):
     """
     Construct a peptide with optionally custom angles and constraints
     :param peptide:
@@ -318,7 +318,7 @@ def buildPeptide(peptide, customAngles=False):
     :return:
     """
     print('custom angles=', customAngles)
-    geo = Geometry.geometry(peptide[0])
+    geo = Geometry.geometry(peptideSeq[0])
     # angles_to_constrain = findAngles()  # all values in the list are strings
     # printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
 
@@ -334,10 +334,10 @@ def buildPeptide(peptide, customAngles=False):
                 printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]], "\n")  # only used for debugging
                 geo.phi, geo.psi = phis[row[0]], psis[row[0]]
 
-    structure = PeptideBuilder.initialize_res(peptide[0])
+    structure = PeptideBuilder.initialize_res(peptideSeq[0])
 
-    for i in range(1, len(peptide)):
-        geo = Geometry.geometry(peptide[i])
+    for i in range(1, len(peptideSeq)):
+        geo = Geometry.geometry(peptideSeq[i])
 
         if customAngles:
             for row in angles_to_constrain:
@@ -358,7 +358,7 @@ def buildPeptide(peptide, customAngles=False):
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
-    out.save('peptide.pdb')
+    out.save(peptidePDB)
 
 
 def killH(structure):
