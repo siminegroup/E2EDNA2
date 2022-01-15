@@ -575,7 +575,7 @@ class opendna:
 
         structureName = structure.split('.')[0]  # e.g., free aptamer: relaxedSequence_0_amb_processed.pdb (implicit solvent) or relaxedSequence_0_processed.pdb (explicit solvent)
         if self.params['auto sampling'] is False:  # just run MD for the given sampling time
-            self.analyteUnbound = False
+            self.targetUnbound = False
             omm = interfaces.omm(structure=structure, params=self.params, implicitSolvent=implicitSolvent)
             self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
             print('Generated:', structureName + '_trajectory.dcd')
@@ -585,7 +585,7 @@ class opendna:
         elif self.params['auto sampling'] is True:  # run MD till convergence (equilibrium)
             converged = False
             iter = 0
-            self.analyteUnbound = False
+            self.targetUnbound = False
 
             while (converged is False) and (iter < maxIter):
                 iter += 1
@@ -601,11 +601,11 @@ class opendna:
                 combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd', self.params['print step'])
                 # TODO what is the slope and what it for?
                 if binding:
-                    self.analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.targetSeq, self.sequence, self.params, cutoffTime=1)
-                    if self.analyteUnbound:
-                        printRecord('Analyte came unbound!')
+                    self.targetUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.targetSeq, self.sequence, self.params, cutoffTime=1)
+                    if self.targetUnbound:
+                        printRecord('Target came unbound!')
 
-                if (combinedSlope < cutoff) or (self.analyteUnbound is True):
+                if (combinedSlope < cutoff) or (self.targetUnbound is True):
                     converged = True
 
             os.replace(structureName + '_trajectory-1.dcd', structureName + '_complete_trajectory.dcd')
@@ -647,7 +647,7 @@ class opendna:
 
     def analyzeBinding(self, bindStructure, bindTrajectory, freeStrcuture, freeTrajectory):
         """
-        Analyze trajectory for aptamer fold + analyte binding information
+        Analyze trajectory for aptamer folding + target binding information
         :param bindStructure: complex structure's pdb
         :param bindTrajectory: complex structure's MD trajectory
         :param freeStrcuture: free aptamer structure's pdb
@@ -657,10 +657,10 @@ class opendna:
         bindu = mda.Universe(bindStructure, bindTrajectory)
         freeu = mda.Universe(freeStrcuture, freeTrajectory)
         bindingDict = bindingAnalysis(bindu, freeu, self.targetSeq, self.sequence)  # look for contacts between target ligand and aptamer.
-        if self.analyteUnbound:
-            bindingDict['analyte came unbound'] = True
+        if self.targetUnbound:
+            bindingDict['target came unbound'] = True
         else:
-            bindingDict['analyte came Unbound'] = False
+            bindingDict['target came Unbound'] = False
 
         return bindingDict
 

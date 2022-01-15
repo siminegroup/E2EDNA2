@@ -112,12 +112,12 @@ def getPepBaseDistTraj(u, peptide, sequence):
     pepNucDists = np.zeros((len(u.trajectory), len(peptide), len(sequence)))  # distances between peptides and nucleotiedes
     tt = 0
     for ts in u.trajectory:
-        analyteResidues = u.segments[1]
+        targetResidues = u.segments[1]
         baseResidues = u.segments[0]
         posMat1 = np.zeros((len(peptide), 3))
         posMat2 = np.zeros((len(sequence), 3))
         for i in range(len(peptide)):
-            posMat1[i] = analyteResidues.residues[i].atoms.center_of_geometry()
+            posMat1[i] = targetResidues.residues[i].atoms.center_of_geometry()
         for i in range(len(sequence)):
             posMat2[i] = baseResidues.residues[i].atoms.center_of_geometry()
 
@@ -618,14 +618,14 @@ def isolateRepresentativeStructure(trajectory):
 
 def bindingAnalysis(bindu, freeu, peptide, sequence):
     """
-    analyze the binding of analyte to aptamer by computing relative distances
+    analyze the binding of target to aptamer by computing relative distances
     :param u:
     :peptide: peptide sequence
     :sequence: aptamer sequence
     :return:
     """
     assert bindu.segments.n_segments == 2
-    # identify base-analyte distances
+    # identify base-target distances
     pepNucDists = getPepBaseDistTraj(bindu, peptide, sequence)
     contacts, nContacts = getPepContactTraj(pepNucDists)
     if np.nonzero(nContacts[:,0])[0] != []:
@@ -656,7 +656,7 @@ def getConformationChange(bindu, freeu):
     compare the pre-complexation (free aptamer) conformation with post-complexation
     NOTE intimately depends on naming conventions for trajectory files!
     """
-    # function to analyze analyte impact on aptamer conformation
+    # function to analyze target impact on aptamer conformation
 
     freeAngles = getNucDATraj(freeu)
     bindAngles = getNucDATraj(bindu)
@@ -675,7 +675,7 @@ def getConformationChange(bindu, freeu):
 
 def checkMidTrajectoryBinding(structure, trajectory, peptide, sequence, params, cutoffTime=1):
     """
-    check if the analyte has come unbound from the aptamer and stayed unbound for a certain amount of time
+    check if the target has come unbound from the aptamer and stayed unbound for a certain amount of time
     :return: True or False
     """
     u = mda.Universe(structure, trajectory)  # load up trajectory
