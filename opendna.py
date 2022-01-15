@@ -30,11 +30,13 @@ class opendna:
     def __init__(self, params):
         self.workDir = ""  # rather use an empty string, not an empty list
         self.params = params
-        self.sequence = self.params['sequence']
-        self.peptide = self.params['peptide']
+        self.sequence = self.params['sequence']        
+        self.targetPDB = self.params['target ligand']  # either pdb filename (eg, "peptide.pdb") or boolean ``False``
+        self.targetSeq = self.params['target peptide sequence']  # !!!! Assume now the target is a peptide !!!!  
+        # empty string, if target is not a peptide: how to deal with the "analyzeBinding"?
+        
         self.pdbDict = {}
-        self.dcdDict = {}  # output file format is .dcd???
-
+        self.dcdDict = {}
         self.actionDict = {}
         self.getActionDict()  # specify the actions based on the selected mode
         if self.actionDict['make workdir']:
@@ -48,18 +50,6 @@ class opendna:
         generate a binary sequence of 'to-do's', given user's input
         :return:
         """
-        '''
-        Modes, in order of increasing cost
-        '2d structure': ssString, pair list and probability
-        '3d coarse': MMB output, stressed structure, no solvent
-        '3d smooth': MMB output with short MD relaxation
-        'coarse dock': best docking scores on coarse MMB structure
-        'smooth dock': best docking scores on smoothed MMB structure
-        'free aptamer': evaluate and find representative 3D aptamer structure
-        'full docking': 'free aptamer' + docking
-        'full binding': 'full docking' + binding
-        '''
-
         if self.params['mode'] == '2d structure':
             self.actionDict['make workdir'] = False
             self.actionDict['do 2d analysis'] = True
@@ -139,7 +129,6 @@ class opendna:
         move to the working directory
         :return:
         """
-
         if (self.params['explicit run enumeration'] is True) or (self.params['run num'] == 0):  # make a new directory
             if self.params['run num'] == 0:  # auto-increment the max run_num folder
                 self.makeNewWorkingDirectory()
@@ -153,8 +142,13 @@ class opendna:
         os.mkdir(self.workDir + '/outfiles')
         if self.params['implicit solvent'] is True:
             copyfile(self.params['leap template'], self.workDir + '/leap_template.in')
-        # copy structure files
-        copyfile(self.params['analyte pdb'], self.workDir + '/analyte.pdb')  # ie, target of the aptamer
+
+        # if not given a target ligand pdb but want to try the docking module, use our provided example target ligand: a peptide.
+        if (self.actionDict['do docking'] is True) and (self.targetPDB is False):
+            self.targetPDB = 'example_target_peptide.pdb'             # self.targetPDB is no longer False.
+            self.targetSeq = self.params['example peptide sequence']  # self.targetSeq is not empty because we are dealing with a peptide.
+            copyfile(self.params['example target pdb'], self.workDir + '/' + self.targetPDB)  # ie, target of the aptamer
+        # From now on, "self.targetPDB is not False" is equivalent to "do docking".
 
         # If we have a folded structure to start with, then skip MMB:
         if self.params['skip MMB'] is True:  # otherwise, 'do 2d analysis' and 'do MMB' are always True
@@ -193,26 +187,29 @@ class opendna:
         if self.actionDict['do docking'] is True:
             copytree('lib/lightdock', self.workDir + '/ld_scripts')  # if destination dir does not already exist, create one then copy the whole source dir
 
-        # copy csv file (dihedral restraints) if restraints are turned on
+        # copy csv file (dihedral restraints) if target ligand is a peptide and constraint is enabled
         if self.params['peptide backbone constraint constant'] != 0:
             copyfile('backbone_dihedrals.csv', self.workDir + '/backbone_dihedrals.csv')
 
         # move to working dir
         os.chdir(self.workDir)
-        if self.peptide is False:
+
+        # Print prompt: free aptamer or aptamer + target ligand
+        if (self.targetPDB is False) and (self.actionDict['do docking'] is False):  # no given target ligand, nor do docking
             printRecord('Simulating free aptamer: {}'.format(self.sequence))
         else:
-            printRecord('Simulating {} with {}'.format(self.sequence, self.peptide))
+            printRecord('Simulating {} with {}'.format(self.sequence, self.targetPDB))
 
         if (self.params['skip MMB'] is False) and (self.params['device'] == 'local'):
-            if self.params['local device platform'] == 'linux':
-                os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir']  
-                # Michael: export the path to the MMB library - only necessary in WSL environments. No need on Windows machine
-            else:
-                pass
-                # Tao: do NOT use os.environ["DYLD_LIBRARY_PATH"] for macos machine! It wouldn't help MMB locate the library AND it would confuse OpenMM python package.
-                # Tao: see the MMB class on how to run MMB on macos machine.
-
+            if (self.params['device platform'] == 'linux') or (self.params['device platform'] == 'WSL'):
+                os.environ["LD_LIBRARY_PATH"] = self.params['mmb dir']  # Add MMB library's path to environment variable
+                # When running MMB on 'local':
+                    # Windows: no action needed. But this pipeline does not support Windows OS, due to NUPACK.
+                    # WSL or linux: explicitly add MMB library path.
+                    # macos: no action needed here.                                
+                # TL warning: do NOT use os.environ["DYLD_LIBRARY_PATH"] for macos! It does not help MMB locate the library AND it confuses OpenMM.
+                # TL tip: refer to 'mmb' class in interfaces.py on how to run MMB on macos machine.
+                
     def makeNewWorkingDirectory(self):
         """
         make a new working directory: not overlapping previously existing directories
@@ -292,13 +289,13 @@ class opendna:
 
                 np.save('opendnaOutput', outputDict)  # save outputs
 
-            if self.actionDict['do docking'] and (self.peptide is not False):  # find docking configuration for the complexed structure
+            if self.actionDict['do docking'] and (self.targetPDB is not False):  # find docking configuration for the complexed structure
                 # coarse dock: no smoothing;
                 # smooth dock: smooth + dock
                 # full dock: smooth + dock + equil structure
                 # full binding: smooth + dock + equil structure + sampling dynamics
-                outputDict['dock scores {}'.format(self.i)] = self.dock(self.pdbDict['representative aptamer {}'.format(self.i)], 'peptide.pdb')
-                # pdbDict['representative aptamer {}' is defined at MMb folding, MD smoothing and runFreeAptamer
+                outputDict['dock scores {}'.format(self.i)] = self.dock(self.pdbDict['representative aptamer {}'.format(self.i)], self.targetPDB)  # eg, "peptide.pdb" which can be created given peptide sequence by buildPeptide in function dock
+                # pdbDict['representative aptamer {}' is defined at MMB folding, MD smoothing and runFreeAptamer
                 # TODO: does lightdock also support Amber implicit solvent model?
                 np.save('opendnaOutput', outputDict)  # save outputs
 
@@ -471,7 +468,7 @@ class opendna:
                 structureName += '_amb'  # after pdb4amber and saveAmberParm, the file name became structureName_amb_processed.pdb/top/crd
 
             processedAptamer = structureName + '_processed.pdb'
-            self.autoMD(structure=processedAptamer, binding=False, implicitSolvent=implicitSolvent)  # run MD sampling till converged to equilibrium sampling of RC's
+            self.autoMD(structure=processedAptamer, binding=False, implicitSolvent=implicitSolvent)  # run MD sampling either for a set amount of time or till converged to equilibrium sampling of RC's
             processedAptamerTrajectory = structureName + '_processed_complete_trajectory.dcd'  # this is output file of autoMD
 
         printRecord('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
@@ -499,19 +496,23 @@ class opendna:
 
         return aptamerDict
 
-    def dock(self, aptamer, peptide):
+    def dock(self, aptamerPDB, targetPDB):
         """
         Use LightDock to run docking and isolate good complex structures
-        :param aptamer:
-        :param peptide:
+        :param aptamer: pdb file of aptamer after MD simulation
+        :param targetPDB: pdb file of the target ligand
         :return:
         """
         printRecord('Docking')
         if bool(self.params['peptide backbone constraint constant']):  # it constant != 0, bool=True
-            printRecord('Peptide will be constrained on their dihidral angles')
+            printRecord('Peptide will be constrained on their dihidral angles.')
+        
+        # build a peptide from its sequence: no longer needed. Either user provides pdb of target (if it is peptide), or use the example pdb we provide
+        # if self.params['build a peptide as target ligand'] is True: buildPeptide(self.targetSeq, self.targetPDB, customAngles=bool(self.params['peptide backbone constraint constant']))
+        # No longer use buildPeptide in our pipeline, user must provide a 3D structure of the target ligand. We don't take responsibility of creating a target for them.
+        # Now we have a pdb file named self.targetPDB which represents our target, provided by the user
 
-        buildPeptide(self.peptide, customAngles=bool(self.params['peptide backbone constraint constant']))
-        ld = interfaces.ld(aptamer, peptide, self.params, self.i)  # ld is a new class, therefore need to pass in this class's params: self.params
+        ld = interfaces.ld(aptamerPDB, targetPDB, self.params, self.i)  # ld is a new class, therefore need to pass in this class's params: self.params
         ld.run()
         topScores = ld.topScores
 
@@ -527,7 +528,7 @@ class opendna:
         """
         Run MD sampling for a complex structure and relevant analysis
         :param implicitSolvent:
-        :param complex:
+        :param complex: complex structure's pdb like 'complex_1_2.pdb'
         :return:
         """
         # structureName = complex.split('.')[0]
@@ -560,7 +561,7 @@ class opendna:
 
     def autoMD(self, structure, binding=False, implicitSolvent=False):
         """
-        Run MD till either for a set amount of time or till the dynamics 'converge'
+        Run MD either for a set amount of time or till the dynamics 'converge'
         Optionally, sample after we reach convergence ("equilibrium") -- not implemented yet (?)
         :param structure:
         :param binding:
@@ -572,7 +573,7 @@ class opendna:
             maxIter = self.params['max aptamer sampling iterations']
         cutoff = self.params['autoMD convergence cutoff']
 
-        structureName = structure.split('.')[0]  # e.g., structure: relaxedSequence_0_amb_processed.pdb (implicit solvent) or relaxedSequence_0_processed.pdb (explicit solvent)
+        structureName = structure.split('.')[0]  # e.g., free aptamer: relaxedSequence_0_amb_processed.pdb (implicit solvent) or relaxedSequence_0_processed.pdb (explicit solvent)
         if self.params['auto sampling'] is False:  # just run MD for the given sampling time
             self.analyteUnbound = False
             omm = interfaces.omm(structure=structure, params=self.params, implicitSolvent=implicitSolvent)
@@ -600,7 +601,7 @@ class opendna:
                 combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd', self.params['print step'])
                 # TODO what is the slope and what it for?
                 if binding:
-                    self.analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.peptide, self.sequence, self.params, cutoffTime=1)
+                    self.analyteUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.targetSeq, self.sequence, self.params, cutoffTime=1)
                     if self.analyteUnbound:
                         printRecord('Analyte came unbound!')
 
@@ -612,7 +613,7 @@ class opendna:
     def analyzeTrajectory(self, structure, trajectory):
         """
         Analyze trajectory for aptamer fold
-        :param trajectory:
+        :param trajectory: free aptamer MD trajectory
         :return:
         """
         u = mda.Universe(structure, trajectory)
@@ -647,15 +648,15 @@ class opendna:
     def analyzeBinding(self, bindStructure, bindTrajectory, freeStrcuture, freeTrajectory):
         """
         Analyze trajectory for aptamer fold + analyte binding information
-        :param bindStructure:
-        :param bindTrajectory:
-        :param freeStrcuture:
-        :param freeTrajectory:
+        :param bindStructure: complex structure's pdb
+        :param bindTrajectory: complex structure's MD trajectory
+        :param freeStrcuture: free aptamer structure's pdb
+        :param freeTrajectory: free aptamer structure's MD trajectory
         :return:
         """
         bindu = mda.Universe(bindStructure, bindTrajectory)
         freeu = mda.Universe(freeStrcuture, freeTrajectory)
-        bindingDict = bindingAnalysis(bindu, freeu, self.peptide, self.sequence)  # look for contacts between analyte and aptamer
+        bindingDict = bindingAnalysis(bindu, freeu, self.targetSeq, self.sequence)  # look for contacts between target ligand and aptamer.
         if self.analyteUnbound:
             bindingDict['analyte came unbound'] = True
         else:
