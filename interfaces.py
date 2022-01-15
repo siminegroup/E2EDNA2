@@ -1,6 +1,7 @@
 """
 interfaces for other major software used by OpenDNA
-MacroMolecule Builder (MMB): installed PeptideBuilder on pip. Is it enough?
+MacroMolecule Builder (MMB)
+PeptideBuilder: installed by pip
 OpenMM (omm)
 LightDock (ld)
 NUPACK
@@ -98,11 +99,11 @@ class nupack:
 class mmb:  # MacroMolecule Builder (MMB)
     def __init__(self, sequence, pairList, params, ind1, intervalLength=None):
         if params['fold speed'] == 'quick':
-            self.template = 'commands.template_quick.dat'  # only for debugging runs - very short
+            self.template = 'commands.template_quick.dat'  # can be used for debugging runs - very short
         elif params['fold speed'] == 'normal':
-            self.template = 'commands.template.dat'  # default folding algorithm
+            self.template = 'commands.template.dat'        # default folding algorithm
         elif params['fold speed'] == 'long':
-            self.template = 'commands.template_long.dat'  # extended annealing - for difficult sequences
+            self.template = 'commands.template_long.dat'   # extended annealing - for difficult sequences
         self.comFile = 'commands.run_fold.dat'
         self.foldSpeed = params['fold speed']
         self.sequence = sequence
@@ -111,10 +112,10 @@ class mmb:  # MacroMolecule Builder (MMB)
         self.mmbPath = params['mmb']
         
         # Conditions used to decide how to run MMB executable
+        self.device = params['device']  # 'local' or 'cluster'
+        self.devicePlatform = params['device platform']  # 'macos' or 'linux' or 'WSL'
         self.mmbDylibPath = params['mmb dir']
-        self.device = params['device']
-        self.localDevicePlatform = params['local device platform']
-
+        
         self.ind1 = ind1
         self.foldedSequence = 'foldedSequence_{}.pdb'.format(ind1)  # output structures of MMB
         self.intervalLength = intervalLength
@@ -150,15 +151,14 @@ class mmb:  # MacroMolecule Builder (MMB)
         attempts = 0
         while (result is None) and (attempts < 100):
             try:
-                attempts += 1
-                
-                if (self.device == 'local') and (self.localDevicePlatform == 'macos'):  # special care for macos
+                attempts += 1                
+                if (self.device == 'local') and (self.devicePlatform == 'macos'):  # special care for macos. Assume no cluster is on macos
                     os.system('export DYLD_LIBRARY_PATH=' + self.mmbDylibPath + ';' + self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')    
-                else:
+                else:  # linux or WSL: "LD_LIBRARY_PATH" is specified in opendna.py ('local') or sub.sh ('cluster')
                     os.system(self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')  # should we append new outputs to the fold.out?
-                
                 os.replace('frame.pdb', self.foldedSequence)
                 result = 1
+
                 # clean up
                 self.fileDump = 'mmbFiles_%d' % self.ind1
                 if os.path.isdir('./' + self.fileDump):  # this is refolding the sequence
@@ -173,7 +173,7 @@ class mmb:  # MacroMolecule Builder (MMB)
                 os.system('mv trajectory.* ' + self.fileDump)                
                 # os.system('mv watch.* ' + self.fileDump)
                 os.system('mv match.4*.pdb ' + self.fileDump)  # the intermediate files are updated during each stage
-            except:  # TODO look up this warning: do not use bare except; Too broad except clause
+            except:  # TODO look up this warning: "do not use bare except; Too broad except clause"
                 pass
 
     def check2DAgreement(self):
@@ -224,7 +224,7 @@ class omm:
         """
         self.structureName = structure.split('.')[0]  # e.g., structure: relaxedSequence_0_amb_processed.pdb
         self.peptide = params['peptide']
-        self.chkFile = params['chk file']  # if not picking up, this is empty string ""
+        self.chkFile = params['chk file']  # if not resuming the simulation, it is empty string ""
 
         if implicitSolvent is False:
             self.pdb = PDBFile(structure)
@@ -432,12 +432,9 @@ class omm:
         else:
             pass  # if resuming a run, the initial position comes from the chk file.        
 
-    def doMD(self):  # no need to be aware of the implicitSolvent
-        '''
-        automatically resume sampling if there is .chk file
-        '''
+    def doMD(self):  # no need to be aware of the implicitSolvent        
         # if not os.path.exists(self.structureName + '_state.chk'):
-        if not self.chkFile:
+        if not self.chkFile:  # "self.chkFile is not empty" is equivalent to "params['pick up from chk'] is True"
             # User did not specify a .chk file ==> we are doing a fresh sampling, not resuming.
             # Minimize and Equilibrate
             printRecord('Performing energy minimization...')
@@ -481,7 +478,7 @@ class omm:
 
 
 class ld:  # lightdock
-    def __init__(self, aptamer, peptide, params, ind1):
+    def __init__(self, aptamerPDB, targetPDB, params, ind1):
         self.setupPath = params['ld setup path']  # ld_scripts/... there should be a directory ld/scripts in workdir
         self.runPath = params['ld run path']
         self.genPath = params['lgd generate path']
@@ -489,8 +486,8 @@ class ld:  # lightdock
         self.rankPath = params['lgd rank path']
         self.topPath = params['lgd top path']
 
-        self.aptamerPDB = aptamer
-        self.peptidePDB = peptide
+        self.aptamerPDB = aptamerPDB
+        self.targetPDB = targetPDB
 
         self.glowWorms = 300  # params['glowworms']
         self.dockingSteps = params['docking steps']
@@ -530,14 +527,14 @@ class ld:  # lightdock
 
     def prepPDBs(self):  # different from prepPDB in utils.py
         killH(self.aptamerPDB)  # DNA needs to be deprotonated on the phosphate groups
-        addH(self.peptidePDB, self.pH)  # peptide needs to be hydrogenated: side chains or terminal amino and carbonate groups?
+        addH(self.targetPDB, self.pH)  # peptide needs to be hydrogenated: side chains or terminal amino and carbonate groups?
         self.aptamerPDB2 = self.aptamerPDB.split('.')[0] + "_noH.pdb"
-        self.peptidePDB2 = self.peptidePDB.split('.')[0] + "_H.pdb"
-        changeSegment(self.peptidePDB2, 'A', 'B')
+        self.targetPDB2 = self.targetPDB.split('.')[0] + "_H.pdb"
+        changeSegment(self.targetPDB2, 'A', 'B')
 
     def runLightDock(self):
         # Run setup
-        os.system(self.setupPath + ' ' + self.aptamerPDB2 + ' ' + self.peptidePDB2 + ' -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
+        os.system(self.setupPath + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
 
         # Run docking
         os.system(self.runPath + ' setup.json ' + str(self.dockingSteps) + ' -s dna >> outfiles/lightdockRun.out')
@@ -546,7 +543,7 @@ class ld:  # lightdock
         # Generate docked structures and cluster them
         for i in range(self.swarms):
             os.chdir('swarm_%d' % i)
-            os.system(self.genPath + ' ../' + self.aptamerPDB2 + ' ../' + self.peptidePDB2 + ' gso_%d' % self.dockingSteps + '.out' + ' %d' % self.glowWorms + ' > /dev/null 2> /dev/null; >> generate_lightdock.list')  # generate configurations
+            os.system(self.genPath + ' ../' + self.aptamerPDB2 + ' ../' + self.targetPDB2 + ' gso_%d' % self.dockingSteps + '.out' + ' %d' % self.glowWorms + ' > /dev/null 2> /dev/null; >> generate_lightdock.list')  # generate configurations
             os.system(self.clusterPath + ' gso_%d' % self.dockingSteps + '.out >> cluster_lightdock.list')  # cluster glowworms
             os.chdir('../')
 
@@ -556,7 +553,7 @@ class ld:  # lightdock
 
     def extractTopStructures(self):
         # Generate top structures
-        os.system(self.topPath + ' ' + self.aptamerPDB2 + ' ' + self.peptidePDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
+        os.system(self.topPath + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
         os.mkdir('top_%d'%self.ind1)
         os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)
 
