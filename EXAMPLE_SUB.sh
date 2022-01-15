@@ -17,6 +17,9 @@ conda install mdanalysis
 # OpenMM: http://docs.openmm.org/7.5.0/userguide/application.html#installing-openmm
 conda install -c conda-forge openmm
 
+# AmberTools21: https://ambermd.org/GetAmber.php#ambertools 
+conda install -c conda-forge ambertools=21 compilers
+
 # LightDock: # https://lightdock.org/
 pip install lightdock  
 
