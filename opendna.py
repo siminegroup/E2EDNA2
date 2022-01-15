@@ -30,7 +30,7 @@ class opendna:
     def __init__(self, params):
         self.workDir = ""  # rather use an empty string, not an empty list
         self.params = params
-        self.sequence = self.params['sequence']        
+        self.aptamerSeq = self.params['aptamerSeq']        
         self.targetPDB = self.params['target ligand']  # either pdb filename (eg, "peptide.pdb") or boolean ``False``
         self.targetSeq = self.params['target peptide sequence']  # !!!! Assume now the target is a peptide !!!!  
         # empty string, if target is not a peptide: how to deal with the "analyzeBinding"?
@@ -162,7 +162,7 @@ class opendna:
                 self.terminateRun()  # maybe do it via "raise an error"?
             else:
                 printRecord('Copying the folded structure: {} to workdir.'.format(self.params['folded initial structure']), self.workDir+'/')
-                copyfile(self.params['folded initial structure'], self.workDir + '/foldedSequence_0.pdb')
+                copyfile(self.params['folded initial structure'], self.workDir + '/foldedAptamer_0.pdb')
         else:
             # copy MMB params and command script
             copyfile(self.params['mmb params'], self.workDir + '/parameters.csv')
@@ -196,9 +196,9 @@ class opendna:
 
         # Print prompt: free aptamer or aptamer + target ligand
         if (self.targetPDB is False) and (self.actionDict['do docking'] is False):  # no given target ligand, nor do docking
-            printRecord('Simulating free aptamer: {}'.format(self.sequence))
+            printRecord('Simulating free aptamer: {}'.format(self.aptamerSeq))
         else:
-            printRecord('Simulating {} with {}'.format(self.sequence, self.targetPDB))
+            printRecord('Simulating {} with {}'.format(self.aptamerSeq, self.targetPDB))
 
         if (self.params['skip MMB'] is False) and (self.params['device'] == 'local'):
             if (self.params['device platform'] == 'linux') or (self.params['device platform'] == 'WSL'):
@@ -243,7 +243,7 @@ class opendna:
         np.save('opendnaOutput', outputDict)  # Save an array to a binary file in NumPy ``.npy`` format.
 
         if self.actionDict['do 2d analysis']:   # get secondary structure
-            self.pairLists = self.getSecondaryStructure(self.sequence)
+            self.pairLists = self.getSecondaryStructure(self.aptamerSeq)
             outputDict['2d analysis'] = self.ssAnalysis
             np.save('opendnaOutput', outputDict)  # save 2d structure results
 
@@ -265,26 +265,26 @@ class opendna:
                 self.pairList = np.asarray(self.pairLists[self.i])  # be careful!!!: .pairList vs. .pairLists
 
             if self.actionDict['do MMB']:  # fold 2D into 3D
-                self.foldSequence(self.sequence, self.pairList)
+                self.foldSequence(self.aptamerSeq, self.pairList)
             elif self.params['pick up from chk'] is False:  # skipped MMB but not to pick up a MD => this is to start with a folded initial structure: skipped MMB but will do MD smooth
-                self.pdbDict['folded sequence {}'.format(self.i)] = self.params['folded initial structure']
+                self.pdbDict['folded aptamer {}'.format(self.i)] = self.params['folded initial structure']
                 self.pdbDict['representative aptamer {}'.format(self.i)] = self.params['folded initial structure']  # in "coarse dock" mode.
 
             if self.params['skip smoothing'] is True:
                 printRecord('\nSkipping smoothing and starting MD sampling using the folded structure.')
-                self.pdbDict['relaxed sequence {}'.format(self.i)] = 'foldedSequence_0.pdb'
+                self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'foldedAptamer_0.pdb'
             else:    
                 if self.actionDict['do smoothing']:
                     if self.params['skip MMB'] is False:
-                        self.MDSmoothing(self.pdbDict['mmb folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
-                    else:
-                        self.MDSmoothing(self.pdbDict['folded sequence {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
+                        self.MDSmoothing(self.pdbDict['mmb folded aptamer {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
+                    else:  # if given a folded structure, skip MMB and directly use the provided structure
+                        self.MDSmoothing(self.pdbDict['folded aptamer {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
 
             if self.actionDict['get equil repStructure']:  # definitely did smoothing if want an equil structure                    
                 if self.params['pick up from chk'] is False:
-                    outputDict['free aptamer results {}'.format(self.i)] = self.runFreeAptamer(self.pdbDict['relaxed sequence {}'.format(self.i)], implicitSolvent=self.params['implicit solvent'])
+                    outputDict['free aptamer results {}'.format(self.i)] = self.runFreeAptamer(self.pdbDict['relaxed aptamer {}'.format(self.i)], implicitSolvent=self.params['implicit solvent'])
                 else:
-                    outputDict['free aptamer results {}'.format(self.i)] = self.runFreeAptamer(self.params['resumed structurePDB'], implicitSolvent=self.params['implicit solvent'])  # quick and dirty. Eg, 'relaxedSequence_0_processed.pdb'
+                    outputDict['free aptamer results {}'.format(self.i)] = self.runFreeAptamer(self.params['resumed structurePDB'], implicitSolvent=self.params['implicit solvent'])  # quick and dirty. Eg, 'relaxedAptamer_0_processed.pdb'
                     # if using implicit solvent, the .top and .crd files have the same name as .pdb. For ex: relaxed_amb_processed.pdb/top/crd
 
                 np.save('opendnaOutput', outputDict)  # save outputs
@@ -317,22 +317,22 @@ class opendna:
     # ====================== supporting functions are followed (part1) =====================
     # ======================================================================================
     # ======================================================================================
-    def getSecondaryStructure(self, sequence):
+    def getSecondaryStructure(self, aptamerSeq):
         """
-        get the secondary structure(s) for a given sequence
-        using seqfold here - identical features are available in nupack, though results are sometimes different TODO: really??????
-        :param sequence:
+        get the secondary structure(s) for a given aptamer's sequence
+        using seqfold here - identical features are available in nupack, though results are sometimes different
+        :param aptamerSeq: aptamer's sequence
         :return:
         """
         printRecord("Getting Secondary Structure(s)")
         if self.params['secondary structure engine'] == 'seqfold':
-            ssString, pairList = getSeqfoldStructure(sequence, self.params['temperature'])  # seqfold guess
+            ssString, pairList = getSeqfoldStructure(aptamerSeq, self.params['temperature'])  # seqfold guess
             self.ssAnalysis = [ssString, pairList]
             # TODO what are in ssString and pairList?
             return pairList
 
         elif self.params['secondary structure engine'] == 'NUPACK':
-            nup = interfaces.nupack(sequence, self.params['temperature'], self.params['ionicStrength'], self.params['[Mg]'])  # initialize nupack
+            nup = interfaces.nupack(aptamerSeq, self.params['temperature'], self.params['ionicStrength'], self.params['[Mg]'])  # initialize nupack
             self.ssAnalysis = nup.run()  # run nupack analysis of possible 2D structures.
 
             distances = getSecondaryStructureDistance(self.ssAnalysis['config'])
@@ -347,17 +347,17 @@ class opendna:
             else:  # if, for some reason, there's only a single plausible structure (unlikely)
                 return self.ssAnalysis['pair list']
 
-    def foldSequence(self, sequence, pairList):
+    def foldSequence(self, aptamerSeq, pairList):
         """
         generate a coarsely folded 3D structure for the aptamer
-        :param sequence: the ssDNA aptamer sequence
+        :param aptamerSeq: the ssDNA aptamer's sequence
         :param pairList: list of binding base pairs
         :return:
         """
         # write pair list as fictitious forces to the MMB command file
-        printRecord("Folding Sequence. Fold speed={}".format(self.params['fold speed']))        
+        printRecord("Folding Aptamer from Sequence. Fold speed={}".format(self.params['fold speed']))        
 
-        mmb = interfaces.mmb(sequence, pairList, self.params, self.i)
+        mmb = interfaces.mmb(aptamerSeq, pairList, self.params, self.i)
         MDAfoldFidelity, MMBfoldFidelity = mmb.run()
         foldFidelity = MMBfoldFidelity
 
@@ -369,8 +369,8 @@ class opendna:
             while (foldFidelity <= self.params['foldFidelity']) and (attempts < 5):  # if it didn't fold properly, try again with a longer annealing time - up to XX times
                 self.params['fold speed'] = 'long'
                 
-                printRecord("Refolding Sequence")
-                mmb = interfaces.mmb(sequence, pairList, self.params, self.i, intervalLength)  # extra intervalLength argument                
+                printRecord("Refolding Aptamer from Sequence")
+                mmb = interfaces.mmb(aptamerSeq, pairList, self.params, self.i, intervalLength)  # extra intervalLength argument                
                 MDAfoldFidelity, MMBfoldFidelity = mmb.run()
                 foldFidelity = MMBfoldFidelity
                 
@@ -380,9 +380,9 @@ class opendna:
                 intervalLength += 5  # on repeated attempts, try harder
                 # TODO: what does intervalLength do in nupack???
 
-        self.pdbDict['mmb folded sequence {}'.format(self.i)] = mmb.foldedSequence  # mmb.foldedSequence = foldedSequence_{}.pdb: defined in the mmb.run()
+        self.pdbDict['mmb folded aptamer {}'.format(self.i)] = mmb.foldedAptamerSeq  # mmb.foldedAptamerSeq = foldedAptamer_{}.pdb: defined in the mmb.run()
         os.system('mv commands.run* ' + mmb.fileDump)  # mmb.fileDump is a directory for intermediate files during running MMB
-        printRecord("Folded Sequence")
+        printRecord("Folded Aptamer.")
 
     def MDSmoothing(self, structure, relaxationTime=0.01, implicitSolvent=False):  # default relaxation time is 0.01 ns
         """
@@ -425,41 +425,41 @@ class opendna:
             copyfile(processedStructure, 'clean_' + processedStructure)  # TODO no cleaning for now
             copyfile(processedStructureTrajectory, 'clean_' + processedStructureTrajectory)  # TODO no cleaning for now
 
-        self.dcdDict['relaxed sequence {}'.format(self.i)] = 'clean_' + processedStructureTrajectory        
-        self.pdbDict['relaxed sequence {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)  # specify the file name for final frame, ie, relaxed sequence
+        self.dcdDict['relaxed aptamer {}'.format(self.i)] = 'clean_' + processedStructureTrajectory        
         
-        # extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed sequence {}'.format(self.i)])  # extract final frame        
+        self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'relaxedAptamer_{}.pdb'.format(self.i)  # specify the file name for the extracted final frame, ie, relaxed aptamer
+        # extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed aptamer {}'.format(self.i)])  # extract final frame        
         # # Current warning from MDA: UserWarning: Unit cell dimensions not found. CRYST1 record set to unitary values. I think: MDA cannot find unit cell dimension info. Can we add info when using implicit solvent?            
-
         # Another possible way to extract the last frame is to use OpenMM:            
-        omm.extractLastFrame(self.pdbDict['relaxed sequence {}'.format(self.i)])
+        omm.extractLastFrame(self.pdbDict['relaxed aptamer {}'.format(self.i)])
         
-        self.pdbDict['representative aptamer {}'.format(self.i)] = 'relaxedSequence_{}.pdb'.format(self.i)  # in "smooth dock" mode
+        # in "smooth dock" mode:
+        self.pdbDict['representative aptamer {}'.format(self.i)] = self.pdbDict['relaxed aptamer {}'.format(self.i)]  # ie, 'relaxedAptamer_{}.pdb'.format(self.i)
 
-    def runFreeAptamer(self, aptamer, implicitSolvent=False):
+    def runFreeAptamer(self, aptamerPDB, implicitSolvent=False):
         """
         Run MD sampling for free aptamer and relevant analysis
         :param implicitSolvent:
-        :param aptamer:
+        :param aptamerPDB: PDB file name of the aptamer to be simulated
         :return:
         """
         # printRecord('\nRunning free aptamer dynamics')
-        structureName = aptamer.split('.')[0]  # aptamer: eg, "relaxedSequence_0.pdb" or "relaxedSequence_0_processed.pdb" (to resume sampling)
+        structureName = aptamerPDB.split('.')[0]  # aptamerPDB: eg "relaxedAptamer_0.pdb" or "relaxedAptamer_0_processed.pdb" (if resuming sampling)
 
         if self.params['pick up from chk'] is True:
             printRecord('\nResuming a previous free aptamer dynamics')
-            self.autoMD(structure=aptamer, binding=False, implicitSolvent=implicitSolvent)  # In this case: eg, relaxedSequence_0_processed.pdb            
-            processedAptamer = aptamer
+            self.autoMD(structure=aptamerPDB, binding=False, implicitSolvent=implicitSolvent)  # In this case: eg, relaxedAptamer_0_processed.pdb            
+            processedAptamer = aptamerPDB
             processedAptamerTrajectory = structureName + '_complete_trajectory.dcd'  # this is output file of autoMD
         else:
             printRecord('\nRunning a fresh free aptamer dynamics')
             if implicitSolvent is False:
                 # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
-                prepPDB(aptamer, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
+                prepPDB(aptamerPDB, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
             else:  # prepare prmtop and crd file using LEap in ambertools
                 printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for relaxed aptamer...')
                 # os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
-                copyfile(aptamer, structureName + '_amb_processed.pdb')
+                copyfile(aptamerPDB, structureName + '_amb_processed.pdb')
                 copyfile('./leap_template.in', 'leap.in')
                 replaceText('leap.in', 'myDNASEQ', structureName)
                 os.system('tleap -f leap.in > leap.out')
@@ -524,18 +524,18 @@ class opendna:
         printRecord('Docking complete, best scores are {}'.format(topScores))
         return topScores
 
-    def bindingDynamics(self, complex, implicitSolvent=False):
+    def bindingDynamics(self, complexPDB, implicitSolvent=False):
         """
         Run MD sampling for a complex structure and relevant analysis
         :param implicitSolvent:
-        :param complex: complex structure's pdb like 'complex_1_2.pdb'
+        :param complexPDB: complex structure's pdb like 'complex_1_2.pdb'
         :return:
         """
-        # structureName = complex.split('.')[0]
+        # structureName = complexPDB.split('.')[0]
         printRecord('Running Binding Simulation')
         # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
-        prepPDB(complex, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
-        processedComplex = complex.split('.')[0] + '_processed.pdb'
+        prepPDB(complexPDB, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
+        processedComplex = complexPDB.split('.')[0] + '_processed.pdb'
         processedComplexTrajectory = processedComplex.split('.')[0] + '_complete_trajectory.dcd'  # this is output file of autoMD
 
         self.autoMD(processedComplex, binding=True)
@@ -559,24 +559,23 @@ class opendna:
 
         return bindingDict
 
-    def autoMD(self, structure, binding=False, implicitSolvent=False):
+    def autoMD(self, structurePDB, binding=False, implicitSolvent=False):
         """
         Run MD either for a set amount of time or till the dynamics 'converge'
-        Optionally, sample after we reach convergence ("equilibrium") -- not implemented yet (?)
-        :param structure:
-        :param binding:
+        :param structurePDB: pdb file name of the structure: could be free aptamer or aptamer-ligand complex
+        :param binding: ``True`` - complex; ``False``: free aptamer
         :return:
         """
-        if binding:  # whether it's complex or free aptamer
+        if binding is True:  # whether it's complex or free aptamer
             maxIter = self.params['max complex sampling iterations']
         else:
             maxIter = self.params['max aptamer sampling iterations']
         cutoff = self.params['autoMD convergence cutoff']
 
-        structureName = structure.split('.')[0]  # e.g., free aptamer: relaxedSequence_0_amb_processed.pdb (implicit solvent) or relaxedSequence_0_processed.pdb (explicit solvent)
+        structureName = structurePDB.split('.')[0]  # e.g., free aptamer: relaxedAptamer_0_amb_processed.pdb (implicit solvent) or relaxedAptamer_0_processed.pdb (explicit solvent)
         if self.params['auto sampling'] is False:  # just run MD for the given sampling time
             self.targetUnbound = False
-            omm = interfaces.omm(structure=structure, params=self.params, implicitSolvent=implicitSolvent)
+            omm = interfaces.omm(structure=structurePDB, params=self.params, implicitSolvent=implicitSolvent)
             self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
             print('Generated:', structureName + '_trajectory.dcd')
             os.replace(structureName + '_trajectory.dcd', structureName + "_complete_trajectory.dcd")
@@ -589,19 +588,19 @@ class opendna:
 
             while (converged is False) and (iter < maxIter):
                 iter += 1
-                omm = interfaces.omm(structure=structure, params=self.params, implicitSolvent=implicitSolvent)
+                omm = interfaces.omm(structure=structurePDB, params=self.params, implicitSolvent=implicitSolvent)
                 self.ns_per_day = omm.doMD()
 
                 if iter > 1:  # if we have multiple trajectory segments, combine them
-                    appendTrajectory(structure, structureName + '_trajectory-1.dcd', structureName + '_trajectory.dcd')
+                    appendTrajectory(structurePDB, structureName + '_trajectory-1.dcd', structureName + '_trajectory.dcd')
                     os.replace('combinedTraj.dcd', structureName + '_trajectory-1.dcd')
                 else:
                     os.replace(structureName + '_trajectory.dcd', structureName + '_trajectory-1.dcd')  # in case we need to combine two trajectories
 
-                combinedSlope = checkTrajPCASlope(structure, structureName + '_trajectory-1.dcd', self.params['print step'])
+                combinedSlope = checkTrajPCASlope(structurePDB, structureName + '_trajectory-1.dcd', self.params['print step'])
                 # TODO what is the slope and what it for?
-                if binding:
-                    self.targetUnbound = checkMidTrajectoryBinding(structure, structureName + '_trajectory-1.dcd', self.targetSeq, self.sequence, self.params, cutoffTime=1)
+                if binding is True:
+                    self.targetUnbound = checkMidTrajectoryBinding(structurePDB, structureName + '_trajectory-1.dcd', self.targetSeq, self.aptamerSeq, self.params, cutoffTime=1)
                     if self.targetUnbound:
                         printRecord('Target came unbound!')
 
@@ -612,7 +611,8 @@ class opendna:
 
     def analyzeTrajectory(self, structure, trajectory):
         """
-        Analyze trajectory for aptamer fold
+        Analyze trajectory for MD sampling of aptamer 
+        :param structure: topology file of the free aptamer, eg, its PDB file.
         :param trajectory: free aptamer MD trajectory
         :return:
         """
@@ -645,18 +645,18 @@ class opendna:
 
         return analysisDict
 
-    def analyzeBinding(self, bindStructure, bindTrajectory, freeStrcuture, freeTrajectory):
+    def analyzeBinding(self, bindStructure, bindTrajectory, freeStructure, freeTrajectory):
         """
         Analyze trajectory for aptamer folding + target binding information
-        :param bindStructure: complex structure's pdb
+        :param bindStructure: complex structure's PDB
         :param bindTrajectory: complex structure's MD trajectory
-        :param freeStrcuture: free aptamer structure's pdb
+        :param freeStructure: free aptamer structure's PDB
         :param freeTrajectory: free aptamer structure's MD trajectory
         :return:
         """
         bindu = mda.Universe(bindStructure, bindTrajectory)
-        freeu = mda.Universe(freeStrcuture, freeTrajectory)
-        bindingDict = bindingAnalysis(bindu, freeu, self.targetSeq, self.sequence)  # look for contacts between target ligand and aptamer.
+        freeu = mda.Universe(freeStructure, freeTrajectory)
+        bindingDict = bindingAnalysis(bindu, freeu, self.targetSeq, self.aptamerSeq)  # look for contacts between target ligand and aptamer.
         if self.targetUnbound:
             bindingDict['target came unbound'] = True
         else:

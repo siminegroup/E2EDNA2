@@ -24,8 +24,8 @@ from analysisTools import *
 
 
 class nupack:
-    def __init__(self, sequence, temperature, ionicStrength, mgConc=0):
-        self.sequence = sequence
+    def __init__(self, aptamerSeq, temperature, ionicStrength, mgConc=0):
+        self.aptamerSeq = aptamerSeq
         self.temperature = temperature
         self.naConc = ionicStrength
         self.mgConc = mgConc
@@ -38,7 +38,7 @@ class nupack:
 
     def energyCalc(self):
         """
-        sequence is DNA FASTA format
+        aptamerSeq is in FASTA format
         temperature in C or K
         ionicStrength in Molar
         Ouput a lot of analysis results in self.output
@@ -51,7 +51,7 @@ class nupack:
             gap = 2 * self.R * (self.temperature + 273)  # convert to Kelvin fir kT
             CelsiusTemprature = self.temperature
 
-        A = Strand(self.sequence, name='A')
+        A = Strand(self.aptamerSeq, name='A')
         comp = Complex([A], name='AA')
         set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp]))
         model1 = Model(material='dna', celsius=CelsiusTemprature, sodium=self.naConc, magnesium=self.mgConc)
@@ -68,7 +68,7 @@ class nupack:
         self.ssDict = {}
         self.ssDict['2d string'] = []
         self.ssDict['pair list'] = []
-        self.ssDict['config'] = np.zeros((nStructures, len(self.sequence)))
+        self.ssDict['config'] = np.zeros((nStructures, len(self.aptamerSeq)))
         self.ssDict['num pairs'] = np.zeros(nStructures).astype(int)
         self.ssDict['pair frac'] = np.zeros(nStructures)
         self.ssDict['num pins'] = np.zeros(nStructures).astype(int)
@@ -78,14 +78,14 @@ class nupack:
             ssString = str(self.output.subopt[i].structure)
             self.ssDict['2d string'].append(ssString)
             self.ssDict['pair list'].append(ssToList(ssString))
-            self.ssDict['config'][i] = pairListToConfig(self.ssDict['pair list'][-1], len(self.sequence))
+            self.ssDict['config'][i] = pairListToConfig(self.ssDict['pair list'][-1], len(self.aptamerSeq))
             self.ssDict['state prob'][i] = np.exp(-self.output.subopt[i].energy / self.R / self.temperature / float(self.output.pfunc))
             self.ssDict['num pairs'][i] = ssString.count('(')  # number of pairs
-            self.ssDict['pair frac'][i] = 2 * self.ssDict['num pairs'][i] / len(self.sequence)
+            self.ssDict['pair frac'][i] = 2 * self.ssDict['num pairs'][i] / len(self.aptamerSeq)
 
             nPins = 0  # number of distinct hairpins
             indA = 0
-            for j in range(len(self.sequence)):
+            for j in range(len(self.aptamerSeq)):
                 if ssString[j] == '(':
                     indA += 1
                 elif ssString[j] == ')':
@@ -97,7 +97,7 @@ class nupack:
 
 
 class mmb:  # MacroMolecule Builder (MMB)
-    def __init__(self, sequence, pairList, params, ind1, intervalLength=None):
+    def __init__(self, aptamerSeq, pairList, params, ind1, intervalLength=None):
         if params['fold speed'] == 'quick':
             self.template = 'commands.template_quick.dat'  # can be used for debugging runs - very short
         elif params['fold speed'] == 'normal':
@@ -106,7 +106,7 @@ class mmb:  # MacroMolecule Builder (MMB)
             self.template = 'commands.template_long.dat'   # extended annealing - for difficult sequences
         self.comFile = 'commands.run_fold.dat'
         self.foldSpeed = params['fold speed']
-        self.sequence = sequence
+        self.aptamerSeq = aptamerSeq
         self.temperature = params['temperature']
         self.pairList = pairList
         self.mmbPath = params['mmb']
@@ -117,7 +117,7 @@ class mmb:  # MacroMolecule Builder (MMB)
         self.mmbDylibPath = params['mmb dir']
         
         self.ind1 = ind1
-        self.foldedSequence = 'foldedSequence_{}.pdb'.format(ind1)  # output structures of MMB
+        self.foldedAptamerSeq = 'foldedAptamer_{}.pdb'.format(ind1)  # output structures of MMB
         self.intervalLength = intervalLength
         self.fileDump = 'mmbFiles_%d' % self.ind1  # directory to save the mmb run files
 
@@ -132,7 +132,7 @@ class mmb:  # MacroMolecule Builder (MMB)
 
     def generateCommandFile(self):
         copyfile(self.template, self.comFile)  # make a command file
-        replaceText(self.comFile, 'SEQUENCE', self.sequence)
+        replaceText(self.comFile, 'SEQUENCE', self.aptamerSeq)
         replaceText(self.comFile, 'TEMPERATURE', str(self.temperature - 273))  # probably not important, but we can add the temperature in C
 
         if self.foldSpeed == 'long':
@@ -156,12 +156,12 @@ class mmb:  # MacroMolecule Builder (MMB)
                     os.system('export DYLD_LIBRARY_PATH=' + self.mmbDylibPath + ';' + self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')    
                 else:  # linux or WSL: "LD_LIBRARY_PATH" is specified in opendna.py ('local') or sub.sh ('cluster')
                     os.system(self.mmbPath + ' -c ' + self.comFile + ' > outfiles/fold.out')  # should we append new outputs to the fold.out?
-                os.replace('frame.pdb', self.foldedSequence)
+                os.replace('frame.pdb', self.foldedAptamerSeq)
                 result = 1
 
                 # clean up
                 self.fileDump = 'mmbFiles_%d' % self.ind1
-                if os.path.isdir('./' + self.fileDump):  # this is refolding the sequence
+                if os.path.isdir('./' + self.fileDump):  # this is refolding the aptamer
                     self.fileDump = self.fileDump + '/refolding'
                     if os.path.isdir('./' + self.fileDump):
                         pass
@@ -182,7 +182,7 @@ class mmb:  # MacroMolecule Builder (MMB)
         :return:
         """
         # do it with MDA: MDAnalysis
-        u = mda.Universe(self.foldedSequence)
+        u = mda.Universe(self.foldedAptamerSeq)
         # extract distance info through the trajectory
         wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding)
         pairTraj = getPairTraj(wcTraj)        
@@ -192,7 +192,7 @@ class mmb:  # MacroMolecule Builder (MMB)
         printRecord('2D structure after MMB folding (from MDAnalysis): ' + configToString(secondaryStructure))
 
         # MDAnalysis: fidelity score
-        trueConfig = pairListToConfig(self.pairList, len(self.sequence))
+        trueConfig = pairListToConfig(self.pairList, len(self.aptamerSeq))
         foldDiscrepancy = getSecondaryStructureDistance([pairTraj[0], trueConfig])[0,1]
         self.MDAfoldFidelity = 1-foldDiscrepancy
 
@@ -218,16 +218,16 @@ class mmb:  # MacroMolecule Builder (MMB)
 
 # openmm
 class omm:
-    def __init__(self, structure, params, simTime=None, implicitSolvent=False):
+    def __init__(self, structurePDB, params, simTime=None, implicitSolvent=False):
         """
         pass on the pre-set and user-defined params to openmm engine
         """
-        self.structureName = structure.split('.')[0]  # e.g., structure: relaxedSequence_0_amb_processed.pdb
+        self.structureName = structurePDB.split('.')[0]  # e.g., structurePDB: relaxedAptamer_0_amb_processed.pdb or complex_1_2_processed.pdb
         self.peptide = params['peptide']
         self.chkFile = params['chk file']  # if not resuming the simulation, it is empty string ""
 
         if implicitSolvent is False:
-            self.pdb = PDBFile(structure)
+            self.pdb = PDBFile(structurePDB)
             self.waterModel = params['water model']
             self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
 
@@ -292,7 +292,7 @@ class omm:
             # ewaldErrorTolerance: as "**args": Arbitrary additional keyword arguments may also be specified. This allows extra parameters to be specified that are specific to particular force fields.
 
         else:  # create a system using prmtop file and use implicit solvent
-            self.prmtop = AmberPrmtopFile(self.structureName + '.top')  # e.g. foldedSequence_amb_processed.top or relaxedSequence_0_amb_processed.top
+            self.prmtop = AmberPrmtopFile(self.structureName + '.top')  # e.g. foldedAptamer_amb_processed.top or relaxedAptamer_0_amb_processed.top or complex_1_2_amb_processed.pdb
             self.inpcrd = AmberInpcrdFile(self.structureName + '.crd')
             self.topology = self.prmtop.topology
             self.positions = self.inpcrd.positions

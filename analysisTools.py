@@ -101,7 +101,7 @@ def getPairTraj(wcTraj):
 
     return pairedBases
 
-def getPepBaseDistTraj(u, peptide, sequence):
+def getPepBaseDistTraj(u, peptideSeq, aptamerSeq):
     """
     given an MDA universe
     return distances between each peptide and each base
@@ -109,16 +109,16 @@ def getPepBaseDistTraj(u, peptide, sequence):
     :return: pepNucDists - peptide-nucleicacid distances
     """
 
-    pepNucDists = np.zeros((len(u.trajectory), len(peptide), len(sequence)))  # distances between peptides and nucleotiedes
+    pepNucDists = np.zeros((len(u.trajectory), len(peptideSeq), len(aptamerSeq)))  # distances between peptides and nucleotiedes
     tt = 0
     for ts in u.trajectory:
         targetResidues = u.segments[1]
         baseResidues = u.segments[0]
-        posMat1 = np.zeros((len(peptide), 3))
-        posMat2 = np.zeros((len(sequence), 3))
-        for i in range(len(peptide)):
+        posMat1 = np.zeros((len(peptideSeq), 3))
+        posMat2 = np.zeros((len(aptamerSeq), 3))
+        for i in range(len(peptideSeq)):
             posMat1[i] = targetResidues.residues[i].atoms.center_of_geometry()
-        for i in range(len(sequence)):
+        for i in range(len(aptamerSeq)):
             posMat2[i] = baseResidues.residues[i].atoms.center_of_geometry()
 
         pepNucDists[tt, :, :] = distances.distance_array(posMat1, posMat2, box=u.dimensions)
@@ -286,18 +286,16 @@ def numbers2letters(sequences):  # Transforming letters to numbers:
     return my_seq
 
 
-
-
-def getSeqfoldStructure(sequence, temperature):
+def getSeqfoldStructure(aptamerSeq, temperature):
     """
     output the secondary structure for a given sequence at a given condition
     formats - ss string and pair list
     """
-    dg(sequence, temp=temperature)  # get energy of the structure
+    dg(aptamerSeq, temp=temperature)  # get energy of the structure
     # printRecord(round(sum(s.e for s in structs), 2)) # predicted energy of the final structure
 
-    structs = fold(sequence)  # identify structural features
-    desc = ["."] * len(sequence)
+    structs = fold(aptamerSeq)  # identify structural features
+    desc = ["."] * len(aptamerSeq)
     pairList = []
     for s in structs:
         pairList.append(s.ij[0])
@@ -616,22 +614,22 @@ def isolateRepresentativeStructure(trajectory):
 
     return representativeIndex, reducedTrajectory, eigenvalues
 
-def bindingAnalysis(bindu, freeu, peptide, sequence):
+def bindingAnalysis(bindu, freeu, peptideSeq, aptamerSeq):
     """
     analyze the binding of target to aptamer by computing relative distances
     :param u:
-    :peptide: peptide sequence
-    :sequence: aptamer sequence
+    :peptideSeq: peptide sequence
+    :aptamerSeq: aptamer sequence
     :return:
     """
     assert bindu.segments.n_segments == 2
     # identify base-target distances
-    pepNucDists = getPepBaseDistTraj(bindu, peptide, sequence)
+    pepNucDists = getPepBaseDistTraj(bindu, peptideSeq, aptamerSeq)
     contacts, nContacts = getPepContactTraj(pepNucDists)
     if np.nonzero(nContacts[:,0])[0] != []:
         firstContact = np.nonzero(nContacts[:, 0])[0][0]  # first time when the peptide and aptamer were in close-range contact
         closeContactRatio = np.average(nContacts[firstContact:, 0] > 0)  # amount of time peptide spends in close contact with aptamer
-        contactScore = np.average(nContacts[firstContact:, :] / len(peptide))  # per-peptide average contact score, linear average over 8-12 angstrom
+        contactScore = np.average(nContacts[firstContact:, :] / len(peptideSeq))  # per-peptide average contact score, linear average over 8-12 angstrom
     else:
         print('Never made contact!')
         closeContactRatio = 0
@@ -673,13 +671,13 @@ def getConformationChange(bindu, freeu):
 
     return reducedDifference
 
-def checkMidTrajectoryBinding(structure, trajectory, peptide, sequence, params, cutoffTime=1):
+def checkMidTrajectoryBinding(structure, trajectory, peptideSeq, aptamerSeq, params, cutoffTime=1):
     """
     check if the target has come unbound from the aptamer and stayed unbound for a certain amount of time
     :return: True or False
     """
     u = mda.Universe(structure, trajectory)  # load up trajectory
-    pepNucDists = getPepBaseDistTraj(u, peptide, sequence)
+    pepNucDists = getPepBaseDistTraj(u, peptideSeq, aptamerSeq)
     contacts, nContacts = getPepContactTraj(pepNucDists)
     try:
         lastContact = np.nonzero(nContacts[:, 0])[0][-1]  # last time when the peptide and aptamer were in close-range contact

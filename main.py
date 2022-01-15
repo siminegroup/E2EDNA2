@@ -16,7 +16,7 @@ else:  # params['device'] == 'cluster':
     params['workdir'] = '/home/taoliu/scratch/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
-params['sequence'] = 'CCTGGGGGAGTATTGCGGAGGAAGG'   # manually set sequence: 5' -> 3'
+params['aptamerSeq'] = 'CCTGGGGGAGTATTGCGGAGGAAGG'  # manually set DNA aptamer sequence from 5' to 3'
 params['target ligand'] = 'peptide.pdb'                    # pdb filename of the target ligand. If no target, use ``False``.
 params['target ligand is a peptide'] = True                # Assume the target is a peptide for now
 params['target peptide sequence'] = 'YQTQTNSPRRAR' if params['target ligand is a peptide'] is True else '' # provide sequence, if target ligand is a peptide; empty string, if not a peptide.    
@@ -67,7 +67,7 @@ if params['device'] == 'cluster':  # inputs are from command line. Need to updat
     cmdLineInputs = get_input()  # get input arguments from command lines
                                  # remember to edit the method "get_input()" in utils.py!!!`
     params['run num'] = cmdLineInputs[0]   # option to get run num from command line (default zero)
-    params['sequence'] = cmdLineInputs[1]  # DNA aptamer sequence
+    params['aptamerSeq'] = cmdLineInputs[1]  # DNA aptamer sequence
     params['peptide'] = cmdLineInputs[2]   # target peptide sequence
     params['max walltime'] = cmdLineInputs[3]  # maximum walltime in hours
                                                # After free aptamer MD, "sampling time" might be reduced to ensure bindingDynamics to finish before time out.
@@ -80,7 +80,7 @@ if params['device'] == 'cluster':  # inputs are from command line. Need to updat
     params['[Mg]'] = cmdLineInputs[7]            # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to MD simulations
     params['impSolv'] = cmdLineInputs[8]         # this is a string, cannot be used as parameter in prmtop.createSys()!
 
-if params['skip MMB'] is True: params['folded initial structure'] = 'foldedSequence_0.pdb'  
+if params['skip MMB'] is True: params['folded initial structure'] = 'foldedAptamer_0.pdb'  
     # if skipping MMB, must provide a folded structure
     # what if >1 folded structures or 2nd structures?
 
@@ -117,7 +117,7 @@ else:
 # OpenMM params
 # If wants to resume a simulation, user must specify the chk file, which will be copied to the workdir
 if params['pick up from chk'] is True:
-    params['chk file'] = 'relaxedSequence_0_processed_state.chk'
+    params['chk file'] = 'relaxedAptamer_0_processed_state.chk'
     # CAUTIOUS: a .chk file created on CUDA platform cannot be run on a CPU platform.
     ''' A checkpoint contains data that is highly specific to the Context from which it was created.
         It depends on the details of the System, the Platform being used, and the hardware and software
@@ -127,10 +127,10 @@ if params['pick up from chk'] is True:
         that is signaled by throwing an exception.
     '''
     if params['implicit solvent'] is False:  # in explicit solvent
-        params['resumed structurePDB'] = 'relaxedSequence_0_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
+        params['resumed structurePDB'] = 'relaxedAptamer_0_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
     else:
-        params['resumed structurePrmtop'] = 'relaxedSequence_0_processed.top'
-        params['resumed structureInpcrd'] = 'relaxedSequence_0_processed.crd'
+        params['resumed structurePrmtop'] = 'relaxedAptamer_0_processed.top'
+        params['resumed structureInpcrd'] = 'relaxedAptamer_0_processed.crd'
 else:
     params['chk file'] = ""  # empty string <==> not resume a sampling from .chk file
 
