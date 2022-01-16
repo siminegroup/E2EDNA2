@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Cluster LightDock final swarm results using BSAS algorithm"""
 

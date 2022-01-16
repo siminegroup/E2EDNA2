@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Calculates the reference points of the simulation"""
 

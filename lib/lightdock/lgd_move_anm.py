@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Calculates the new PDB structure of an input PDB structure using ANM"""
 

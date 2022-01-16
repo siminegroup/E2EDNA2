@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Generates the top N structures in PDB format given a ranking file"""
 

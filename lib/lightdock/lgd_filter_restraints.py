@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Filter LightDock final swarm results depending on the percentage of restraints satisfied"""
 

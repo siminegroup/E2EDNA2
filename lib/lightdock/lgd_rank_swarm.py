@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Calculates the ranking file by scoring intra-swarm"""
 

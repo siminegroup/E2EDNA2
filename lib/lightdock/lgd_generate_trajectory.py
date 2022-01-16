@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Generates the simulated trajectory of a given glowworm in a swarm"""
 

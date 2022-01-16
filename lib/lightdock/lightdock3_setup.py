@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Before launching the LightDock simulation, a setup step is required.
 

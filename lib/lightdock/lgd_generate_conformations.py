@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Generates the PDB structures given a LightDock swarm results file"""
 

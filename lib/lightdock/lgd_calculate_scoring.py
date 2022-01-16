@@ -1,4 +1,4 @@
-#!/home/mkilgour/miniconda3/bin/python
+ 
 
 """Calculates the scoring function value for a pair of receptor and ligand PDB structures"""
 
