@@ -3,59 +3,70 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 params = {}
-# ============================ Specify your settings within this block for a local test ==================================
+# ============================================= Specify your settings within this block for a local test ===================================================
 params['device'] = 'local'           # 'local' or 'cluster'
 params['device platform'] = 'macos'  # 'macos' or 'linux' or 'WSL' (Windows Subsystem for Linux). Not supporting pure Windows OS (due to NUPACK)
 params['platform'] = 'CPU'           # 'CPU' or 'CUDA'
 if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'single' or 'double'
 if params['device'] == 'local':
-    params['workdir'] = '/Users/taoliu/PycharmProjects/myOpenDNA/runs'  # working directory    
+    params['workdir'] = '/Users/taoliu/Desktop/localruns'                           # working directory    
     params['mmb dir'] = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/lib'      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
     params['mmb']     = '/Users/taoliu/Desktop/software/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable
 else:  # params['device'] == 'cluster':
     params['workdir'] = '/home/taoliu/scratch/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
+
+params['mode'] = 'full dock'  # specify simulation mode
 params['aptamerSeq'] = 'CCTGGGGGAGTATTGCGGAGGAAGG'  # manually set DNA aptamer sequence from 5' to 3'
-params['target ligand'] = 'peptide.pdb'                    # pdb filename of the target ligand. If no target, use ``False``.
-params['target ligand is a peptide'] = True                # Assume the target is a peptide for now
-params['target peptide sequence'] = 'YQTQTNSPRRAR' if params['target ligand is a peptide'] is True else '' # provide sequence, if target ligand is a peptide; empty string, if not a peptide.    
+params['target ligand'] = False #'6rqs.pdb'                # pdb filename of the target ligand. If no target, use ``False``, such as in 'free aptamer' mode
+params['target ligand type'] = 'peptide'            # 'peptide' or 'DNA' or 'RNA' or 'other'; This is ignored, if no target.
+params['target sequence'] = ''  # empty string, unless target ligand has sequence.
+if (params['target ligand'] is not False):
+    if (params['target ligand type'] == 'peptide') or (params['target ligand type'] == 'DNA') or (params['target ligand type'] == 'RNA'):
+        params['target sequence'] = 'XXRRWRRWWRRWWRRWRR'  # provide sequence, if target ligand is a peptide/DNA/RNA
 params['example target pdb'] = 'lib/peptide/peptide.pdb'   # an example of target ligand: a peptide, used when no given target but want to do docking
 params['example peptide sequence'] = 'xxxxx'               # Ask Michael: what is the sequence of this example peptide?
 params['run num'] = 0                      # 0: auto-increase run-num for a fresh run; > 0 AND params['explicit run enumeration'] = True: fresh run; > 0 AND params['explicit run enumeration'] = False: pickup on a previous run;
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
-params['mode'] = 'free aptamer'  # specify simulation mode
-'''
+''' params['mode'] can be:
     '2d structure': ssString, pair list and probability
     '3d coarse': MMB output, stressed structure, no solvent
     '3d smooth': MMB output with short MD relaxation
     'coarse dock': best docking scores on coarse MMB structure
     'smooth dock': best docking scores on smoothed MMB structure
     'free aptamer': evaluate and find representative 3D aptamer structure
-    'full docking': 'free aptamer' + docking
-    'full binding': 'full docking' + binding
+    'full dock': 'free aptamer' + docking
+    'full binding': 'full dock' + binding
 '''
-# ================= Modifying anything below this block is NOT necessary, especically for a test run ======================
+# ================================== Modifying anything below this block is NOT necessary, especically for a test run =======================================
 
 
 # **************************************************************  Default setting ****************************************************************************
 params['test mode'] = True                       # a quick test: short MD sampling and docking (if any)
 params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package set up for probability analysis
-params['foldFidelity'] = 0.9                     # MMB: if folding fidelity < this value, refold; unless the fold speed is 'quick'
+params['foldFidelity'] = 0.6                     # MMB: if folding fidelity < this value, refold; unless the fold speed is 'quick'
 
 params['implicit solvent'] = False       # ``False``: explicit solvent
 params['auto sampling'] = False          # ``False``: just run sampling for params['sampling time']; ``True``: run sampling till RC's equilibrate; 
-params['skip MMB'] = False               # ``True``: it will skip '2d analysis' and 'do MMB'
-params['pick up from chk'] = False       # ``True``: resume a previous simulation, then must provide a .chk file below.
-params['skip smoothing'] = False         # ``True``: from MMB folding straight to MD sampling. Eg, if skipping MMB in 'free aptamer' mode
-params['max walltime'] = 3 * 24      # hours
+params['skip MMB'] = False               # ``True``: it will skip '2d analysis' and 'do MMB', then proceed to MD smoothing or MD sampling or dock (if "coarse dock")
+params['skip smoothing'] = True          # ``True``: from MMB folding straight to MD sampling. Eg, if skipping MMB in 'free aptamer' mode
+# The following two "pick up" control: if True, will ignore "skip MMB" and "skip smoothing"
+params['pick up from freeAptamerChk'] = False  # ``True``: resume a MD of free aptamer, must provide a .chk file below. Skip everything before.
+params['pick up from complexChk'] = False      # ``True``: resume a MD of aptamer-ligand, must provide a .chk file below. Skip everything before. Not complete
+# Can only pick up from freeAptamerChk or complexChk. It makes no sense to resume both free aptamer and aptamer-ligand dynamics
+
+params['max walltime'] = 24          # hours
 params['pressure'] = 1               # 1 standard atmosphere
 params['temperature'] = 298          # Kevin: used to predict secondary structure and for MD thermostat
 params['ionicStrength'] = 0.150      # Molar: sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run    
 params['[Mg]'] = 0.005               # Molar: magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to OpenMM simulation.
 params['pH'] = 7.4                   # simulation will automatically protonate the target, such as a peptide, up to this pH. Used in OpenMM for waterBox
 
-if params['implicit solvent'] is True: params['impSolv'] = 'HCT'  # 'HCT', 'OBC1', 'OBC2', 'GBn' or 'GBn2'
+if params['implicit solvent'] is True: 
+    params['impSolv'] = 'HCT'  # 'HCT', 'OBC1', 'OBC2', 'GBn' or 'GBn2'
+    params['DNA force field'] = 'DNA.OL15'  # 'DNA.OL15' or 'DNA.bsc1'. For free aptamer MD sampling if implicit solvent.
+                                            # If target is peptide or RNA, will also add "leaprc.protein.ff14SB" or "source leaprc.RNA.OL3" to the "leap.in"
 params['build a peptide as target ligand'] = False
 params['peptide backbone constraint constant'] = 0  # if target ligand is a peptide, we can choose to put constraint on the peptide's dihedral angles. force constant k. 
 # Ask Ilya: What's its unit? Only works if the target ligand is a peptide?
@@ -86,7 +97,7 @@ if params['skip MMB'] is True: params['folded initial structure'] = 'foldedAptam
 
 if params['test mode'] is True:          # shortcut for debugging or running the code for the first time (validation)
     params['N 2D structures'] = 1        # the clustering algorithm will stop when there are two structures left???
-    params['fold speed'] = 'normal'      # 'quick'
+    params['fold speed'] = 'quick'      # 'quick'
     params['equilibration time'] = 0.0001  # ns. 50 steps
     params['smoothing time'] = 0.001       # ns. 500 steps
     params['sampling time'] = 0.002        # ns. 1000 steps
@@ -116,7 +127,7 @@ else:
 
 # OpenMM params
 # If wants to resume a simulation, user must specify the chk file, which will be copied to the workdir
-if params['pick up from chk'] is True:
+if params['pick up from freeAptamerChk'] is True:
     params['chk file'] = 'relaxedAptamer_0_processed_state.chk'
     # CAUTIOUS: a .chk file created on CUDA platform cannot be run on a CPU platform.
     ''' A checkpoint contains data that is highly specific to the Context from which it was created.
@@ -129,10 +140,20 @@ if params['pick up from chk'] is True:
     if params['implicit solvent'] is False:  # in explicit solvent
         params['resumed structurePDB'] = 'relaxedAptamer_0_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
     else:
-        params['resumed structurePrmtop'] = 'relaxedAptamer_0_processed.top'
+        params['resumed structurePrmtop'] = 'relaxedAptamer_0_processed.top'  # not complete: resume from top and crd file in implicit solvent
         params['resumed structureInpcrd'] = 'relaxedAptamer_0_processed.crd'
 else:
     params['chk file'] = ""  # empty string <==> not resume a sampling from .chk file
+# Can only pick up from freeAptamerChk or complexChk. It makes no sense to resume both free aptamer and aptamer-ligand dynamics
+if params['pick up from complexChk'] is True:
+    params['chk file'] = 'complex_1_2_processed_state.chk'
+    if params['implicit solvent'] is False:  # in explicit solvent
+        params['resumed structurePDB'] = 'complex_1_2_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
+    else:
+        params['resumed structurePrmtop'] = 'complex_1_2_processed.top'  # not complete: resume from top and crd file in implicit solvent
+        params['resumed structureInpcrd'] = 'complex_1_2_processed.crd'
+else:
+    params['chk file'] = ""
 
 # The following three are only used in explicit solvent
 params['force field'] = 'AMBER'  # this does nothing. The force field is specified in __init__ of interfaces.py
@@ -185,13 +206,13 @@ params['mmb quick template'] = 'lib/mmb/commands.template_quick.dat'  # MMB fold
 params['mmb long template'] = 'lib/mmb/commands.template_long.dat'    # MMB folding protocol template No.3
 # LightDock: these python scripts will be copied to 'ld_scripts' in workdir, therefore all addresses are relative to the workdir
 if params['device'] == 'local':        
-    params['ld setup path'] = 'ld_scripts/lightdock3_setup.py'
-    params['ld run path'] = 'ld_scripts/lightdock3.py'
-    params['lgd generate path'] = '../ld_scripts/lgd_generate_conformations.py'
-    params['lgd cluster path'] = '../ld_scripts/lgd_cluster_bsas.py'
-    params['lg ant path'] = 'ld_scripts/ant_thony.py'
-    params['lgd rank path'] = 'ld_scripts/lgd_rank.py'
-    params['lgd top path'] = 'ld_scripts/lgd_top.py'
+    params['ld setup path'] = 'python ld_scripts/lightdock3_setup.py'
+    params['ld run path'] = 'python ld_scripts/lightdock3.py'
+    params['lgd generate path'] = 'python ../ld_scripts/lgd_generate_conformations.py'
+    params['lgd cluster path'] = 'python ../ld_scripts/lgd_cluster_bsas.py'
+    params['lg ant path'] = 'python ld_scripts/ant_thony.py'
+    params['lgd rank path'] = 'python ld_scripts/lgd_rank.py'
+    params['lgd top path'] = 'python ld_scripts/lgd_top.py'
 elif params['device'] == 'cluster':    
     params['ld setup path'] = 'python ld_scripts/lightdock3_setup.py'
     params['ld run path'] = 'python ld_scripts/lightdock3.py'
@@ -205,3 +226,4 @@ elif params['device'] == 'cluster':
 if __name__ == '__main__':
     opendna = opendna(params)  # instantiate the class
     opendnaOutput = opendna.run()  # retrieve binding information (eventually this should become a normalized c-number)    
+    printRecord('Pipeline successfully stopped.')

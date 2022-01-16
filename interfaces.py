@@ -222,8 +222,7 @@ class omm:
         """
         pass on the pre-set and user-defined params to openmm engine
         """
-        self.structureName = structurePDB.split('.')[0]  # e.g., structurePDB: relaxedAptamer_0_amb_processed.pdb or complex_1_2_processed.pdb
-        self.peptide = params['peptide']
+        self.structureName = structurePDB.split('.')[0]  # e.g., structurePDB: relaxedAptamer_0_amb_processed.pdb or complex_1_2_processed.pdb        
         self.chkFile = params['chk file']  # if not resuming the simulation, it is empty string ""
 
         if implicitSolvent is False:
@@ -277,7 +276,7 @@ class omm:
             logFileName = 'log_smoothing.txt'
         self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
                 
-        if params['pick up from chk'] is False:  # or if not self.chkFile:
+        if (params['pick up from freeAptamerChk'] is False) and (params['pick up from complexChk'] is False):  # or if not self.chkFile:
             self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
         else:  # ie, we are resuming a sampling, chkFile must exist.
             self.checkpointReporter = CheckpointReporter(self.chkFile, 10000)                   
@@ -426,7 +425,7 @@ class omm:
         elif params['platform'] == 'CPU':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
         
-        if params['pick up from chk'] is False:
+        if (params['pick up from freeAptamerChk'] is False) and (params['pick up from complexChk'] is False):
             self.simulation.context.setPositions(self.positions)
             printRecord("Initial positions set.")
         else:
@@ -434,7 +433,7 @@ class omm:
 
     def doMD(self):  # no need to be aware of the implicitSolvent        
         # if not os.path.exists(self.structureName + '_state.chk'):
-        if not self.chkFile:  # "self.chkFile is not empty" is equivalent to "params['pick up from chk'] is True"
+        if not self.chkFile:  # "self.chkFile is not empty" is equivalent to "either params['pick up from freeAptamerChk'] or params['pick up from complexChk'] is True"
             # User did not specify a .chk file ==> we are doing a fresh sampling, not resuming.
             # Minimize and Equilibrate
             printRecord('Performing energy minimization...')
@@ -556,6 +555,7 @@ class ld:  # lightdock
         os.system(self.topPath + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
         os.mkdir('top_%d'%self.ind1)
         os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)
+        # What if there is no top*.pdb at all?
 
     def extractTopScores(self):
         self.topScores = readInitialLines('rank_by_scoring.list', self.numTopStructures + 1)[1:]
