@@ -1,0 +1,46 @@
+# What should we set as command inputs to automate the tests?
+# assumption: lcoal, macos; user has defined work dir, MMB path in main.py and provided target ligand's pdb etc.
+# in short, it is ready to run and test different modes
+
+printf "Starting the automated testing...\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #1: '2d structure'\n"
+python main.py --run_num=1 --mode='2d structure' > run1.out
+printf "\nEnd of test #1, should see info of 2d structure in \"record.txt\" of working dir \"run1\"\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #2: '3d coarse'\n"
+python main.py --run_num=2 --mode='3d coarse' > run2.out
+printf "\nEnd of test #2, should see info of 2d structure + MMB folded structure in \"run2\"\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #3: '3d smooth'\n"
+python main.py --run_num=3 --mode='3d smooth' > run3.out
+printf "\nEnd of test #3, should see info of 2d structure + MMB folded structure + short MD relaxation in \"run3\"\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #4: 'coarse dock'\n"
+python main.py --run_num=4 --mode='coarse dock' > run4.out
+printf "\nEnd of test #4, should see info of 2d structure + MMB folded structure + docking by provided target ligand in \"run4\"\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #5: 'smooth dock'\n"
+python main.py --run_num=5 --mode='smooth dock' > run5.out
+printf "\nEnd of test #5, should see info of 2d structure + MMB folded structure + short MD relaxation + docked by provided target ligand in \"run5\"\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #6: 'free aptamer'\n"
+python main.py --run_num=6 --mode='free aptamer' > run6.out
+printf "\nEnd of test #6, should see info of 2d structure + MMB folded structure + long MD sampling in \"run6\"\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #7: 'full dock'\n"
+python main.py --run_num=7 --mode='full dock' > run7.out
+printf "\nEnd of test #7, should see info of 2d structure + MMB folded structure + long MD sampling + docked by provided target ligand in \"run7\"\n"
+printf "====================================================================================================================================================================="
+
+printf "\nTesting mode #8: 'full binding'\n"
+python main.py --run_num=8 --mode='full binding' > run8.out
+printf "\nEnd of test #8, should see info of 2d structure + MMB folded structure + long MD sampling + docked by provided target ligand + long MD sampling in \"run8\"\n"
+printf "=====================================================================================================================================================================\n"
