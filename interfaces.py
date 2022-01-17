@@ -218,7 +218,7 @@ class mmb:  # MacroMolecule Builder (MMB)
 
 # openmm
 class omm:
-    def __init__(self, structurePDB, params, simTime=None, implicitSolvent=False):
+    def __init__(self, structurePDB, params, simTime=None, binding=False, implicitSolvent=False):
         """
         pass on the pre-set and user-defined params to openmm engine
         """
@@ -246,15 +246,14 @@ class omm:
         self.quickSim = params['test mode']
 
         # Simulation options
+        self.timeStep = params['time step']  # fs
+        self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
         if simTime is not None:  # override the default "sampling time": e.g., when running smoothing.
-            self.steps = int(simTime * 1e6 // params['time step'])
-            self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
+            self.steps = int(simTime * 1e6 // params['time step'])            
             self.simTime = simTime
         else:  # default sampling time = params['sampling time']
             self.steps = int(params['sampling time'] * 1e6 // params['time step'])  # number of steps
-            self.equilibrationSteps = int(params['equilibration time'] * 1e6 // params['time step'])
             self.simTime = params['sampling time']
-        self.timeStep = params['time step']
         
         # Platform
         if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
@@ -271,7 +270,10 @@ class omm:
         self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
         if simTime is None:
-            logFileName = 'log.txt'
+            if binding is True:
+                logFileName = 'log_complex.txt'
+            else:
+                logFileName = 'log.txt'
         else:  # MD smoothing: simTime is specified as 'smoothing time'
             logFileName = 'log_smoothing.txt'
         self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
