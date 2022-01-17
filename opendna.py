@@ -1,10 +1,3 @@
-"""
-Unused imports:
-import os
-import re
-import numpy as np
-import MDAnalysis as mda
-"""
 import sys
 import glob
 from shutil import copyfile, copytree
@@ -239,7 +232,7 @@ class opendna:
         else:
             self.workDir = self.params['workdir'] + '/' + 'run1'
             os.mkdir(self.workDir)
-            printRecord('Starting Fresh Run 1', self.workDir+'/')            
+            printRecord('Starting Fresh Run 1', self.workDir+'/')
 
     def run(self):
         """
@@ -271,7 +264,7 @@ class opendna:
 
         for self.i in range(num_2dSS):  # loop over all possible secondary structures
             if self.actionDict['do 2d analysis'] is True:  # self.ssAnalysis only exists if we "do 2d analysis"
-                printRecord('2D structure #{} is                             : {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
+                printRecord('2D structure #{} is                              : {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
                 self.pairList = np.asarray(self.pairLists[self.i])  # be careful!!!: .pairList vs. .pairLists
 
             if self.actionDict['do MMB']:  # fold 2D into 3D
@@ -403,7 +396,7 @@ class opendna:
         Run a short MD sampling to relax the coarse MMB structure
         Relaxation time in nanoseconds, print time in picoseconds
         :param structure:
-        :param relaxationTime: does not seem to be used???
+        :param relaxationTime: params['smoothing time']
         :param implicitSolvent:
         :return:
         """
@@ -426,7 +419,7 @@ class opendna:
 
         processedStructure = structureName + '_processed.pdb'
         processedStructureTrajectory = structureName + '_processed_trajectory.dcd'
-        omm = interfaces.omm(structurePDB=processedStructure, params=self.params, simTime=self.params['smoothing time'], implicitSolvent=implicitSolvent)
+        omm = interfaces.omm(structurePDB=processedStructure, params=self.params, simTime=relaxationTime, binding=False, implicitSolvent=implicitSolvent)
         self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
 
         printRecord('Pre-relaxation simulation speed %.1f' % self.ns_per_day + 'ns/day')  # print out sampling speed
@@ -514,7 +507,7 @@ class opendna:
         :param targetPDB: pdb file of the target ligand
         :return:
         """
-        printRecord('Docking')
+        printRecord('\nDocking')
         if bool(self.params['peptide backbone constraint constant']):  # it constant != 0, bool=True
             printRecord('Peptide will be constrained on their dihidral angles.')
         
@@ -616,7 +609,7 @@ class opendna:
         structureName = structurePDB.split('.')[0]  # e.g., free aptamer: relaxedAptamer_0_amb_processed.pdb (implicit solvent) or relaxedAptamer_0_processed.pdb (explicit solvent)
         if self.params['auto sampling'] is False:  # just run MD for the given sampling time
             self.targetUnbound = False
-            omm = interfaces.omm(structurePDB=structurePDB, params=self.params, implicitSolvent=implicitSolvent)
+            omm = interfaces.omm(structurePDB=structurePDB, params=self.params, binding=binding, implicitSolvent=implicitSolvent)
             self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
             # print('Generated:', structureName + '_trajectory.dcd')
             os.replace(structureName + '_trajectory.dcd', structureName + "_complete_trajectory.dcd")
@@ -630,7 +623,7 @@ class opendna:
 
             while (converged is False) and (iter < maxIter):
                 iter += 1
-                omm = interfaces.omm(structurePDB=structurePDB, params=self.params, implicitSolvent=implicitSolvent)
+                omm = interfaces.omm(structurePDB=structurePDB, params=self.params, binding=binding, implicitSolvent=implicitSolvent)
                 self.ns_per_day = omm.doMD()
 
                 if iter > 1:  # if we have multiple trajectory segments, combine them
