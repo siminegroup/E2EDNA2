@@ -16,19 +16,27 @@ else:  # params['device'] == 'cluster':
     params['workdir'] = '/home/taoliu/scratch/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
+params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
+# params['run num'] = 1                    # 0: auto-increase run-num for a fresh run; > 0 AND params['explicit run enumeration'] = True: fresh run; > 0 AND params['explicit run enumeration'] = False: pickup on a previous run;
+# params['mode'] = 'full binding'  # specify simulation mode
+cmdLineInputs = get_input()  # get input arguments from command lines
+params['run num'] = cmdLineInputs[0]
+params['mode'] = cmdLineInputs[1]
 
-params['mode'] = 'full dock'  # specify simulation mode
-params['aptamerSeq'] = 'CCTGGGGGAGTATTGCGGAGGAAGG'  # manually set DNA aptamer sequence from 5' to 3'
-params['target ligand'] = False #'6rqs.pdb'                # pdb filename of the target ligand. If no target, use ``False``, such as in 'free aptamer' mode
-params['target ligand type'] = 'peptide'            # 'peptide' or 'DNA' or 'RNA' or 'other'; This is ignored, if no target.
-params['target sequence'] = ''  # empty string, unless target ligand has sequence.
-if (params['target ligand'] is not False):
-    if (params['target ligand type'] == 'peptide') or (params['target ligand type'] == 'DNA') or (params['target ligand type'] == 'RNA'):
-        params['target sequence'] = 'XXRRWRRWWRRWWRRWRR'  # provide sequence, if target ligand is a peptide/DNA/RNA
+# manually set DNA aptamer sequence from 5' to 3' # 'CCTGGGGGAGTATTGCGGAGGAAGG' 
+params['aptamerSeq'] = 'TTCAAGAGCGGTTCGTAATGTTAATTGACTGATCCCTACC'
+# pdb filename of the target ligand. If no target, use ``False``, such as in 'free aptamer' mode 
+#'6rqs.pdb'
+params['target ligand'] = 'YQTQ.pdb'
+params['target ligand type'] = 'peptide'  # 'peptide' or 'DNA' or 'RNA' or 'other'; This is ignored if no target.
+# empty string, unless target ligand has sequence. # 6rqs.pdb: XXRRWRRWWRRWWRRWRR
+params['target sequence'] = 'YQTQTNSPRRAR'
+
+# if (params['target ligand'] is not False):
+#     if (params['target ligand type'] == 'peptide') or (params['target ligand type'] == 'DNA') or (params['target ligand type'] == 'RNA'):
+#         params['target sequence'] = ''  # provide sequence, if target ligand is a peptide/DNA/RNA
 params['example target pdb'] = 'lib/peptide/peptide.pdb'   # an example of target ligand: a peptide, used when no given target but want to do docking
 params['example peptide sequence'] = 'xxxxx'               # Ask Michael: what is the sequence of this example peptide?
-params['run num'] = 0                      # 0: auto-increase run-num for a fresh run; > 0 AND params['explicit run enumeration'] = True: fresh run; > 0 AND params['explicit run enumeration'] = False: pickup on a previous run;
-params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
 ''' params['mode'] can be:
     '2d structure': ssString, pair list and probability
     '3d coarse': MMB output, stressed structure, no solvent
@@ -45,7 +53,7 @@ params['explicit run enumeration'] = True  # To resume a previous run from .chk 
 # **************************************************************  Default setting ****************************************************************************
 params['test mode'] = True                       # a quick test: short MD sampling and docking (if any)
 params['secondary structure engine'] = 'NUPACK'  # 'NUPACK' or 'seqfold' - NUPACK has many more features and is the only package set up for probability analysis
-params['foldFidelity'] = 0.6                     # MMB: if folding fidelity < this value, refold; unless the fold speed is 'quick'
+params['foldFidelity'] = 0.9                     # MMB: if folding fidelity < this value, refold; unless the fold speed is 'quick'
 
 params['implicit solvent'] = False       # ``False``: explicit solvent
 params['auto sampling'] = False          # ``False``: just run sampling for params['sampling time']; ``True``: run sampling till RC's equilibrate; 
@@ -71,25 +79,6 @@ params['build a peptide as target ligand'] = False
 params['peptide backbone constraint constant'] = 0  # if target ligand is a peptide, we can choose to put constraint on the peptide's dihedral angles. force constant k. 
 # Ask Ilya: What's its unit? Only works if the target ligand is a peptide?
 # ************************************************************************************************************************************************************
-
-# Physical params   
-if params['device'] == 'cluster':  # inputs are from command line. Need to update them to have consistent names as 'local'
-    params['device platform'] = ""  # leave it blank or specify the cluster's OS. This is for running MMB. Consult the admin for cluster if running into problems.
-    cmdLineInputs = get_input()  # get input arguments from command lines
-                                 # remember to edit the method "get_input()" in utils.py!!!`
-    params['run num'] = cmdLineInputs[0]   # option to get run num from command line (default zero)
-    params['aptamerSeq'] = cmdLineInputs[1]  # DNA aptamer sequence
-    params['peptide'] = cmdLineInputs[2]   # target peptide sequence
-    params['max walltime'] = cmdLineInputs[3]  # maximum walltime in hours
-                                               # After free aptamer MD, "sampling time" might be reduced to ensure bindingDynamics to finish before time out.
-                                               # Or give up if this isn't enough time to complete even a minimum run.
-    # Physical params
-    params['temperature'] = cmdLineInputs[4]     # Kevin - used to predict secondary structure and for MD thermostat
-    params['pH'] = cmdLineInputs[5]              # simulation will automatically protonate the peptide up to this pH. Used in OpenMM for waterBox
-    params['ionicStrength'] = cmdLineInputs[6]   # Molar - sodium concentration - used to predict secondary structure and add ions to simulation box, must be 1100 M > [Na] > 50 for nupack to run
-                                                 # TODO: how about adding other ions? Expand the FF as well?
-    params['[Mg]'] = cmdLineInputs[7]            # Molar - magnesium concentration: 0.2 M > [Mg] > 0 - ONLY applies to NuPack fold - Does NOT add Mg to MD simulations
-    params['impSolv'] = cmdLineInputs[8]         # this is a string, cannot be used as parameter in prmtop.createSys()!
 
 if params['skip MMB'] is True: params['folded initial structure'] = 'foldedAptamer_0.pdb'  
     # if skipping MMB, must provide a folded structure
