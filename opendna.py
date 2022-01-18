@@ -149,6 +149,7 @@ class opendna:
             else:  # create a working directory defined by the user
                 self.workDir = self.params['workdir'] + '/run%d' % self.params['run num']
                 os.mkdir(self.workDir)
+                printRecord('Starting Fresh Run {}'.format(self.params['run num']), self.workDir+'/')
         else:
             self.workDir = self.params['workdir'] + '/' + 'run%d' % self.params['run num']
 
@@ -199,7 +200,8 @@ class opendna:
             replaceText('leap_template.in', 'DNA_FF', self.params['DNA force field'])
         
         # Print prompt: free aptamer or aptamer + target ligand
-        if (self.targetPDB is False) and (self.actionDict['do docking'] is False):  # no given target ligand, nor do docking
+        printRecord('Simulation mode: {}'.format(self.params['mode']))
+        if (self.actionDict['do docking'] is False):  # no given target ligand, nor do docking
             printRecord('Simulating free aptamer: {}'.format(self.aptamerSeq))
         else:
             printRecord('Simulating {} with {}'.format(self.aptamerSeq, self.targetPDB))
