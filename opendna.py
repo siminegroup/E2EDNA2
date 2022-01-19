@@ -242,7 +242,6 @@ class opendna:
         consult checkpoints to not repeat prior steps
         :return:
         """
-
         # outputDict = {'params': self.params}
         outputDict = {}
         outputDict['params'] = self.params
@@ -265,9 +264,9 @@ class opendna:
             num_2dSS = 1  # quick and dirty
 
         for self.i in range(num_2dSS):  # loop over all possible secondary structures
-            if self.actionDict['do 2d analysis'] is True:  # self.ssAnalysis only exists if we "do 2d analysis"
-                printRecord('2D structure #{} is                              : {}'.format(self.i, self.ssAnalysis['2d string'][self.i]))
-                self.pairList = np.asarray(self.pairLists[self.i])  # be careful!!!: .pairList vs. .pairLists
+            if self.actionDict['do 2d analysis'] is True:  # self.ssAnalysis only exists if we "do 2d analysis"            
+                printRecord('2D structure #{} is                              : {}'.format(self.i, self.ssAnalysis['displayed 2d string'][self.i]))
+                self.pairList = np.asarray(self.pairLists[self.i])  # be careful!!!: .pairList vs. .pairLists                                                
 
             if self.actionDict['do MMB']:  # fold 2D into 3D
                 self.foldSequence(self.aptamerSeq, self.pairList)
@@ -279,7 +278,7 @@ class opendna:
 
             if self.params['skip smoothing'] is True:
                 self.actionDict['do smoothing'] = False
-                printRecord('\nSkipping smoothing and starting MD sampling using the folded structure.')
+                printRecord('\nNo relaxation (smoothing) of the folded aptamer.')
                 self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'foldedAptamer_0.pdb'
             elif self.actionDict['do smoothing']:  # just to double check
                 if self.params['skip MMB'] is False:
@@ -340,23 +339,27 @@ class opendna:
         printRecord("Getting Secondary Structure(s)")
         if self.params['secondary structure engine'] == 'seqfold':
             ssString, pairList = getSeqfoldStructure(aptamerSeq, self.params['temperature'])  # seqfold guess
-            self.ssAnalysis = [ssString, pairList]
-            # TODO what are in ssString and pairList?
+            self.ssAnalysis = {'2d string': ssString, 'pair list': pairList, 'displayed 2d string': ssString}
+            # print('seqfold ssAnalysis: ',self.ssAnalysis)
             return pairList
         elif self.params['secondary structure engine'] == 'NUPACK':
             nup = interfaces.nupack(aptamerSeq, self.params['temperature'], self.params['ionicStrength'], self.params['[Mg]'])  # initialize nupack
             self.ssAnalysis = nup.run()  # run nupack analysis of possible 2D structures.
 
-            distances = getSecondaryStructureDistance(self.ssAnalysis['config'])
+            distances = getSecondaryStructureDistance(self.ssAnalysis['config'])            
             if len(distances) > 1:
                 topReps, topProbs, topDists = do2DAgglomerativeClustering(self.ssAnalysis['config'], self.ssAnalysis['state prob'], distances)
-                topPairLists = []
+                topPairLists = []                
                 nLists = min(len(topReps), self.params['N 2D structures'])
+                self.ssAnalysis['displayed 2d string'] = []  # to output the dot-parenthesis notation of selected 2d structure
                 for i in range(nLists):
                     if (i == 0) or (np.amin(topDists[i, :i]) > 0.05): # only add a config to the list if it's at least 5% different from a previously accepted config
+                        self.ssAnalysis['displayed 2d string'].append(configToString(topReps[i].astype(int)))
                         topPairLists.append(ssToList(configToString(topReps[i].astype(int))))
                 return topPairLists
+
             else:  # if, for some reason, there's only a single plausible structure (unlikely)
+                self.ssAnalysis['displayed 2d string'] = self.ssAnalysis['2d string']
                 return self.ssAnalysis['pair list']
 
     def foldSequence(self, aptamerSeq, pairList):
@@ -375,23 +378,24 @@ class opendna:
         printRecord('Initial fold fidelity = %.3f' % foldFidelity)
         printRecord('Initial fold fidelity = %.3f (from MDAnalysis)' % MDAfoldFidelity)
         attempts = 1
-        if self.params['fold speed'] != 'quick':  # don't rerun if we're quick folding
-            intervalLength = 5  # initial interval length
-            while (foldFidelity <= self.params['foldFidelity']) and (attempts < 5):  # if it didn't fold properly, try again with a longer annealing time - up to XX times
-                self.params['fold speed'] = 'long'
+        # Skip refold
+        # if self.params['fold speed'] != 'quick':  # don't rerun if we're quick folding
+        #     intervalLength = 5  # initial interval length
+        #     while (foldFidelity <= self.params['foldFidelity']) and (attempts < 5):  # if it didn't fold properly, try again with a longer annealing time - up to XX times
+        #         self.params['fold speed'] = 'long'
                 
-                printRecord("Refolding Aptamer from Sequence")
-                mmb = interfaces.mmb(aptamerSeq, pairList, self.params, self.i, intervalLength)  # extra intervalLength argument                
-                MDAfoldFidelity, MMBfoldFidelity = mmb.run()
-                foldFidelity = MMBfoldFidelity
-                printRecord('Subsequent fold fidelity = %.3f' % foldFidelity)
-                printRecord('Subsequent MDA fold fidelity = %.3f' % MDAfoldFidelity)
-                attempts += 1
-                intervalLength += 5  # on repeated attempts, try harder
+        #         printRecord("Refolding Aptamer from Sequence")
+        #         mmb = interfaces.mmb(aptamerSeq, pairList, self.params, self.i, intervalLength)  # extra intervalLength argument                
+        #         MDAfoldFidelity, MMBfoldFidelity = mmb.run()
+        #         foldFidelity = MMBfoldFidelity
+        #         printRecord('Subsequent fold fidelity = %.3f' % foldFidelity)
+        #         printRecord('Subsequent MDA fold fidelity = %.3f' % MDAfoldFidelity)
+        #         attempts += 1
+        #         intervalLength += 5  # on repeated attempts, try harder
 
         self.pdbDict['mmb folded aptamer {}'.format(self.i)] = mmb.foldedAptamerSeq  # mmb.foldedAptamerSeq = foldedAptamer_{}.pdb: defined in the mmb.run()
         os.system('mv commands.run* ' + mmb.fileDump)  # mmb.fileDump is a directory for intermediate files during running MMB
-        printRecord("Folded Aptamer.")
+        printRecord("Folded the aptamer and generated the folded structure: {}".format(self.pdbDict['mmb folded aptamer {}'.format(self.i)]))
 
     def MDSmoothing(self, structure, relaxationTime=0.01, implicitSolvent=False):  # default relaxation time is 0.01 ns
         """
@@ -665,7 +669,7 @@ class opendna:
         pairTraj = getPairTraj(wcTraj)
         secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
         if self.actionDict['do 2d analysis'] is True:
-            printRecord('Predicted 2D structure :' + self.ssAnalysis['2d string'][self.i])  # if we did not fold the structure, we probably do not know the secondary structure.
+            printRecord('Predicted 2D structure :' + self.ssAnalysis['displayed 2d string'][self.i])  # if we did not fold the structure, we probably do not know the secondary structure.
         printRecord('Actual 2D structure    :' + configToString(secondaryStructure))
 
         # 3D structure analysis
