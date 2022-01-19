@@ -1,0 +1,86 @@
+#sequence
+DNA A 1     SEQUENCE
+
+# stages
+firstStage 1
+lastStage 10
+
+#general simulation parameters
+readAtStage 1
+baseInteractionScaleFactor     100
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 1
+baseInteractionScaleFactor     100
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 2
+baseInteractionScaleFactor     200
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 3
+baseInteractionScaleFactor     300
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 4
+baseInteractionScaleFactor     400
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 5
+baseInteractionScaleFactor     500
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 6
+baseInteractionScaleFactor     600
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 7
+baseInteractionScaleFactor     700
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 8
+baseInteractionScaleFactor     800
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 9
+baseInteractionScaleFactor     900
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+readAtStage 10
+baseInteractionScaleFactor     1000
+reportingInterval 1.0
+numReportingIntervals INTERVAL
+readBlockEnd
+
+# scrubber
+# dutyCycle .9
+# scrubberPeriod 40
+
+temperature TEMPERATURE
+randomizeInitialVelocities TRUE
+
+# attractive forces
+#baseInteraction A IND WatsonCrick A IND2 WatsonCrick Cis
+
+
+setDefaultMDParameters
