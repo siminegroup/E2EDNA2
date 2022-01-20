@@ -12,9 +12,9 @@ For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (h
 ## Installation
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
 1. Download in any convenient way the E2EDNA package from this repository.
-2. Register and download NUPACK from http://www.nupack.org/downloads, note the path to ~/nupack-###/source/package directory
-3. In the e2edna directory please modify 2 lines the local_installation.sh script: anaconda3 or miniconda3 path, and the path to nupack (see step 2)
-4. From e2edna folder run either local_installation.sh or macos_installation.sh (if using the latter please adjust the last line in the .yml file)
+2. Register and download NUPACK from http://www.nupack.org/downloads, you will need the path to ~/nupack-###/source/package directory
+3. In the e2edna directory please modify the macos_installation.sh script: update the path to nupack (see step 2)
+4. From e2edna folder run macos_installation.sh
 5. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify DYLD_LIBRARY_PATH against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
 6. Update 3 paths in main.py: 
        params['workdir'] = '~/localruns'   # working directory                                                                                                     
@@ -36,7 +36,6 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
 #--ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
 
 ```
-
 
 ## Functionality: Eight different modes of operation
 E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
