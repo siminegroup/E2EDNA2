@@ -92,6 +92,7 @@ class opendna:
             self.actionDict['get equil repStructure'] = False
             self.actionDict['do docking'] = False
             self.actionDict['do binding'] = False
+            self.params['skip smoothing'] = False
 
         elif self.params['mode'] == 'coarse dock':  # directly dock the structure generated in MMB. Is it useful by any chance?
             self.actionDict['make workdir'] = True
@@ -110,6 +111,7 @@ class opendna:
             self.actionDict['get equil repStructure'] = False
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = False
+            self.params['skip smoothing'] = False
 
         elif self.params['mode'] == 'free aptamer':
             self.actionDict['make workdir'] = True
@@ -274,11 +276,12 @@ class opendna:
                 # situation here: no MMB + not to resume a MD of either free aptamer or aptamer-ligand complex: ie, (self.params['pick up from freeAptamerChk'] is False) and (self.params['pick up from complexChk'] is False)
                 # meaning of the condition: just skip MMb and preceed to next step: MD smoothing or MD sampling or dock (if "coarse dock")
                 self.pdbDict['folded aptamer {}'.format(self.i)] = self.params['folded initial structure']
-                self.pdbDict['representative aptamer {}'.format(self.i)] = self.params['folded initial structure']  # for "coarse dock" mode.
+                self.pdbDict['representative aptamer {}'.format(self.i)] = self.params['folded initial structure']  # for "coarse dock" mode.            
 
             if self.params['skip smoothing'] is True:
                 self.actionDict['do smoothing'] = False
-                printRecord('\nNo relaxation (smoothing) of the folded aptamer.')
+                if self.params['mode'] != '2d structure':
+                    printRecord('\nNo relaxation (smoothing) of the folded aptamer.')
                 self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'foldedAptamer_0.pdb'
             elif self.actionDict['do smoothing']:  # just to double check
                 if self.params['skip MMB'] is False:
@@ -396,6 +399,9 @@ class opendna:
         self.pdbDict['mmb folded aptamer {}'.format(self.i)] = mmb.foldedAptamerSeq  # mmb.foldedAptamerSeq = foldedAptamer_{}.pdb: defined in the mmb.run()
         os.system('mv commands.run* ' + mmb.fileDump)  # mmb.fileDump is a directory for intermediate files during running MMB
         printRecord("Folded the aptamer and generated the folded structure: {}".format(self.pdbDict['mmb folded aptamer {}'.format(self.i)]))
+        
+        # For "coarse dock" mode:
+        self.pdbDict['representative aptamer {}'.format(self.i)] = self.pdbDict['mmb folded aptamer {}'.format(self.i)]  # ie, 'relaxedAptamer_{}.pdb'.format(self.i)
 
     def MDSmoothing(self, structure, relaxationTime=0.01, implicitSolvent=False):  # default relaxation time is 0.01 ns
         """
