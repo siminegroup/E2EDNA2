@@ -29,7 +29,7 @@ def get_input():
     """
     # Two examples of commands:
     # python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
-    # python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --ligand='YQYQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
+    # python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --ligand='YQTQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_num', type=int, default=0)
     parser.add_argument('--mode', type=str, default='simulation_mode')
