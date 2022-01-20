@@ -170,4 +170,4 @@ dependencies:
     - pytraj==2.0.6
     - sander==16.0
     - seqfold==0.7.11
-prefix: /Users/lenka/opt/anaconda3/envs/e2edna
+
