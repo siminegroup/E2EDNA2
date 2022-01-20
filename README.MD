@@ -82,7 +82,12 @@ This code implements several distinct analysis modes so users may customize the 
 * Run the bash script ``automate_tests.sh`` to test all 8 modes automatically.
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
-python main.py --run-num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='YQYQ.pdb'
+python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='YQYQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
+
+#--ligand='False'        # if no ligand. --ligandType and --ligandSeq will be ignored.
+#--ligandType='peptide'  # or 'DNA' or 'RNA' or 'other'. Assuming 'other' ligand can be described by Amber14 force field.
+#--ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
+
 ```
 
 # __ work in progress__
