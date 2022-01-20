@@ -175,13 +175,13 @@ class opendna:
         
         # if do docking, need targetPDB
         if (self.actionDict['do docking'] is True):  
-            if self.targetPDB is False:  # if user does not provide a target ligand pdb, use our provided example target ligand: a peptide.
+            if self.targetPDB == 'False':  # if user does not provide a target ligand pdb, use our provided example target ligand: a peptide.
                 self.targetPDB = 'example_target_peptide.pdb'             # self.targetPDB is no longer False.
                 self.targetSeq = self.params['example peptide sequence']  # self.targetSeq is not empty because we are dealing with a peptide.
                 copyfile(self.params['example target pdb'], self.workDir + '/' + self.targetPDB)  # ie, target of the aptamer
             else:  # user provides a targetPDB
                 copyfile(self.targetPDB, self.workDir + '/' + self.targetPDB)
-            # From now on, "self.targetPDB is False" is equivalent to "'do docking' is False".
+            # From now on, "self.targetPDB == 'False'" is equivalent to "'do docking' is False".
             # copy lightdock scripts        
             copytree('lib/lightdock', self.workDir + '/ld_scripts')  # if destination dir does not already exist, create one then copy the whole source dir
 
@@ -294,7 +294,7 @@ class opendna:
                     # if using implicit solvent, the .top and .crd files have the same name as .pdb. For ex: relaxed_amb_processed.pdb/top/crd
                 np.save('opendnaOutput', outputDict)  # save outputs
 
-            if (self.actionDict['do docking'] is True) and (self.targetPDB is not False):  # find docking configuration for the complexed structure
+            if (self.actionDict['do docking'] is True) and (self.targetPDB != 'False'):  # find docking configuration for the complexed structure
                 # coarse dock: no smoothing;
                 # smooth dock: smooth + dock;
                 # full dock: smooth + dock + equil structure;

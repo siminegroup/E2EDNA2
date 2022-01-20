@@ -27,15 +27,26 @@ def get_input():
     get the command line in put for the run num. defaulting to a new run (0)
     :return:
     """
+    # Two examples of commands:
+    # python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
+    # python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --ligand='YQYQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_num', type=int, default=0)
     parser.add_argument('--mode', type=str, default='simulation_mode')
+    parser.add_argument('--aptamerSeq', type=str, default='NOSEQUENCE')
+    parser.add_argument('--ligand', type=str, default='False')
+    parser.add_argument('--ligandType', type=str, default='')
+    parser.add_argument('--ligandSeq', type=str, default='')
     
     cmd_line_input = parser.parse_args()
     run_num = cmd_line_input.run_num
     mode = cmd_line_input.mode
+    aptamerSeq = cmd_line_input.aptamerSeq
+    ligand = cmd_line_input.ligand
+    ligandType = cmd_line_input.ligandType
+    ligandSeq = cmd_line_input.ligandSeq
     
-    return [run_num, mode]
+    return [run_num, mode, aptamerSeq, ligand, ligandType, ligandSeq]
 
 
 def recenterDCD(topology, trajectory):
