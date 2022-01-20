@@ -15,7 +15,7 @@ git clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_
 ```
 * Set up a Python environment with the following packages
   * Note to Simine Group Members running on Compute Canada clusters: skip this section and go directly to paths. Your virtual environment is automatically setup via the instructions in [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh) in the [``TL-cluster-code``](https://github.com/InfluenceFunctional/OpenDNA/tree/TL-cluster-code) branch. Modify this bash script accordingly for other types of computing clusters.
-  * For local runs, follow the [``EXAMPLE_SUB.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/EXAMPLE_SUB.sh) in the [``main``](https://github.com/InfluenceFunctional/OpenDNA) branch to install required packages and their dependences.
+  * For local runs, follow the [``local_install_script.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/local_install_script.sh) in the [``main``](https://github.com/InfluenceFunctional/OpenDNA) branch to install required packages and their dependences.
   * In particular, as to the ``MacroMoleculeBuilder (MMB)`` module:
     * Download appropriate version for your system from [SimTK](https://simtk.org/projects/rnatoolbox): old and new versions have been tested and seem to work.
   * As shown in the [``requirements.txt``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/requirements.txt), the required dependences are as follows. Use ``pip install -r requirements.txt`` to install them all in once:
