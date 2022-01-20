@@ -32,6 +32,6 @@ pip install <downloaded wheel for your OS>
 # PeptideBuilder: # https://pypi.org/project/PeptideBuilder/1.1.0/ # https://www.wheelodex.org/projects/peptidebuilder/
 pip install PeptideBuilder
 
-date -u
-python ./main.py
-date -u
+# date -u
+# python ./main.py
+# date -u
