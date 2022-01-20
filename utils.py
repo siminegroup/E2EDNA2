@@ -231,12 +231,6 @@ def findAngles():
     :return angles_to_constrain, a list that contains the numerical values for angles to constrain:
     """
     angles_to_constrain = []
-    resdict = {"ALA": "A", "CYS": "C", "ASP": "D", "GLU": "E", "PHE": "F",
-               "GLY": "G", "HIS": "H", "ILE": "I", "LYS": "K", "LEU": "L",
-               "MET": "M", "ASN": "N", "PRO": "P", "GLN": "Q", "ARG": "R",
-               "SER": "S", "THR": "T", "VAL": "V", "TRP": "W", "TYR": "Y"}
-    resdict_inv = {one_let: three_let for three_let, one_let in
-                   resdict.items()}  # 3-letter a.a. code easier to work with for OpenMM
 
     with open("backbone_dihedrals.csv") as csv_file:
         printRecord("Reading CSV file...")
@@ -249,10 +243,6 @@ def findAngles():
             rows.append(row)
             residue_nums.append(row[0])
             row_lengths.add(len(row))
-
-        #         if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
-        #             printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
-        #             exit()
 
         if len(row_lengths) != 1:  # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
             rows_unequal = []
