@@ -67,7 +67,7 @@ class opendna:
         :return: none
         """
         if self.params['mode'] == '2d structure':
-            self.actionDict['make workdir'] = False
+            self.actionDict['make workdir'] = True
             self.actionDict['do 2d analysis'] = True
             self.actionDict['do MMB'] = False
             self.actionDict['do smoothing'] = False
