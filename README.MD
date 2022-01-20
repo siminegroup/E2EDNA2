@@ -15,10 +15,11 @@ git clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_
 ```
 * Set up a Python environment with the following packages
   * Note to Simine Group Members running on Compute Canada clusters: skip this section and go directly to paths. Your virtual environment is automatically setup via the instructions in [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh) in the [``TL-cluster-code``](https://github.com/InfluenceFunctional/OpenDNA/tree/TL-cluster-code) branch. Modify this bash script accordingly for other types of computing clusters.
+  * If running on a cluster, customize your submission shell script (example: [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh)). 
   * For local runs, follow the [``local_install_script.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/local_install_script.sh) in the [``main``](https://github.com/InfluenceFunctional/OpenDNA) branch to install required packages and their dependences.
   * In particular, as to the ``MacroMoleculeBuilder (MMB)`` module:
     * Download appropriate version for your system from [SimTK](https://simtk.org/projects/rnatoolbox): old and new versions have been tested and seem to work.
-  * As shown in the [``requirements.txt``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/requirements.txt), the required dependences are as follows. Use ``pip install -r requirements.txt`` to install them all in once:
+  * As shown in the [``requirements.txt``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/requirements.txt), the required dependences are as follows. Use ``pip install -r requirements.txt`` to install them all in once, which is included in [``local_install_script.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/local_install_script.sh).
 ```
 biopython==1.78
 certifi==2020.12.5
@@ -48,13 +49,12 @@ mdtraj==1.9.5
 ```
 * Create a working directory where runs will take place on your system.
   * Each new run will create a serially-numbered directory in this folder containing all the relevant outputs.
-* If running on a cluster, customize your submission shell script (example: [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh)). 
 * Specify the file paths in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py):
   * Note that there is a toggle for running on a ``local`` machine vs. a computing ``cluster``.
   * ``params['workdir']``: set to the working directory you created in the previous step.
   * ``params['mmb dir']``: set to the MMB directory for its library files. Usually a name like ``.../Installer.#_##.Linux(or OSX)/lib``, depending on the software version.
   * ``params['mmb']``: set to the MMB executable on your system. Usually a name like ``.../Installer.#_##.Linux(or OSX)/bin/MMB``, depending on the software version.
-* Not necessary to change the following paths, especially doing a test run:
+* Not necessary to change the following paths, especially during a test run:
   * ``params['mmb params']``: path to the MMB parameter file in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. Modifying this file is highly not recommended. **Be sure to downlaod the entire ``lib/`` together with code.**
   * ``params['mmb normal template']``, ``params['mmb quick template']`` and ``params['mmb long template']``: paths to 3 template protocols of running MMB (``normal``, ``quick``, and ``long`` modes) in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. They do not need to be changed unless to create your own MMB folding protocol.
   * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts, providing they are in a working directory. No need to change these paths. The paths are used to automatically copy the scripts to ``ld_scripts/`` within a working directory from [``lib/lightdock/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/lightdock).
@@ -62,7 +62,7 @@ mdtraj==1.9.5
 
 
 ## Modes
-OpenDNA takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
+E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
 This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
 
 * `2d structure` &rarr; returns NUPACK or seqfold analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
