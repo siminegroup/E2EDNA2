@@ -1,4 +1,5 @@
-# E2EDNA - OpenMM Implementation - E2EDNA 2.0!
+# Documentation
+## E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
 
 ### An automated pipeline for simulation of DNA aptamers complexed with small molecules and short peptides.
 
