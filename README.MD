@@ -1,6 +1,6 @@
 # E2EDNA - OpenMM Implementation - E2EDNA 2.0!
 
-### A fully-automated code for DNA aptamer 2D and 3D structure analysis, and binding analysis with small molecules and short peptides.
+### An automated pipeline for simulation of DNA aptamers complexed with small molecules and short peptides.
 
 **Michael Kilgour, Tao Liu, Ilya S. Dementyev, Lena Simine**
 
