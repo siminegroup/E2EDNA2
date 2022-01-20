@@ -565,18 +565,20 @@ def doTrajectoryDimensionalityReduction(trajectory):
     :param trajectory:
     :return:
     """
-    converged = False
-    nComponents = 10
-    while converged == False:  # add components until some threshold, then take components greater than the average
-        components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(nComponents, trajectory, False)  # do it with a bunch of components, then re-do it with only the necessary number
-        totVariance = np.sum(eigenvalues)
-        if totVariance > 0.85:
-            converged = True
-        else:
-            nComponents += 1
-
-    # we want there to be a gap in this spectrum, or at least, to neglect only the small contributions
-    n_components = min(5, np.sum(eigenvalues > np.average(eigenvalues)))  # with the threshold above, this removes some of the variation from having too many components
+    # converged = False
+    # nComponents = 10
+    # while converged == False:  # add components until some threshold, then take components greater than the average
+    #     components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(nComponents, trajectory, False)  # do it with a bunch of components, then re-do it with only the necessary number
+    #     totVariance = np.sum(eigenvalues)
+    #     if totVariance > 0.85:
+    #         converged = True
+    #     else:
+    #         nComponents += 1
+    # # we want there to be a gap in this spectrum, or at least, to neglect only the small contributions
+    # n_components = min(5, np.sum(eigenvalues > np.average(eigenvalues)))  # with the threshold above, this removes some of the variation from having too many components
+    # components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(n_components, trajectory, True)
+    
+    n_components = 5
     components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(n_components, trajectory, True)
 
     return n_components, reducedTrajectory, pcaModel
