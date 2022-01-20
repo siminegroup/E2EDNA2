@@ -52,8 +52,9 @@ mdtraj==1.9.5
 * Specify the file paths in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py):
   * Note that there is a toggle for running on a ``local`` machine vs. a computing ``cluster``.
   * ``params['workdir']``: set to the working directory you created in the previous step.
-  * ``params['mmb dir']``: set to the MMB directory for its library files. Usually a name like ``/Installer.#_##.Linux(or OSX)/lib``, depending on the software version.
-  * ``params['mmb']``: set to the MMB executable on your system.
+  * ``params['mmb dir']``: set to the MMB directory for its library files. Usually a name like ``.../Installer.#_##.Linux(or OSX)/lib``, depending on the software version.
+  * ``params['mmb']``: set to the MMB executable on your system. Usually a name like ``.../Installer.#_##.Linux(or OSX)/bin/MMB``, depending on the software version.
+* Not necessary to change the following paths, especially doing a test run:
   * ``params['mmb params']``: path to the MMB parameter file in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. Modifying this file is highly not recommended. **Be sure to downlaod the entire ``lib/`` together with code.**
   * ``params['mmb normal template']``, ``params['mmb quick template']`` and ``params['mmb long template']``: paths to 3 template protocols of running MMB (``normal``, ``quick``, and ``long`` modes) in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. They do not need to be changed unless to create your own MMB folding protocol.
   * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts, providing they are in a working directory. No need to change these paths. The paths are used to automatically copy the scripts to ``ld_scripts/`` within a working directory from [``lib/lightdock/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/lightdock).
@@ -70,21 +71,21 @@ This code implements several distinct analysis modes so users may customize the 
 * `coarse dock` &rarr; uses the 3D structure from '3d coarse' as the initial condition for a LightDock simulation, and returns best docking configurations and scores. Depending on docking parameters, adds O(5-30mins) to '3d coarse'.
 * `smooth dock` &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost. 
 * `free aptamer` &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
-* `full docking` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
+* `full dock` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
 * `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
-
-# __ work in progress__
 
 
 ## Running a job
 
 ### Quickstart
-* Set 'params' in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py)
-* Set sequence = 'ATGC' where ATGC is your desired FASTA sequence
-* Set peptide = 'YYYY' where YYYY is your desired peptide (restricted structures TBD)
-* Run [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py), with desired run num. Zero for a fresh run, nonzero for either picking up on a prior run or explicitly enumerated new run (TEST)
+* Set 'params' in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py), as indicated in "Installation".
+* Run the bash script ``automate_tests.sh`` to test all 8 modes automatically.
+* Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
+```
+python main.py --run-num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='YQYQ.pdb'
+```
 
-`python main.py --run-num=0` In cluster mode, or set manually in local mode
+# __ work in progress__
 
 ### Physical Parameters
 
