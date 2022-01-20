@@ -1,10 +1,10 @@
 #!/bin/bash
-# For local run 
+# Installation for a local run
 
-# Create a conda environment ``myenv`` with python 3.7.11
-conda create -n myenv python=3.7.11
+# Create a conda environment ``myDNAEnv`` with python 3.7.11
+conda create -n myDNAEnv python=3.7.11
 # Activate the conda envs (using miniconda3 as an example)
-source activate ~/miniconda3/envs/myenv
+source activate ~/miniconda3/envs/myDNAEnv
 
 # Make sure to install all the required packages and their dependence
 pip install --upgrade pip
@@ -32,6 +32,4 @@ pip install <downloaded wheel for your OS>
 # PeptideBuilder: # https://pypi.org/project/PeptideBuilder/1.1.0/ # https://www.wheelodex.org/projects/peptidebuilder/
 pip install PeptideBuilder
 
-# date -u
-# python ./main.py
-# date -u
+# MMB: see the README on the main branch.
