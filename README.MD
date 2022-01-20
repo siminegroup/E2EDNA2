@@ -10,72 +10,17 @@ _mjakilgour gmail com_
 For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (https://doi.org/10.1021/acs.jcim.1c00696)
 
 ## Installation
-* Get the repository
-```
-git clone git@github.com:InfluenceFunctional/OpenDNA.git WHAT_YOU_WANT_IT_TO_BE_CALLED
-```
-* Set up a Python environment with the following packages
-  * Note to Simine Group Members running on Compute Canada clusters: skip this section and go directly to paths. Your virtual environment is automatically setup via the instructions in [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh) in the [``TL-cluster-code``](https://github.com/InfluenceFunctional/OpenDNA/tree/TL-cluster-code) branch. Modify this bash script accordingly for other types of computing clusters.
-  * If running on a cluster, customize your submission shell script (example: [``EXAMPLE_SUB_cluster.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/TL-cluster-code/EXAMPLE_SUB_cluster.sh)). 
-  * For local runs, follow the [``local_install_script.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/local_install_script.sh) in the [``main``](https://github.com/InfluenceFunctional/OpenDNA) branch to install required packages and their dependences.
-  * In particular, as to the ``MacroMoleculeBuilder (MMB)`` module:
-    * Download appropriate version for your system from [SimTK](https://simtk.org/projects/rnatoolbox): old and new versions have been tested and seem to work.
-  * As shown in the [``requirements.txt``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/requirements.txt), the required dependences are as follows. Use ``pip install -r requirements.txt`` to install them all in once, which is included in [``local_install_script.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/local_install_script.sh).
-```
-biopython==1.78
-certifi==2020.12.5
-cycler==0.10.0
-decorator==4.4.2
-GridDataFormats==0.5.0
-gsd==1.9.3
-joblib==1.0.1
-kiwisolver==1.3.1
-matplotlib==3.3.2
-mmtf-python==1.1.2
-mock==4.0.3
-msgpack==0.6.2
-networkx==2.5
-pandas==1.1.3
-ParmEd==3.2.0
-Pillow==7.2.0
-pyparsing==2.4.7
-python-dateutil==2.8.1
-pytz==2021.1
-scipy==1.4.1
-six==1.15.0
-tqdm==4.59.0
-scikit_learn==0.24.2
-Cython==0.29.23
-mdtraj==1.9.5
-```
-* Create a working directory where runs will take place on your system.
-  * Each new run will create a serially-numbered directory in this folder containing all the relevant outputs.
-* Specify the file paths in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py):
-  * Note that there is a toggle for running on a ``local`` machine vs. a computing ``cluster``.
-  * ``params['workdir']``: set to the working directory you created in the previous step.
-  * ``params['mmb dir']``: set to the MMB directory for its library files. Usually a name like ``.../Installer.#_##.Linux(or OSX)/lib``, depending on the software version.
-  * ``params['mmb']``: set to the MMB executable on your system. Usually a name like ``.../Installer.#_##.Linux(or OSX)/bin/MMB``, depending on the software version.
-* Not necessary to change the following paths, especially during a test run:
-  * ``params['mmb params']``: path to the MMB parameter file in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. Modifying this file is highly not recommended. **Be sure to downlaod the entire ``lib/`` together with code.**
-  * ``params['mmb normal template']``, ``params['mmb quick template']`` and ``params['mmb long template']``: paths to 3 template protocols of running MMB (``normal``, ``quick``, and ``long`` modes) in [``lib/mmb/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/mmb) of this repository. They do not need to be changed unless to create your own MMB folding protocol.
-  * ``params['ld setup path']``, ``params['ld run path']``, etc: paths to various [``LightDock``](https://lightdock.org/) Python scripts, providing they are in a working directory. No need to change these paths. The paths are used to automatically copy the scripts to ``ld_scripts/`` within a working directory from [``lib/lightdock/``](https://github.com/InfluenceFunctional/OpenDNA/tree/main/lib/lightdock).
-    * Alternatively, these scripts automatically come with an installation of ``pip install lightdock``. Depending on your installation, you may need to add ``python`` in the paths of these scripts, as shown in the paths for a ``cluster`` run.
-
-
-## Modes
-E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
-This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
-
-* `2d structure` &rarr; returns NUPACK or seqfold analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
-* `3d coarse` &rarr; returns MMB fold of the best secondary structure. Fast O(5-30 mins). Results in a strained 3D structure which obeys base pairing rules and certain stacking interactions.
-* `3d smooth` &rarr; identical to '3d coarse', with a short MD relaxation in solvent. ~Less than double the cost of '3d coarse' depending on relaxation time.
-* `coarse dock` &rarr; uses the 3D structure from '3d coarse' as the initial condition for a LightDock simulation, and returns best docking configurations and scores. Depending on docking parameters, adds O(5-30mins) to '3d coarse'.
-* `smooth dock` &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost. 
-* `free aptamer` &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
-* `full dock` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
-* `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
-
-
+This installation path has been tested on macOS and it relies on conda and pip package managers. 
+1. Download in any convenient way the E2EDNA package from this repository.
+2. Register and download NUPACK from http://www.nupack.org/downloads, note the path to ~/nupack-###/source/package directory
+3. In the e2edna directory please modify 2 lines the local_installation.sh script: anaconda3 or miniconda3 path, and the path to nupack (see step 2)
+4. From e2edna folder run local_installation.sh
+5. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify DYLD_LIBRARY_PATH against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
+6. Update 3 paths in main.py: 
+       params['workdir'] = '~/localruns'   # working directory                                                                                                     
+       params['mmb dir'] = '~/e2edna/Installer.###/lib'      # path to MMB dylib files
+       params['mmb']     = '~/e2edna/Installer.###/bin/MMB-executable' #path to MMB executable    
+       
 ## Running a job
 
 ### Quickstart
@@ -91,6 +36,20 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
 #--ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
 
 ```
+
+
+## Functionality: Eight different modes of operation
+E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
+This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
+
+* `2d structure` &rarr; returns NUPACK or seqfold analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
+* `3d coarse` &rarr; returns MMB fold of the best secondary structure. Fast O(5-30 mins). Results in a strained 3D structure which obeys base pairing rules and certain stacking interactions.
+* `3d smooth` &rarr; identical to '3d coarse', with a short MD relaxation in solvent. ~Less than double the cost of '3d coarse' depending on relaxation time.
+* `coarse dock` &rarr; uses the 3D structure from '3d coarse' as the initial condition for a LightDock simulation, and returns best docking configurations and scores. Depending on docking parameters, adds O(5-30mins) to '3d coarse'.
+* `smooth dock` &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost. 
+* `free aptamer` &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
+* `full dock` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
+* `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
 
 # __ work in progress__
 
