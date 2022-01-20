@@ -31,7 +31,7 @@ params['target sequence'] = cmdLineInputs[5]
 # params['target ligand type'] = 'peptide'  # 'peptide' or 'DNA' or 'RNA' or 'other'; This is ignored if no target.
 # params['target sequence'] = 'YQTQTNSPRRAR'  # empty string, unless target ligand has sequence.
 params['example target pdb'] = 'lib/peptide/peptide.pdb'   # an example of target ligand: a peptide, used when no given target but want to do docking
-params['example peptide sequence'] = 'YQTQTNSPRRAR'        # YQYQ.pdb
+params['example peptide sequence'] = 'YQTQTNSPRRAR'        # YQTQ.pdb
 ''' params['mode'] can be:
     '2d structure': ssString, pair list and probability
     '3d coarse': MMB output, stressed structure, no solvent
