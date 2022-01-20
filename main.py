@@ -17,26 +17,21 @@ else:  # params['device'] == 'cluster':
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
-# params['run num'] = 1                    # 0: auto-increase run-num for a fresh run; > 0 AND params['explicit run enumeration'] = True: fresh run; > 0 AND params['explicit run enumeration'] = False: pickup on a previous run;
-# params['mode'] = 'full binding'  # specify simulation mode
 cmdLineInputs = get_input()  # get input arguments from command lines
 params['run num'] = cmdLineInputs[0]
 params['mode'] = cmdLineInputs[1]
-
-# manually set DNA aptamer sequence from 5' to 3' # 'CCTGGGGGAGTATTGCGGAGGAAGG' 
-params['aptamerSeq'] = 'TTCAAGAGCGGTTCGTAATGTTAATTGACTGATCCCTACC'
-# pdb filename of the target ligand. If no target, use ``False``, such as in 'free aptamer' mode 
-#'6rqs.pdb'
-params['target ligand'] = 'YQTQ.pdb'
-params['target ligand type'] = 'peptide'  # 'peptide' or 'DNA' or 'RNA' or 'other'; This is ignored if no target.
-# empty string, unless target ligand has sequence. # 6rqs.pdb: XXRRWRRWWRRWWRRWRR
-params['target sequence'] = 'YQTQTNSPRRAR'
-
-# if (params['target ligand'] is not False):
-#     if (params['target ligand type'] == 'peptide') or (params['target ligand type'] == 'DNA') or (params['target ligand type'] == 'RNA'):
-#         params['target sequence'] = ''  # provide sequence, if target ligand is a peptide/DNA/RNA
+params['aptamerSeq'] = cmdLineInputs[2]
+params['target ligand'] = cmdLineInputs[3]
+params['target ligand type'] = cmdLineInputs[4]
+params['target sequence'] = cmdLineInputs[5]
+# params['run num'] = 1  # 0: auto-increase run-num for a fresh run; > 0 AND params['explicit run enumeration'] = True: fresh run; > 0 AND params['explicit run enumeration'] = False: pickup on a previous run;
+# params['mode'] = 'full binding'  # specify simulation mode
+# params['aptamerSeq'] = 'TAATGTTAATTG'  # manually set DNA aptamer sequence from 5' to 3'
+# params['target ligand'] = 'YQTQ.pdb'  # pdb filename of the target ligand. If no target, use 'False', such as in 'free aptamer' mode.
+# params['target ligand type'] = 'peptide'  # 'peptide' or 'DNA' or 'RNA' or 'other'; This is ignored if no target.
+# params['target sequence'] = 'YQTQTNSPRRAR'  # empty string, unless target ligand has sequence.
 params['example target pdb'] = 'lib/peptide/peptide.pdb'   # an example of target ligand: a peptide, used when no given target but want to do docking
-params['example peptide sequence'] = 'xxxxx'               # Ask Michael: what is the sequence of this example peptide?
+params['example peptide sequence'] = 'YQTQTNSPRRAR'        # YQYQ.pdb
 ''' params['mode'] can be:
     '2d structure': ssString, pair list and probability
     '3d coarse': MMB output, stressed structure, no solvent
