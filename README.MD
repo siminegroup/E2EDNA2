@@ -28,8 +28,8 @@ This installation path has been tested on macOS and it relies on conda and pip p
 ## Running a job
 
 ### Quickstart
-* Set 'params' in [``main.py``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/main.py), as indicated in "Installation".
-* Run the bash script [``automate_tests.sh``](https://github.com/InfluenceFunctional/OpenDNA/blob/main/automate_tests.sh) to test all 8 modes automatically.
+* Set 'params' in [``main.py``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/main.py), as indicated in "Installation".
+* Run the bash script [``automate_tests.sh``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/automate_tests.sh) to test all 8 modes automatically.
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
 python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
@@ -55,7 +55,7 @@ This code implements several distinct analysis modes so users may customize the 
 * `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
 
 # Test run: inputs and outcomes
-Running this script [``automate_tests.sh``] will automatically run simple very light simulations of all 8 modes.
+Running this script [``automate_tests.sh``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/automate_tests.sh) will automatically run simple very light simulations of all 8 modes.
 Here we explain what outputs to look for and what success looks like.
 
 * Mode 1:`2d structure` 
