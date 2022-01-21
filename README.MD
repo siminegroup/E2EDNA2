@@ -55,51 +55,70 @@ This code implements several distinct analysis modes so users may customize the 
 
 * Mode 1:
 Description! aGCGCGCGCGCGC’
+
 Outputs:
+
 Success evaluation: observe the dot-parenthesis representation for 2d structure, e.g., ..(...)..
 
 * Mode 2: 
 Description!
+
 Input: fasta sequence, e.g, CGCGCGCGCGCGC
+
 Modifications to the code: 
 set params[‘mode’] = ‘3d unrefined’
 params['sequence'] =’CGCGCGCGCGCGC’
+
 Outputs: 
+
 Success evaluation: Visualize foldedAptamer_0.pdb in VMD or PyMOL
 
 
 * Mode 3:
 Description! 
+
 Input: fasta sequence, e.g, CGCGCGCGCGCGC 
+
 Modifications to the code: 
 set params[‘mode’] = ‘3d refined’
 params['sequence'] =’CGCGCGCGCGCGC’
+
 Outputs: 
+
 Success evaluation:
 
 * Mode 4: 
 Description! 
+
 Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
+
 Modifications to the code: 
 set params[‘mode’] = ‘unrefined dock’
 params['sequence'] =’CGCGCGCGCGCGC’
 params[‘target’] = ‘target.pdb’  # need to update the code for this.
+
 Outputs: 
+
 Success evaluation:
 
 * Mode 5:
 Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
+
 Modifications to the code: 
 set params[‘mode’] = ‘refined dock’
 params['sequence'] =’CGCGCGCGCGCGC’
 params[‘target’] = ‘target.pdb’   # need to update the code for this.
+
 Outputs: 
+
 Success evaluation:
 
 
 * Mode 6: “free aptamer”
 Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Last step is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. (if we ask contact predictor for >1 ssStructure)
+
 Input: fasta sequence, e.g, CGCGCGCGCGCGC
+
 Modifications to the code: 
 set params[‘mode’] = ‘free aptamer’
 params['sequence'] =’CGCGCGCGCGCGC’
