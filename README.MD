@@ -11,7 +11,7 @@ For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (h
 
 ## Installation
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
-1. Download in any convenient way the E2EDNA package from this repository.
+1. Download the E2EDNA package from this repository.
 2. Register and download NUPACK from http://www.nupack.org/downloads, you will need the path to ~/nupack-###/source/package directory
 3. In the e2edna directory please modify the macos_installation.sh script: update the path to nupack (see step 2)
 4. From e2edna folder run macos_installation.sh. 
