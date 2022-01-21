@@ -54,69 +54,51 @@ This code implements several distinct analysis modes so users may customize the 
 * `full dock` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
 * `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
 
+# Test run: inputs and outcomes
+Running this script [``automate_tests.sh``] will automatically run simple very light simulations of all 8 modes.
+Here we explain what outputs to look for and what success looks like.
 
-* Mode 1:
-Description! aGCGCGCGCGCGC’
+* Mode 1:`2d structure` 
+Input: fasta sequence, e.g, CGCGCGCGCGCGC
 
 Outputs:
 
 Success evaluation: observe the dot-parenthesis representation for 2d structure, e.g., ..(...)..
 
-* Mode 2: 
-Description!
+* Mode 2:`3d coarse`
 
-Input: fasta sequence, e.g, CGCGCGCGCGCGC
-
-Modifications to the code: 
-set params[‘mode’] = ‘3d unrefined’
-params['sequence'] =’CGCGCGCGCGCGC’
+Input: ‘3d unrefined’,  fasta sequence, e.g, CGCGCGCGCGCGC
 
 Outputs: 
 
 Success evaluation: Visualize foldedAptamer_0.pdb in VMD or PyMOL
 
 
-* Mode 3:
-Description! 
+* Mode 3:`3d coarse`
 
 Input: fasta sequence, e.g, CGCGCGCGCGCGC 
 
-Modifications to the code: 
-set params[‘mode’] = ‘3d refined’
-params['sequence'] =’CGCGCGCGCGCGC’
-
 Outputs: 
 
 Success evaluation:
 
-* Mode 4: 
-Description! 
+* Mode 4:`coarse dock`
 
 Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
 
-Modifications to the code: 
-set params[‘mode’] = ‘unrefined dock’
-params['sequence'] =’CGCGCGCGCGCGC’
-params[‘target’] = ‘target.pdb’  # need to update the code for this.
-
 Outputs: 
 
 Success evaluation:
 
-* Mode 5:
+* Mode 5:`smooth dock`
 Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
 
-Modifications to the code: 
-set params[‘mode’] = ‘refined dock’
-params['sequence'] =’CGCGCGCGCGCGC’
-params[‘target’] = ‘target.pdb’   # need to update the code for this.
-
 Outputs: 
 
 Success evaluation:
 
 
-* Mode 6: “free aptamer”
+* Mode 6: `free aptamer`
 Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Last step is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. (if we ask contact predictor for >1 ssStructure)
 
 Input: fasta sequence, e.g, CGCGCGCGCGCGC
@@ -139,7 +121,7 @@ The DCD trajectory file is generated, and file “log.txt” shows that the MD s
 Visualize MD trajectory of free aptamer using the topology and the binary trajectory file.
 Visualize representative conformation of the DNA aptamer.
 
-* Mode 7: full dock
+* Mode 7: `full dock`
 Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Next is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. Finally, the representative structure will be docked by a target ligand of interest (its structure must be provided as a PDB file).
 
 Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
@@ -164,7 +146,7 @@ Visualize MD trajectory of free aptamer using the topology and the binary trajec
 Visualize representative conformation of the DNA aptamer.
 Visualize aptamer-ligand complex structure.
 
-* Mode 8: full binding
+* Mode 8: `full binding`
 Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Next is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. The representative structure will be docked by a target ligand of interest (its structure must be provided as a PDB file). Finally, the aptamer-ligand complex molecule will be sampled by MD simulation to investigate its dynamics.
 
 Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
