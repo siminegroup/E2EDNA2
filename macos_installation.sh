@@ -3,7 +3,7 @@
 echo Welcome to the ultimate DNA simulator E2EDNA!
 
 echo CREATING E2EDNA ENV
-conda env create -f e2edna-environment.yml
+conda env create -f e2edna-env.yml
 
 echo ACTIVATING E2EDNA ENV
 conda activate e2edna

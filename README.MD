@@ -11,15 +11,19 @@ For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (h
 
 ## Installation
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
-1. Download in any convenient way the E2EDNA package from this repository.
-2. Register and download NUPACK from http://www.nupack.org/downloads, note the path to ~/nupack-###/source/package directory
-3. In the e2edna directory please modify 2 lines the local_installation.sh script: anaconda3 or miniconda3 path, and the path to nupack (see step 2)
-4. From e2edna folder run either local_installation.sh or macos_installation.sh (if using the latter please adjust the last line in the .yml file)
-5. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify DYLD_LIBRARY_PATH against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
-6. Update 3 paths in main.py: 
-       params['workdir'] = '~/localruns'   # working directory                                                                                                     
-       params['mmb dir'] = '~/e2edna/Installer.###/lib'      # path to MMB dylib files
-       params['mmb']     = '~/e2edna/Installer.###/bin/MMB-executable' #path to MMB executable    
+1. Download the E2EDNA package from this repository.
+2. Register and download NUPACK from http://www.nupack.org/downloads, you will need the path to ~/nupack-###/source/package directory
+3. In the e2edna directory please modify the macos_installation.sh script: update the path to nupack (see step 2)
+4. From e2edna folder run macos_installation.sh. 
+   * Caveat: in case `conda activate e2edna` command gives an error, please either replace it with `source activate /path-to-env/e2edna` 
+   * OR alternatively copy paste commands from the script without modifications to command line and run one by one, this will 100% work ok
+6. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify DYLD_LIBRARY_PATH against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
+7. Update 3 paths in main.py: 
+      * params['workdir'] = '/path-to-e2edna/localruns'   # working directory   
+       
+      * params['mmb dir'] = '/path-to-e2edna/e2edna/Installer.###/lib'      # path to MMB dylib files
+       
+      * params['mmb']     = '/path-to-e2edna/Installer.###/bin/MMB-executable' #path to MMB executable    
        
 ## Running a job
 
@@ -37,7 +41,6 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
 
 ```
 
-
 ## Functionality: Eight different modes of operation
 E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
 This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
@@ -50,6 +53,151 @@ This code implements several distinct analysis modes so users may customize the 
 * `free aptamer` &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
 * `full dock` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
 * `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
+
+
+* Mode 1:
+Description! aGCGCGCGCGCGC’
+
+Outputs:
+
+Success evaluation: observe the dot-parenthesis representation for 2d structure, e.g., ..(...)..
+
+* Mode 2: 
+Description!
+
+Input: fasta sequence, e.g, CGCGCGCGCGCGC
+
+Modifications to the code: 
+set params[‘mode’] = ‘3d unrefined’
+params['sequence'] =’CGCGCGCGCGCGC’
+
+Outputs: 
+
+Success evaluation: Visualize foldedAptamer_0.pdb in VMD or PyMOL
+
+
+* Mode 3:
+Description! 
+
+Input: fasta sequence, e.g, CGCGCGCGCGCGC 
+
+Modifications to the code: 
+set params[‘mode’] = ‘3d refined’
+params['sequence'] =’CGCGCGCGCGCGC’
+
+Outputs: 
+
+Success evaluation:
+
+* Mode 4: 
+Description! 
+
+Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
+
+Modifications to the code: 
+set params[‘mode’] = ‘unrefined dock’
+params['sequence'] =’CGCGCGCGCGCGC’
+params[‘target’] = ‘target.pdb’  # need to update the code for this.
+
+Outputs: 
+
+Success evaluation:
+
+* Mode 5:
+Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
+
+Modifications to the code: 
+set params[‘mode’] = ‘refined dock’
+params['sequence'] =’CGCGCGCGCGCGC’
+params[‘target’] = ‘target.pdb’   # need to update the code for this.
+
+Outputs: 
+
+Success evaluation:
+
+
+* Mode 6: “free aptamer”
+Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Last step is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. (if we ask contact predictor for >1 ssStructure)
+
+Input: fasta sequence, e.g, CGCGCGCGCGCGC
+
+Modifications to the code: 
+set params[‘mode’] = ‘free aptamer’
+params['sequence'] =’CGCGCGCGCGCGC’
+
+Outputs: 
+Secondary structure prediction: such as ((....))....((.(...).)).. in “record.txt”
+MMB folded structure: “foldedAptamer_0.pdb”
+
+MD simulation: 
+Binary trajectory: “clean_foldedAptamer_0_processed_complete_trajectory.dcd”
+Topology: “clean_foldedAptamer_0_processed.pdb”
+Representative conformation: “repStructure_0.pdb”
+
+Success evaluation: 
+The DCD trajectory file is generated, and file “log.txt” shows that the MD sampling of free aptamer is 100% complete.
+Visualize MD trajectory of free aptamer using the topology and the binary trajectory file.
+Visualize representative conformation of the DNA aptamer.
+
+* Mode 7: full dock
+Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Next is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. Finally, the representative structure will be docked by a target ligand of interest (its structure must be provided as a PDB file).
+
+Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
+Modifications to the code: 
+set params[‘mode’] = ‘full docking’ 
+params['sequence'] =’CGCGCGCGCGCGC’
+params[‘target’] = ‘target.pdb’  # need to update the code for this.
+
+Outputs: 
+Secondary structure prediction: such as ((....))....((.(...).)).. in “record.txt”
+MMB folded structure: “foldedAptamer_0.pdb”
+
+MD simulation: 
+Binary trajectory: “clean_foldedAptamer_0_processed_complete_trajectory.dcd”
+Topology: “clean_foldedAptamer_0_processed.pdb”
+Representative conformation: “repStructure_0.pdb”
+Docking: Aptamer-ligand complex structure: “top_1.pdb”. Docking score is in “record.txt”.
+
+Success evaluation: 
+The DCD trajectory file is generated, and file “log.txt” shows that the MD sampling of free aptamer is 100% complete.
+Visualize MD trajectory of free aptamer using the topology and the binary trajectory file.
+Visualize representative conformation of the DNA aptamer.
+Visualize aptamer-ligand complex structure.
+
+* Mode 8: full binding
+Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Next is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. The representative structure will be docked by a target ligand of interest (its structure must be provided as a PDB file). Finally, the aptamer-ligand complex molecule will be sampled by MD simulation to investigate its dynamics.
+
+Input: fasta sequence, e.g, CGCGCGCGCGCGC; PDB of target ligand, e.g., ‘target.pdb’
+Modifications: 
+set params[‘mode’] = ‘full binding’
+params['sequence'] =’CGCGCGCGCGCGC’
+params[‘target’] = ‘target.pdb’  # need to update the code for this.
+
+Outputs: 
+Secondary structure prediction: such as ((....))....((.(...).)).. in “record.txt”
+MMB folded structure: “foldedAptamer_0.pdb”
+MD simulation of free aptamer: 
+Binary trajectory: “clean_foldedAptamer_0_processed_complete_trajectory.dcd”
+Topology: “clean_foldedAptamer_0_processed.pdb”
+Representative conformation: “repStructure_0.pdb”
+Docking: Aptamer-ligand complex structure: “top_1.pdb”. Docking score is in “record.txt”.
+MD simulation of aptamer-ligand complex:
+Binary trajectory: “clean_complex_0_0_processed_trajectory.dcd”
+Topology: “clean_complex_0_0_processed.pdb”
+
+Success evaluation: 
+File “log.txt” shows that the MD sampling of free aptamer is 100% complete and the DCD trajectory file is generated.
+Visualize MD trajectory of free aptamer using the topology and the binary trajectory file.
+Visualize representative conformation of the DNA aptamer.
+Visualize aptamer-ligand complex structure
+The DCD trajectory file is generated, and file “log_complex.txt” shows that the MD sampling of aptamer-ligand is 100% complete.
+Visualize MD trajectory of aptamer-ligand using its binary and topolog file. It is worth noting that the aptamer might seem far apart from the target ligand, which could be a result of the periodic boundary condition. Should we correct it or leave user to do it?
+
+MD simulation might stop at the onset with “Particle coordinate is nan” error. It could be due to the energy minimization being too aggressive so tha the coordinate gets out of boundary, then integrator cannot work on those non-sense coordinate values. In this case, re-run the pipeline.
+
+MMB folding could take a while if multiple refolding takes place for any tricky sequence.
+
+
 
 # __ work in progress__
 
