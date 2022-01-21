@@ -13,18 +13,19 @@ For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (h
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
 1. Download the E2EDNA 2.0 package from this repository.
 2. Register and download NUPACK from http://www.nupack.org/downloads, you will need the path to ~/nupack-###/source/package directory
-3. In the E2EDNA2 directory please modify the macos_installation.sh script: update the path to nupack (see step 2)
+3. In the E2EDNA2 directory please modify the [``macos_installation.sh``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/macos_installation.sh) script: update the path to nupack (see step 2)
 4. From E2EDNA2 folder run macos_installation.sh. 
    * Caveat: in case `conda activate e2edna` command gives an error or if after the script finishes e2edna enviroment has not been activated, please either replace the activation command with with `source activate /path-to-env/e2edna` 
    * OR alternatively copy paste commands from the script without modifications to command line and run one by one, this will go around the unconfigured shell issue.
-6. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify DYLD_LIBRARY_PATH against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
-7. Update 3 paths in main.py: 
-      * params['workdir'] = '/path-to-e2edna/localruns'   # working directory   
+6. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify `DYLD_LIBRARY_PATH` against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
+7. Update 3 paths in main.py:
+```
+      params['workdir'] = '/path-to-e2edna/localruns'                         # working directory   
        
-      * params['mmb dir'] = '/path-to-e2edna/e2edna/Installer.###/lib'      # path to MMB dylib files
+      params['mmb dir'] = '/path-to-e2edna/e2edna/Installer.###/lib'          # path to MMB dylib files
        
-      * params['mmb']     = '/path-to-e2edna/Installer.###/bin/MMB-executable' #path to MMB executable    
-       
+      params['mmb']     = '/path-to-e2edna/Installer.###/bin/MMB-executable'  # path to MMB executable    
+```
 ## Running a job
 
 ### Quickstart
@@ -35,9 +36,9 @@ This installation path has been tested on macOS and it relies on conda and pip p
 python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
 python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --ligand='YQTQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
     
-#--ligand='False'        # if no ligand. --ligandType and --ligandSeq will be ignored.
-#--ligandType='peptide'  # or 'DNA' or 'RNA' or 'other'. Assuming 'other' ligand can be described by Amber14 force field.
-#--ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
+# --ligand='False'        # if no ligand. --ligandType and --ligandSeq will be ignored.
+# --ligandType='peptide'  # or 'DNA' or 'RNA' or 'other'. Assuming 'other' ligand can be described by Amber14 force field.
+# --ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
 
 ```
 
