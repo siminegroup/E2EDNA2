@@ -15,8 +15,8 @@ This installation path has been tested on macOS and it relies on conda and pip p
 2. Register and download NUPACK from http://www.nupack.org/downloads, you will need the path to ~/nupack-###/source/package directory
 3. In the e2edna directory please modify the macos_installation.sh script: update the path to nupack (see step 2)
 4. From e2edna folder run macos_installation.sh. 
-   * Caveat: in case `conda activate e2edna` command doesn't not work, please try replacing with `source activate /path-to-env/e2edna` 
-   * alternatively copy paste commands from the script to command line and run one by one, this will 100% work ok
+   * Caveat: in case `conda activate e2edna` command gives an error, please either replace it with `source activate /path-to-env/e2edna` 
+   * OR alternatively copy paste commands from the script to command line and run one by one, this will 100% work ok
 6. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify DYLD_LIBRARY_PATH against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
 7. Update 3 paths in main.py: 
       * params['workdir'] = '~/localruns'   # working directory   
