@@ -11,12 +11,12 @@ For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (h
 
 ## Installation
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
-1. Download the E2EDNA package from this repository.
+1. Download the E2EDNA 2.0 package from this repository.
 2. Register and download NUPACK from http://www.nupack.org/downloads, you will need the path to ~/nupack-###/source/package directory
-3. In the e2edna directory please modify the macos_installation.sh script: update the path to nupack (see step 2)
-4. From e2edna folder run macos_installation.sh. 
-   * Caveat: in case `conda activate e2edna` command gives an error, please either replace it with `source activate /path-to-env/e2edna` 
-   * OR alternatively copy paste commands from the script without modifications to command line and run one by one, this will 100% work ok
+3. In the E2EDNA2 directory please modify the macos_installation.sh script: update the path to nupack (see step 2)
+4. From E2EDNA2 folder run macos_installation.sh. 
+   * Caveat: in case `conda activate e2edna` command gives an error or if after the script finishes e2edna enviroment has not been activated, please either replace the activation command with with `source activate /path-to-env/e2edna` 
+   * OR alternatively copy paste commands from the script without modifications to command line and run one by one, this will go around the unconfigured shell issue.
 6. Register and download MMB from https://simtk.org/projects/rnatoolbox . Place the Installer### folder into the e2edna folder. NB: Do not specify DYLD_LIBRARY_PATH against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
 7. Update 3 paths in main.py: 
       * params['workdir'] = '/path-to-e2edna/localruns'   # working directory   
