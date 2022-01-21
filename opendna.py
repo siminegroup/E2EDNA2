@@ -7,12 +7,6 @@ from utils import *
 from analysisTools import *
 
 # noinspection PyPep8Naming  #meaning??
-'''
-To-do:
-1. Implicit solvent    
-    -- add more options to the implicit solvent branch: let user specify more detail of this mode    
-    -- Other than: MDSmoothing, autoMD, omm class: need to specify implicit solvent in other methods? e.g., analyzeTrajectory
-'''
 
 
 class opendna:
@@ -253,7 +247,7 @@ class opendna:
             self.pairLists = self.getSecondaryStructure(self.aptamerSeq)
             outputDict['2d analysis'] = self.ssAnalysis
             np.save('opendnaOutput', outputDict)  # save 2d structure results
-            printRecord('Running over %d' % len(self.pairLists) + ' possible 2D structures')
+            printRecord('Running over %d' % len(self.pairLists) + ' possible 2D structures.')
             num_2dSS = len(self.pairLists)
         
         else:  # there are three cases where 2d analysis is not carried out.
@@ -307,8 +301,10 @@ class opendna:
                 # TODO: does lightdock also support Amber implicit solvent model?
                 np.save('opendnaOutput', outputDict)  # save outputs
                 # N docked structures are specified by user: how many docked structures do we want to investigate
-                num_docked_structure = self.params['N docked structures']
-                printRecord('Running over %d' % num_docked_structure + ' docked structures')
+                # num_docked_structure = self.params['N docked structures']
+                num_docked_structure = len(self.topDockingScores)
+                
+                printRecord('Running over %d' % num_docked_structure + ' docked structures.')
             
             if self.params['pick up from complexChk'] is True:  # it means we did not dock but we have a complex structure.
                 num_docked_structure = 1
@@ -438,7 +434,7 @@ class opendna:
 
         if implicitSolvent is False:
             cleanTrajectory(processedStructure, processedStructureTrajectory)  # remove water and salt from trajectory
-            printRecord("Cleaned MD traj of smoothing free aptamer. Extracting the final frame")
+            printRecord("Cleaned the trajectory of relaxing free aptamer. Extracting the final frame.")
         else:  # no water or salt to remove
             copyfile(processedStructure, 'clean_' + processedStructure)
             copyfile(processedStructureTrajectory, 'clean_' + processedStructureTrajectory)
@@ -532,13 +528,21 @@ class opendna:
         ld.run()
         topScores = ld.topScores
 
-        for i in range(self.params['N docked structures']):
-            copyfile('top_%d' % self.i + '/top_%d' % int(i+1) + '.pdb', 'complex_{}_{}.pdb'.format(self.i, int(i)))
-            # TODO: why int
+        for i in range(len(topScores)):
+            copyfile('top_%d' % self.i + '/top_%d' % int(i+1) + '.pdb', 'complex_{}_{}.pdb'.format(self.i, int(i)))                
             self.pdbDict['binding complex {} {}'.format(self.i, int(i))] = 'complex_{}_{}.pdb'.format(self.i, int(i))
-
-        printRecord('Docking complete, best scores are {}'.format(topScores))
-        return topScores
+                
+        self.topDockingScores = topScores
+        if len(topScores) == 0:
+            printRecord('Docking complete, no docking scores are obtained.')
+            return 'Not found'
+        elif len(topScores) < self.params['N docked structures']:
+            printRecord('Number of identified docked structures is less than what you are looking for!')
+            printRecord('Docking complete, best score(s): {}.'.format(topScores))
+            return topScores
+        else:
+            printRecord('Docking complete, best score(s): {}.'.format(topScores))
+            return topScores
 
     def complexDynamics(self, complexPDB, implicitSolvent=False):
         """

@@ -557,11 +557,16 @@ class ld:  # lightdock
         os.system(self.topPath + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
         os.mkdir('top_%d'%self.ind1)
         os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)
-        # What if there is no top*.pdb at all?
+        # If no top*.pdb at all: there will be an warning message: "mv: rename top*.pdb to top_0/top*.pdb: No such file or directory". Will not stop the pipeline though.
 
     def extractTopScores(self):
-        self.topScores = readInitialLines('rank_by_scoring.list', self.numTopStructures + 1)[1:]
-        for i in range(len(self.topScores)):
-            self.topScores[i] = float(self.topScores[i].split(' ')[-1])  # get the last number, which is the score
-
-        return self.topScores
+        self.topScores = []
+        topScoresFromFile = readInitialLines('rank_by_scoring.list', self.numTopStructures + 1)[1:]  # always read the header but not record to self.topScores
+        if len(topScoresFromFile) < self.numTopStructures:
+            printRecord('Number of identified docked structures is less than what you are looking for!')
+        for i in range(len(topScoresFromFile)):
+            score = topScoresFromFile[i].split(' ')[-1]  # get the last number, which is the score
+            if type(score) == float:  # there is indeed a score
+                self.topScores.append(float(score))
+        printRecord('Number of identified docked structures = {}'.format(len(self.topScores)))
+        # return self.topScores
