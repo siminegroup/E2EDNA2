@@ -8,6 +8,7 @@
 _mjakilgour gmail com_
 
 For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (https://doi.org/10.1021/acs.jcim.1c00696)
+https://github.com/InfluenceFunctional/E2EDNA
 
 ## Installation
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
