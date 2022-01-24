@@ -11,7 +11,7 @@ import numpy as np
 import time
 
 import Bio.PDB  # biopython
-import mdtraj as md
+# import mdtraj as md  # mdtraj calls "simtk.openmm", hence "Warning: importing 'simtk.openmm' is deprecated.  Import 'openmm' instead."
 import MDAnalysis as mda
 
 from pdbfixersource import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
@@ -49,15 +49,18 @@ def get_input():
     return [run_num, mode, aptamerSeq, ligand, ligandType, ligandSeq]
 
 
-def recenterDCD(topology, trajectory):
-    """
-    topology as pdb
-    trajectory as dcd
-    creates a new dcd without periodic artifacts
-    """
-    traj = md.load(trajectory, top = topology)
-    traj.image_molecules()
-    traj.save(trajectory.split('.')[0] + '_recentered.dcd')
+# def recenterDCD(topology, trajectory):
+#     """
+#     topology as pdb
+#     trajectory as dcd
+#     creates a new dcd without periodic artifacts
+#     """
+#     traj = md.load(trajectory, top = topology)
+#     traj.image_molecules()
+#     traj.save(trajectory.split('.')[0] + '_recentered.dcd')
+# # MDAnalysis provides something similar: https://userguide.mdanalysis.org/1.1.1/examples/transformations/center_protein_in_box.html
+# # In the future, implement it using MDAnalysis, because mdtraj-1.9.7 still calls "simtk.openmm" which is a deprecated package.
+# # In fact, MDAnalysis also interacts with openmm package, unfortunately, also by calling "simtk.openmm". So the depreceation warning persists but not shows up in the beginning of the command line output.
 
 
 class Timer:
