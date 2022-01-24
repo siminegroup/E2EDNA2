@@ -369,7 +369,7 @@ class opendna:
         :return:
         """
         # write pair list as fictitious forces to the MMB command file
-        printRecord("Folding Aptamer from Sequence. Fold speed={}".format(self.params['fold speed']))        
+        printRecord("\nFolding Aptamer from Sequence. Fold speed={}".format(self.params['fold speed']))        
 
         mmb = interfaces.mmb(aptamerSeq, pairList, self.params, self.i)
         MDAfoldFidelity, MMBfoldFidelity = mmb.run()
@@ -413,7 +413,7 @@ class opendna:
         if implicitSolvent is False:
             # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
             prepPDB(structure, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
-            print('Done preparing files with waterbox. Start openmm.')
+            printRecord('Done preparing files with waterbox. Start OpenMM.')
         else:  # prepare prmtop and crd file using LEap in ambertools
             printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for folded aptamer...')
             #os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
@@ -444,7 +444,8 @@ class opendna:
         self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'relaxedAptamer_{}.pdb'.format(self.i)  # specify the file name for the extracted final frame, ie, relaxed aptamer
         # extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed aptamer {}'.format(self.i)])  # extract final frame        
         # # Current warning from MDA: UserWarning: Unit cell dimensions not found. CRYST1 record set to unitary values. I think: MDA cannot find unit cell dimension info. Can we add info when using implicit solvent?            
-        # Another possible way to extract the last frame is to use OpenMM:            
+        # Another possible way to extract the last frame is to use OpenMM:
+        printRecord("Selecting the last frame of the relaxation trajectory as the relaxed structure.")
         omm.extractLastFrame(self.pdbDict['relaxed aptamer {}'.format(self.i)])
         
         # in "smooth dock" mode:
@@ -486,17 +487,20 @@ class opendna:
 
         printRecord('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
         self.checkRuntime()
-        print("\nChecked time. Try cleaning")
+        print("Checked time. Try cleaning...")
         if implicitSolvent is False:
             cleanTrajectory(processedAptamer, processedAptamerTrajectory)  # clean up trajectory for later use. by doing what?
-            printRecord("Cleaned free aptamer traj. Looking for free aptamer's representative configuration")
+            printRecord("Cleaned free aptamer traj.")
         else:  # no water or salt to remove
             copyfile(processedAptamer, 'clean_' + processedAptamer)  # TODO no cleaning for now
             copyfile(processedAptamerTrajectory, 'clean_' + processedAptamerTrajectory)  # TODO no cleaning for now
-            printRecord("No cleaning in implicit solvent, just copied free aptamer traj. Looking for free aptamer's representative configuration")
-            
+            printRecord("No cleaning in implicit solvent, just copied free aptamer traj.")
+        
+        printRecord("Generated: clean_" + processedAptamerTrajectory)
         self.dcdDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamerTrajectory
         self.pdbDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamer
+        
+        printRecord("Analyzing the trajectory to look for free aptamer's representative configuration...")
         aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
         # Within analyzeTrajectory, the last step is also to save an representative frame. We can also replace it using OpenMM??
             # self.omm.extractLastFrame('repStructure_%d' % self.i + '.pdb', representativeIndex) # need more scripting to complete it
@@ -585,7 +589,7 @@ class opendna:
 
         printRecord('Complex simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
         self.checkRuntime()
-        print("\nChecked time. Try cleaning")
+        print("Checked time. Try cleaning...")
         if implicitSolvent is False:
             cleanTrajectory(processedComplex, processedComplexTrajectory)  # clean up trajectory for later use. by doing what?
             printRecord("Cleaned complex traj.")    
@@ -594,6 +598,7 @@ class opendna:
             copyfile(processedComplexTrajectory, 'clean_' + processedComplexTrajectory)  # TODO no cleaning for now
             printRecord("No cleaning in implicit solvent, just copied complex traj.")
 
+        printRecord("Generated: clean_" + processedComplexTrajectory)
         self.dcdDict['sampled complex {} {}'.format(self.i, self.j)] = 'clean_' + processedComplexTrajectory
         self.pdbDict['sampled complex {} {}'.format(self.i, self.j)] = 'clean_' + processedComplex
 
@@ -677,10 +682,7 @@ class opendna:
 
         # 2D structure analysis
         pairTraj = getPairTraj(wcTraj)
-        secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure
-        if self.actionDict['do 2d analysis'] is True:
-            printRecord('Predicted 2D structure :' + self.ssAnalysis['displayed 2d string'][self.i])  # if we did not fold the structure, we probably do not know the secondary structure.
-        printRecord('Actual 2D structure    :' + configToString(secondaryStructure))
+        secondaryStructure = analyzeSecondaryStructure(pairTraj)  # find equilibrium secondary structure        
 
         # 3D structure analysis
         mixedTrajectory = np.concatenate((baseDistTraj.reshape(len(baseDistTraj), int(baseDistTraj.shape[-2] * baseDistTraj.shape[-1])), nucleicAnglesTraj.reshape(len(nucleicAnglesTraj), int(nucleicAnglesTraj.shape[-2] * nucleicAnglesTraj.shape[-1]))), axis=1)  # mix up all our info
@@ -688,8 +690,12 @@ class opendna:
 
         # save this structure a separate file
         extractFrame(structure, trajectory, representativeIndex, 'repStructure_%d' % self.i + '.pdb')
+        if self.actionDict['do 2d analysis'] is True:
+            printRecord('Predicted 2D structure                      :' + self.ssAnalysis['displayed 2d string'][self.i])  
+            # if we did not run 2d analysis, we probably do not know the secondary structure.        
+        printRecord('Equilibrium 2D structure from the trajectory:' + configToString(secondaryStructure))
 
-        # we also need  function which processes the energies spat out by the trajectory logs
+        # we also need function which processes the energies spat out by the trajectory logs
         analysisDict = {}  # compile our results
         analysisDict['2D structure'] = secondaryStructure
         analysisDict['RC trajectories'] = pcTrajectory
