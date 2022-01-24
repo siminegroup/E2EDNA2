@@ -271,12 +271,12 @@ class omm:
         # self.pdbReporter = PDBReporter(self.structureName + '_trajectory.pdb', self.reportSteps)  # huge files
         if simTime is None:
             if binding is True:
-                logFileName = 'log_complex.txt'
+                mdlogFileName = 'MDlog_complexSampling.txt'
             else:
-                logFileName = 'log.txt'
+                mdlogFileName = 'MDlog_freeAptamerSampling.txt'
         else:  # MD smoothing: simTime is specified as 'smoothing time'
-            logFileName = 'log_smoothing.txt'
-        self.dataReporter = StateDataReporter(logFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
+            mdlogFileName = 'MDlog_freeAptamerSmoothing.txt'
+        self.dataReporter = StateDataReporter(mdlogFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
                 
         if (params['pick up from freeAptamerChk'] is False) and (params['pick up from complexChk'] is False):  # or if not self.chkFile:
             self.checkpointReporter = CheckpointReporter(self.structureName + '_state.chk', 10000)
