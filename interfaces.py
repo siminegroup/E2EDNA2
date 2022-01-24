@@ -289,7 +289,7 @@ class omm:
         if implicitSolvent is False:
             self.topology = self.pdb.topology
             self.positions = self.pdb.positions
-            printRecord('Creating a simulation system under explicit solvent')
+            printRecord('Creating a simulation system under explicit solvent.')
 
             self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, hydrogenMass=self.hydrogenMass, ewaldErrorTolerance=self.ewaldErrorTolerance)
             # ewaldErrorTolerance: as "**args": Arbitrary additional keyword arguments may also be specified. This allows extra parameters to be specified that are specific to particular force fields.
@@ -477,7 +477,7 @@ class omm:
     def extractLastFrame(self, lastFrameFileName):
         lastpositions = self.simulation.context.getState(getPositions=True).getPositions()
         PDBFile.writeFile(self.topology, lastpositions, open(lastFrameFileName, 'w'))
-        printRecord('OpenMM: save the last frame into: {}'.format(lastFrameFileName))
+        printRecord('OpenMM: saved the last frame into: {}'.format(lastFrameFileName))
 
 
 class ld:  # lightdock
