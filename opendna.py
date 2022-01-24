@@ -6,7 +6,7 @@ import interfaces
 from utils import *
 from analysisTools import *
 
-# noinspection PyPep8Naming  #meaning??
+# noinspection PyPep8Naming  # ignore inspetion based on python PEP8 Naming convention
 
 
 class opendna:
@@ -369,7 +369,7 @@ class opendna:
         :return:
         """
         # write pair list as fictitious forces to the MMB command file
-        printRecord("\nFolding Aptamer from Sequence. Fold speed={}".format(self.params['fold speed']))        
+        printRecord("\nFolding Aptamer from Sequence. Fold speed = {}.".format(self.params['fold speed']))        
 
         mmb = interfaces.mmb(aptamerSeq, pairList, self.params, self.i)
         MDAfoldFidelity, MMBfoldFidelity = mmb.run()
@@ -409,7 +409,7 @@ class opendna:
         :return:
         """
         structureName = structure.split('.')[0]
-        printRecord('\nRunning relaxation (smoothing)')
+        printRecord('\nRunning Free Aptamer Relaxation (Smoothing)')
         if implicitSolvent is False:
             # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
             prepPDB(structure, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
@@ -467,7 +467,7 @@ class opendna:
             processedAptamer = aptamerPDB
             processedAptamerTrajectory = structureName + '_complete_trajectory.dcd'  # this is output file of autoMD
         else:
-            printRecord('\nRunning a fresh free aptamer dynamics')
+            printRecord('\nRunning Fresh Free Aptamer Dynamics')
             if implicitSolvent is False:
                 # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
                 prepPDB(aptamerPDB, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
@@ -564,7 +564,7 @@ class opendna:
             processedComplex = complexPDB
             processedComplexTrajectory = structureName + '_complete_trajectory.dcd'  # this is output file of autoMD
         else:
-            printRecord('\nRunning a fresh aptamer-ligand dynamics')
+            printRecord('\nRunning Fresh Aptamer-Ligand Dynamics')
             if implicitSolvent is False:
                 # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
                 prepPDB(complexPDB, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
