@@ -431,21 +431,22 @@ class opendna:
         self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
 
         printRecord('Pre-relaxation simulation speed %.1f' % self.ns_per_day + 'ns/day')  # print out sampling speed
-
+        printRecord("Try cleaning...")
         if implicitSolvent is False:
             cleanTrajectory(processedStructure, processedStructureTrajectory)  # remove water and salt from trajectory
-            printRecord("Cleaned the trajectory of relaxing free aptamer. Extracting the final frame.")
+            printRecord("Cleaned the trajectory of relaxing free aptamer.")
         else:  # no water or salt to remove
             copyfile(processedStructure, 'clean_' + processedStructure)
             copyfile(processedStructureTrajectory, 'clean_' + processedStructureTrajectory)
             printRecord("No cleaning in implicit solvent, just copied smoothing traj. Extracting the final frame")
 
+        printRecord("Generated: clean_" + processedStructureTrajectory)
         self.dcdDict['relaxed aptamer {}'.format(self.i)] = 'clean_' + processedStructureTrajectory
         self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'relaxedAptamer_{}.pdb'.format(self.i)  # specify the file name for the extracted final frame, ie, relaxed aptamer
         # extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed aptamer {}'.format(self.i)])  # extract final frame        
         # # Current warning from MDA: UserWarning: Unit cell dimensions not found. CRYST1 record set to unitary values. I think: MDA cannot find unit cell dimension info. Can we add info when using implicit solvent?            
         # Another possible way to extract the last frame is to use OpenMM:
-        printRecord("Selecting the last frame of the relaxation trajectory as the relaxed structure.")
+        printRecord("Extracting the last frame of the relaxation trajectory as the relaxed structure.")
         omm.extractLastFrame(self.pdbDict['relaxed aptamer {}'.format(self.i)])
         
         # in "smooth dock" mode:
@@ -487,10 +488,10 @@ class opendna:
 
         printRecord('Free aptamer simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
         self.checkRuntime()
-        print("Checked time. Try cleaning...")
+        printRecord("Checked time. Try cleaning...")
         if implicitSolvent is False:
             cleanTrajectory(processedAptamer, processedAptamerTrajectory)  # clean up trajectory for later use. by doing what?
-            printRecord("Cleaned free aptamer traj.")
+            printRecord("Cleaned free aptamer trajectory.")
         else:  # no water or salt to remove
             copyfile(processedAptamer, 'clean_' + processedAptamer)  # TODO no cleaning for now
             copyfile(processedAptamerTrajectory, 'clean_' + processedAptamerTrajectory)  # TODO no cleaning for now
@@ -589,10 +590,10 @@ class opendna:
 
         printRecord('Complex simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
         self.checkRuntime()
-        print("Checked time. Try cleaning...")
+        printRecord("Checked time. Try cleaning...")
         if implicitSolvent is False:
             cleanTrajectory(processedComplex, processedComplexTrajectory)  # clean up trajectory for later use. by doing what?
-            printRecord("Cleaned complex traj.")    
+            printRecord("Cleaned aptamer-ligand complex trajectory.")    
         else:  # no water or salt to remove
             copyfile(processedComplex, 'clean_' + processedComplex)  # TODO no cleaning for now
             copyfile(processedComplexTrajectory, 'clean_' + processedComplexTrajectory)  # TODO no cleaning for now
