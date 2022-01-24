@@ -182,7 +182,9 @@ class mmb:  # MacroMolecule Builder (MMB)
         :return:
         """
         # do it with MDA: MDAnalysis
-        u = mda.Universe(self.foldedAptamerSeq)
+        u = mda.Universe(self.foldedAptamerSeq, dt=1.0)  # manually set dt=1.0ps to avoid warning. 
+        # MMB trajectory doesn't provide dt. dt is not used in analysis here either.
+
         # extract distance info through the trajectory
         wcTraj = getWCDistTraj(u)  # watson-crick base pairing distances (H-bonding)
         pairTraj = getPairTraj(wcTraj)        
