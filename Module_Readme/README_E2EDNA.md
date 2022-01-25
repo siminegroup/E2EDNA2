@@ -1,6 +1,6 @@
 # E2EDNA
 
-We here will lay out the algorithmic logic (a.k.a. the E2EDNA protocl) underpinning this code.
+We here will lay out the algorithmic logic (a.k.a. the E2EDNA protocol) underpinning this code.
 Automation is at the heart of OpenDNA, and so the code makes many decisions behind the scenes which users should be aware of.
 
 ## Basic Algorithm
