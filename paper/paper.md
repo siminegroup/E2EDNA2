@@ -10,18 +10,16 @@ authors:
     affiliation: 1
   - name: Tao Liu^[co-first author]
     orcid: 0000-0002-1082-5570
-    affiliation: 2
+    affiliation: 1
   - name: Ilya Dementyev
     orcid: 0000-0001-7171-1078
-    affiliation: 2
+    affiliation: 1
   - name: Lena Simine^[corresponding author]
     orcid: 0000-0002-8188-0550
-    affiliation: 2
+    affiliation: 1
 affiliations:
- - name: Department of Chemistry, New York University, New York, New York, USA
-   index: 1
  - name: Department of Chemistry, McGill University, Montreal, Quebec, Canada
-   index: 2
+   index: 1
 date: 27 January 2022
 bibliography: paper.bib
 ---
