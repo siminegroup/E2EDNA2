@@ -52,16 +52,14 @@ Next we briefly discuss the software packages engaged in the E2EDNA 2.0 pipeline
 We conclude the presentation of E2EDNA 2.0 by listing the available simulation modes in Table 1. We refer the reader to Documentation for more details on the modes, as well as for installation and running the simulation instructions.
 
 Table 1: E2EDNA 2.0 simulation modes.
-|   | Mode           | Description                                                                     |
-|---|----------------|---------------------------------------------------------------------------------|
-| 1 | ‘2d structure’ | predicts secondary structure                                                    |
-| 2 | ‘3d coarse’    | ‘2d structure’ + quick folding into a 3D structure                              |
-| 3 | ‘3d smooth’    | ‘3d coarse’ + MD relaxation                                                     |
-| 4 | ‘coarse dock’  | ‘3d coarse’ structure  + molecular docking                                      |
-| 5 | ‘smooth dock’  | ‘3d smooth’ structure + molecular docking                                       |
-| 6 | ‘free aptamer’ | ‘3d coarse’ + MD sampling search for representative aptamer folded conformation |
-| 7 | ‘full dock’    | ‘free aptamer’ + molecular docking                                              |
-| 8 | ‘full binding’ | ‘full dock’ + MD sampling of aptamer-ligand complex                             |
+1. Mode: '2d structure'; Description: predicts secondary structure.
+2. Mode: '3d coarse'; Description: ‘2d structure’ + quick folding into a 3D structure.
+3. Mode: ‘3d smooth’; Description: ‘3d coarse’ + MD relaxation.
+4. Mode: ‘coarse dock’; Description: ‘3d coarse’ structure  + molecular docking.
+5. Mode: ‘smooth dock’; Description: ‘3d smooth’ structure + molecular docking.
+6. Mode: ‘free aptamer’; Description: ‘3d coarse’ + MD sampling search for representative aptamer folded conformation.
+7. Mode: ‘full dock’; Description: ‘free aptamer’ + molecular docking.
+8. Mode: ‘full binding’; Description:‘full dock’ + MD sampling of aptamer-ligand complex.
 
 # Acknowledgements
 
