@@ -10,7 +10,7 @@ authors:
     affiliation: "1, 2"
   - name: Tao Liu^[co-first author]
     orcid: 0000-0002-1082-5570
-    affiliation: 1
+    affiliation: "1, 2"
   - name: Ilya Dementyev
     orcid: 0000-0001-7171-1078
     affiliation: 1
@@ -20,7 +20,7 @@ authors:
 affiliations:
  - name: Department of Chemistry, McGill University, Montreal, Quebec, Canada
    index: 1
- - name: Department of Chemistry, New York University, New York, New York, USA
+ - name: These authors contribute equally.
    index: 2
 date: 27 January 2022
 bibliography: paper.bib
