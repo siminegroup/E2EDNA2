@@ -53,12 +53,19 @@ We conclude the presentation of E2EDNA 2.0 by listing the available simulation m
 
 Table 1: E2EDNA 2.0 simulation modes.
 1. Mode: '2d structure'; Description: predicts secondary structure.
+
 2. Mode: '3d coarse'; Description: ‘2d structure’ + quick folding into a 3D structure.
+
 3. Mode: ‘3d smooth’; Description: ‘3d coarse’ + MD relaxation.
+
 4. Mode: ‘coarse dock’; Description: ‘3d coarse’ structure  + molecular docking.
+
 5. Mode: ‘smooth dock’; Description: ‘3d smooth’ structure + molecular docking.
+
 6. Mode: ‘free aptamer’; Description: ‘3d coarse’ + MD sampling search for representative aptamer folded conformation.
+
 7. Mode: ‘full dock’; Description: ‘free aptamer’ + molecular docking.
+
 8. Mode: ‘full binding’; Description:‘full dock’ + MD sampling of aptamer-ligand complex.
 
 # Acknowledgements
