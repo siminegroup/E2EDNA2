@@ -52,7 +52,8 @@ Next we briefly discuss the software packages engaged in the E2EDNA 2.0 pipeline
 We conclude the presentation of E2EDNA 2.0 by listing the available simulation modes in Table 1. We refer the reader to Documentation for more details on the modes, as well as for installation and running the simulation instructions.
 
 Table 1: E2EDNA 2.0 simulation modes.
-1. Mode: '2d structure'; Description: predicts secondary structure.
+
+1. `Mode`: '2d structure'; `Description`: predicts secondary structure.
 
 2. Mode: '3d coarse'; Description: ‘2d structure’ + quick folding into a 3D structure.
 
