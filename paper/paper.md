@@ -5,10 +5,10 @@ tags:
   - simulation pipeline
   - DNA aptamers
 authors:
-  - name: Michael Kilgour^[co-first author]
+  - name: Michael Kilgour
     orcid: 0000-0001-6557-3297
     affiliation: "1, 2"
-  - name: Tao Liu^[co-first author]
+  - name: Tao Liu
     orcid: 0000-0002-1082-5570
     affiliation: "1, 2"
   - name: Ilya Dementyev
