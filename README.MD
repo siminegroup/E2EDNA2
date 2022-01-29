@@ -14,23 +14,23 @@ https://github.com/InfluenceFunctional/E2EDNA
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
 1. Download the E2EDNA 2.0 package from this repository.
 2. Register and download NUPACK package from http://www.nupack.org/downloads, find out the path to the downloaded package, such as ``~/Downloads/nupack-4.0.0.27/package``.
-3. In the E2EDNA2 directory please modify the [``macos_installation.sh``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/macos_installation.sh) script: update the path to NUPACK installation package (see step 2).
-4. From the E2EDNA2 directory run ``source macos_installation.sh`` in command line to install a virtual environment ``e2edna`` and required dependences.
-   * Caveat: in case `conda activate e2edna` command gives an error such as "Your shell has not been properly configured to use 'conda activate'" or if after the script finishes ``e2edna`` enviroment has not been activated, please first remove the installed environment by ``conda remove --name e2edna --all`` in command line, then replace the conda activation command in the script with `source activate /path-to-envs/e2edna`, e.g., `source activate ~/miniconda3/envs/e2edna` and run the script again.
-6. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the Installer### folder into the e2edna folder. NB: Do not specify `DYLD_LIBRARY_PATH` against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
-7. Update 3 paths in main.py:
+3. In the E2EDNA2 directory please modify the [macos_installation.sh](https://github.com/siminegroup/E2EDNA2/blob/main/macos_installation.sh) script: update the path to NUPACK installation package (see step 2).
+4. From the E2EDNA2 directory run ``source macos_installation.sh`` in command line to install a virtual environment "e2edna" and required dependences.
+   * Caveat: in case `conda activate e2edna` command gives an error such as "Your shell has not been properly configured to use 'conda activate'" or if after the script finishes "e2edna" enviroment has not been activated, please first remove the installed environment by ``conda remove --name e2edna --all`` in command line, then replace the conda activation command in the script with `source activate /path-to-envs/e2edna`, e.g., `source activate ~/miniconda3/envs/e2edna` and run the script again.
+6. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the "Installer.*version.OS*" folder, such as "Installer.3_0.OSX" into the E2EDNA2 directory. N.B.: Do not specify `DYLD_LIBRARY_PATH` for MacOS against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
+7. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py):
 ```
- params['workdir'] = '/path-to-e2edna/localruns'                         # working directory   
+params['workdir'] = '/path-to-E2EDNA2/localruns'                                # directory manually created to store all future jobs
        
- params['mmb dir'] = '/path-to-e2edna/e2edna/Installer.###/lib'          # path to MMB dylib files
+params['mmb dir'] = '/path-to-E2EDNA2/Installer.version.OS/lib'                 # path to MMB dylib files
       
- params['mmb']     = '/path-to-e2edna/Installer.###/bin/MMB-executable'  # path to MMB executable    
+params['mmb']     = '/path-to-E2EDNA2/Installer.version.OS/bin/MMB-executable'  # path to MMB executable
 ```
 ## Running a job
 
 ### Quickstart
-* Set 'params' in [``main.py``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/main.py), as indicated in "Installation".
-* Run the bash script [``automate_tests.sh``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/automate_tests.sh) to test all 8 modes automatically.
+* Set `params` in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py), as indicated in "Installation".
+* Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test all 8 modes automatically.
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
 python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
@@ -56,7 +56,7 @@ This code implements several distinct analysis modes so users may customize the 
 * `full binding` &rarr; Same steps as 'full docking', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
 
 # Test run: inputs and outcomes
-Running this script [``automate_tests.sh``](https://github.com/InfluenceFunctional/E2EDNA2/blob/main/automate_tests.sh) will automatically run simple very light simulations of all 8 modes.
+Running this script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) will automatically run simple very light simulations of all 8 modes.
 Here we explain what outputs to look for and what success looks like.
 
 * Mode 1:`2d structure` 
