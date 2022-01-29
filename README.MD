@@ -17,8 +17,8 @@ This installation path has been tested on macOS and it relies on conda and pip p
 3. In the E2EDNA2 directory please modify the [macos_installation.sh](https://github.com/siminegroup/E2EDNA2/blob/main/macos_installation.sh) script: update the path to NUPACK installation package (see step 2).
 4. From the E2EDNA2 directory run ``source macos_installation.sh`` in command line to install a virtual environment "e2edna" and required dependences.
    * Caveat: in case `conda activate e2edna` command gives an error such as "Your shell has not been properly configured to use 'conda activate'" or if after the script finishes "e2edna" enviroment has not been activated, please first remove the installed environment by ``conda remove --name e2edna --all`` in command line, then replace the conda activation command in the script with `source activate /path-to-envs/e2edna`, e.g., `source activate ~/miniconda3/envs/e2edna` and run the script again.
-6. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the "Installer.*version.OS*" folder, such as "Installer.3_0.OSX" into the E2EDNA2 directory. N.B.: Do not specify `DYLD_LIBRARY_PATH` for MacOS against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
-7. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py):
+5. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the "Installer.*version.OS*" folder, such as "Installer.3_0.OSX" into the E2EDNA2 directory. N.B.: Do not specify `DYLD_LIBRARY_PATH` for MacOS against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
+6. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py):
 ```
 params['workdir'] = '/path-to-E2EDNA2/localruns'                                # directory manually created to store all future jobs
        
@@ -29,7 +29,7 @@ params['mmb']     = '/path-to-E2EDNA2/Installer.version.OS/bin/MMB-executable'  
 ## Running a job
 
 ### Quickstart
-* Set `params` in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py), as indicated in "Installation".
+* Set 3 paths in `params`, as indicated in step6 of "Installation". Leave the other keys of `params` unchanged.
 * Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test all 8 modes automatically.
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
@@ -41,6 +41,10 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
 # --ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
 
 ```
+### Customizing parameters
+* A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py) to allow for flexible control of the pipeline, including device platform (CPU or CUDA), solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
+* __more to come...__
+
 
 ## Functionality: Eight different modes of operation
 E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
@@ -182,7 +186,7 @@ MMB folding could take a while if multiple refolding takes place for any tricky 
 
 
 
-# __ work in progress__
+# __work in progress__
 
 ### Physical Parameters
 
