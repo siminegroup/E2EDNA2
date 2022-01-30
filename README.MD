@@ -21,15 +21,13 @@ This installation path has been tested on macOS and it relies on conda and pip p
 6. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py):
 ```
 params['workdir'] = '/path-to-E2EDNA2/localruns'                                # directory manually created to store all future jobs
-       
 params['mmb dir'] = '/path-to-E2EDNA2/Installer.version.OS/lib'                 # path to MMB dylib files
-      
 params['mmb']     = '/path-to-E2EDNA2/Installer.version.OS/bin/MMB-executable'  # path to MMB executable
 ```
 ## Running a job
 
 ### Quickstart
-* Set 3 paths in `params`, as indicated in step6 of "Installation". Leave the other keys of `params` unchanged.
+* Set 3 paths in `params`, as indicated in step6 of [Installation](https://github.com/siminegroup/E2EDNA2#installation). Leave the other keys of `params` unchanged.
 * Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test all 8 modes automatically.
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
@@ -39,7 +37,6 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
 # --ligand='False'        # if no ligand. --ligandType and --ligandSeq will be ignored.
 # --ligandType='peptide'  # or 'DNA' or 'RNA' or 'other'. Assuming 'other' ligand can be described by Amber14 force field.
 # --ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
-
 ```
 ### Customizing parameters
 * A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py) to allow for flexible control of the pipeline, including device platform (CPU or CUDA), solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
