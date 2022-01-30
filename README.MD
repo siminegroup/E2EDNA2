@@ -45,7 +45,7 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
   * `--ligandType`: 'peptide' or 'DNA' or 'RNA' or 'other', assuming 'other' ligand can be described by force field used in MD simulation (default: Amber14).
   * `--ligandSeq`: target ligand's sequence (5'->3') if target ligand is a peptide or DNA or RNA. If `--ligandType='other'`, this input is empty string.
 * A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py) to allow for flexible control of the simulation conditions, including device platform (CPU or CUDA), solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
-*
+
 ## 3. Functionality: Eight different modes of operation
 E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
 This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
