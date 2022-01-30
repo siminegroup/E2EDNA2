@@ -210,4 +210,4 @@ elif params['device'] == 'cluster':
 if __name__ == '__main__':
     opendna = opendna(params)  # instantiate the class
     opendnaOutput = opendna.run()  # retrieve binding information (eventually this should become a normalized c-number)    
-    printRecord('Pipeline successfully stopped.')
+    printRecord('\nPipeline successfully stopped.')
