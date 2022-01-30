@@ -558,8 +558,8 @@ class ld:  # lightdock
         # Generate top structures
         os.system(self.topPath + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
         os.mkdir('top_%d'%self.ind1)
-        os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)
-        # If no top*.pdb at all: there will be an warning message: "mv: rename top*.pdb to top_0/top*.pdb: No such file or directory". Will not stop the pipeline though.
+        if os.path.exists('top_1.pdb'):  # if there is any docked structure
+            os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)        
 
     def extractTopScores(self):
         self.topScores = []
