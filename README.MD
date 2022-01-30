@@ -26,8 +26,8 @@ params['mmb']     = '/path-to-E2EDNA2/Installer.version.OS/bin/MMB-executable'  
 ```
 ## 2. Running a job
 ### Quickstart
-* Set 3 paths in `params`, as indicated in step6 of [Installation](https://github.com/siminegroup/E2EDNA2#installation). Leave the other keys of `params` unchanged.
-* Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test run all 8 modes automatically. Check out [Test runs](https://github.com/siminegroup/E2EDNA2/blob/main/README.MD#test-runs-inputs-and-outcomes) section for detail.
+* Set 3 paths in `params`, as indicated in step6 of [Installation](https://github.com/siminegroup/E2EDNA2#1-installation). Leave the other keys of `params` unchanged.
+* Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test run all 8 modes automatically. Check out [Test runs](https://github.com/siminegroup/E2EDNA2/blob/main/README.MD#4-test-runs-inputs-and-outcomes) section for detail.
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
 python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
