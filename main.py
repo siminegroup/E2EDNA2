@@ -9,7 +9,7 @@ params['device platform'] = 'macos'  # 'macos' or 'linux' or 'WSL' (Windows Subs
 params['platform'] = 'CPU'           # 'CPU' or 'CUDA'
 if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'single' or 'double'
 if params['device'] == 'local':
-    params['workdir'] = '/path-to-E2EDNA2-JOSS/localruns'                           # working directory    
+    params['workdir'] = '/path-to-E2EDNA2-JOSS/localruns'                  # directory manually created to store all future jobs
     params['mmb dir'] = '/path-to-E2EDNA2-JOSS/Installer.3_0.OSX/lib'      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
     params['mmb']     = '/path-to-E2EDNA2-JOSS/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable, MMB is the *name* of the executable here
 else:  # params['device'] == 'cluster':
