@@ -29,7 +29,7 @@ params['mmb']     = '/path-to-E2EDNA2-main/Installer.version.OS/bin/MMB-executab
 ## 2. Running a job
 ### Quickstart
 * Set 3 paths in `params`, as indicated in step6 of [Installation](https://github.com/siminegroup/E2EDNA2#1-installation). Leave the other keys of `params` unchanged.
-* Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test run all 8 modes automatically. Check out [Test runs](https://github.com/siminegroup/E2EDNA2/blob/main/README.MD#4-test-runs-inputs-and-outcomes) section for details. 
+* Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test run all 8 modes automatically. Check out [Test runs](https://github.com/siminegroup/E2EDNA2#4-test-runs-inputs-and-outcomes) section for details. 
 * All 8 modes take about 15 minutes to run on a macbook pro laptop and the outputs are saved in the work directory. We chose very simple systems for the the test-run and where ever docking is performed the docking configuration may or may not be found due to the limitations of the chosen system. Please note that a failure to find a docked configuration is not a failure of E2EDNA. 
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
