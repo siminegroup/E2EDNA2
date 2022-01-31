@@ -477,7 +477,7 @@ class omm:
     def extractLastFrame(self, lastFrameFileName):
         lastpositions = self.simulation.context.getState(getPositions=True).getPositions()
         PDBFile.writeFile(self.topology, lastpositions, open(lastFrameFileName, 'w'))
-        printRecord('OpenMM: saved the last frame into: {}'.format(lastFrameFileName))
+        # printRecord('OpenMM: saved the last frame into: {}'.format(lastFrameFileName))
 
 
 class ld:  # lightdock
@@ -567,8 +567,9 @@ class ld:  # lightdock
         if len(topScoresFromFile) < self.numTopStructures:
             printRecord('Number of identified docked structures is less than what you are looking for!')
         for i in range(len(topScoresFromFile)):
-            score = topScoresFromFile[i].split(' ')[-1]  # get the last number, which is the score
-            if type(score) == float:  # there is indeed a score
-                self.topScores.append(float(score))
+            scoreStr = topScoresFromFile[i].split(' ')[-1]  # get the last number, which is the score in string format
+            if len(scoreStr) != 0:       # if not an empty string, there is indeed a score. Other options: if scoreStr or if os.path.exists('top_0/top_1.pdb')  # if there is 1 docked structure
+                score = float(scoreStr)  # convert from str to float
+                self.topScores.append(score)
         printRecord('Number of identified docked structures = {}'.format(len(self.topScores)))
         # return self.topScores
