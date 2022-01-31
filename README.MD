@@ -22,9 +22,9 @@ This installation path has been tested on macOS and it relies on conda and pip p
 5. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the "Installer.*version.OS*" folder, such as "Installer.3_0.OSX" into the E2EDNA2 directory. N.B.: Do not specify `DYLD_LIBRARY_PATH` for MacOS against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
 6. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py):
 ```
-params['workdir'] = '/path-to-E2EDNA2/localruns'                                # directory manually created to store all future jobs
-params['mmb dir'] = '/path-to-E2EDNA2/Installer.version.OS/lib'                 # path to MMB dylib files
-params['mmb']     = '/path-to-E2EDNA2/Installer.version.OS/bin/MMB-executable'  # path to MMB executable
+params['workdir'] = '/path-to-E2EDNA2-main/localruns'                                # directory manually created to store all future jobs
+params['mmb dir'] = '/path-to-E2EDNA2-main/Installer.version.OS/lib'                 # path to MMB dylib files
+params['mmb']     = '/path-to-E2EDNA2-main/Installer.version.OS/bin/MMB-executable'  # path to MMB executable
 ```
 ## 2. Running a job
 ### Quickstart
