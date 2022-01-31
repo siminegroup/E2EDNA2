@@ -229,8 +229,9 @@ class omm:
 
         if implicitSolvent is False:
             self.pdb = PDBFile(structurePDB)
-            self.waterModel = params['water model']
-            self.forcefield = ForceField('amber14-all.xml', 'amber14/' + self.waterModel + '.xml')
+            self.forceFieldFilename = params['force field']
+            self.waterModelFilename = params['water model']
+            self.forcefield = ForceField(self.forceFieldFilename + '.xml', self.waterModelFilename + '.xml')
 
         # System configuration
         self.nonbondedMethod = params['nonbonded method']  # Currently PME!!! It's used with periodic boundary condition applied
@@ -289,7 +290,7 @@ class omm:
         if implicitSolvent is False:
             self.topology = self.pdb.topology
             self.positions = self.pdb.positions
-            printRecord('Creating a simulation system under explicit solvent.')
+            printRecord('Creating a simulation system using force field bundled with OpenMM: {} and {}'.format(self.forceFieldFilename, self.waterModelFilename))
 
             self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, hydrogenMass=self.hydrogenMass, ewaldErrorTolerance=self.ewaldErrorTolerance)
             # ewaldErrorTolerance: as "**args": Arbitrary additional keyword arguments may also be specified. This allows extra parameters to be specified that are specific to particular force fields.
@@ -299,7 +300,7 @@ class omm:
             self.inpcrd = AmberInpcrdFile(self.structureName + '.crd')
             self.topology = self.prmtop.topology
             self.positions = self.inpcrd.positions
-            printRecord('Creating a simulation system under implicit solvent model of {}'.format(params['implicit solvent model']))
+            printRecord('Creating a simulation system using implicit solvent model of {}'.format(params['implicit solvent model']))
             
             self.implicitSolventModel = params['implicit solvent model']
             self.implicitSolventSaltConc = params['implicit solvent salt conc'] * (unit.moles / unit.liter)
@@ -417,7 +418,7 @@ class omm:
 
         # # Need to create a Simulation class, even to load checkpoint file
         # self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
-        # print("Using LangevinMiddleIntegrator integrator, at T={}.".format(self.temperature))
+        # printRecord("Using LangevinMiddleIntegrator integrator, at T={}.".format(self.temperature))
         self.friction = params['friction'] / unit.picosecond
         self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
         printRecord("Using LangevinIntegrator integrator, at T={}.".format(self.temperature))
