@@ -1,15 +1,13 @@
 # Documentation
 ## E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
 
-### An automated pipeline for simulation of DNA aptamers complexed with small molecules and short peptides.
+### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
 
 **Michael Kilgour, Tao Liu, Ilya S. Dementyev, Lena Simine**
 
-_mjakilgour gmail com_
+* For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (https://doi.org/10.1021/acs.jcim.1c00696) and https://github.com/InfluenceFunctional/E2EDNA
 
-For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (https://doi.org/10.1021/acs.jcim.1c00696)
-https://github.com/InfluenceFunctional/E2EDNA
-
+* Interested in contributing to developing E2EDNA? Check out how to contribute [here](https://github.com/siminegroup/E2EDNA2/blob/JOSS/CONTRIBUTING.md).
 ## 1. Installation
 This installation path has been tested on macOS and it relies on conda and pip package managers. 
 1. Download the E2EDNA 2.0 package from this repository.
@@ -19,7 +17,7 @@ This installation path has been tested on macOS and it relies on conda and pip p
    * Caveat: If the scripts fails to activate the environment automatically, this is likely because `conda activate e2edna` command gives an error such as "Your shell has not been properly configured to use 'conda activate'".
    * To fix this issue, please, first remove the installed environment by ``conda remove --name e2edna --all`` in command line, then either replace the conda activation command in the script with `source activate /path-to-envs/e2edna`, e.g., `source activate ~/miniconda3/envs/e2edna` and run the script again 
    * *OR* run the commands one by one interactively in your terminal. 
-5. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the "Installer.*version.OS*" folder, such as "Installer.3_0.OSX" into the E2EDNA2 directory. N.B.: Do not specify `DYLD_LIBRARY_PATH` for MacOS against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
+5. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the "Installer.*version.OS*" folder, such as "Installer.3_0.OSX" into the E2EDNA2 directory. N.B.: Do not specify `DYLD_LIBRARY_PATH` for macOS against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
 6. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/JOSS/main.py):
 ```
 params['workdir'] = '/path-to-E2EDNA2-JOSS/localruns'                                # directory manually created to store all future jobs
@@ -50,177 +48,82 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
 * A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/JOSS/main.py) to allow for flexible control of the simulation conditions, including device platform (CPU or CUDA), solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
 
 ## 3. Functionality: Eight different modes of operation
-E2EDNA 2.0 takes in a DNA aptamer sequence in FASTA format, and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
-This code implements several distinct analysis modes so users may customize the level of computational cost and accuracy.
+E2EDNA 2.0 takes in a DNA aptamer sequence (5' to 3'), and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
+This code implements several distinct operation modes so users may customize the level of computational cost and accuracy.
 
-* `2d structure` &rarr; returns NUPACK or seqfold analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
-* `3d coarse` &rarr; returns MMB fold of the best secondary structure. Fast O(5-30 mins). Results in a strained 3D structure which obeys base pairing rules and certain stacking interactions.
+* `2d structure` &rarr; returns NUPACK analysis of aptamer secondary structure. Very fast, O(<1s). If using NUPACK, includes probability of observing a certain fold and of suboptimal folds within kT of the minimum.
+* `3d coarse` &rarr; returns MMB fold of the best secondary structure. Fast, O(5-30 mins). Results in a strained 3D structure which obeys base pairing rules and certain stacking interactions.
 * `3d smooth` &rarr; identical to '3d coarse', with a short MD relaxation in solvent. ~Less than double the cost of '3d coarse' depending on relaxation time.
 * `coarse dock` &rarr; uses the 3D structure from '3d coarse' as the initial condition for a LightDock simulation, and returns best docking configurations and scores. Depending on docking parameters, adds O(5-30mins) to '3d coarse'.
-* `smooth dock` &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost. 
-* `free aptamer` &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow O(hours).
+* `smooth dock` &rarr; identical to 'coarse dock', instead using the relaxed structure from '3d smooth'. Similar cost to 'coarse dock'.
+* `free aptamer` &rarr; fold the aptamer in MMB and run extended MD sampling to identify a representative, equilibrated 2D and 3D structure. Slow, O(hours).
 * `full dock` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
-* `full binding` &rarr; Same steps as 'full dock', with follow-up extended MD simulation of the best binding configuration. Slowest O(hours).
+* `full binding` &rarr; Same steps as 'full dock', with follow-up extended MD simulation of the best binding configuration. Slowest, O(hours).
 ## 4. Test runs: inputs and outcomes
-Running this script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/JOSS/automate_tests.sh) will automatically run light simulations of all 8 modes.
+Running this script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/JOSS/automate_tests.sh) will automatically run light tests of all 8 modes.
 Here we explain what outputs to look for and what success looks like for each mode.
 
 1. `--mode='2d structure'`
 
-Key inputs: DNA aptamer sequence;
-Outputs:
-Success evaluation: observe the dot-parenthesis representation for 2d structure, e.g., ..(...)..
+* **Key inputs**: DNA aptamer sequence
+
+* **Outputs**: predicted secondary structure in record.txt
+
+* **Success evaluation**: observe the dot-bracket notion for secondary structure, such as .(((....))).
 
 2. `--mode='3d coarse'`
 
-Key inputs: DNA aptamer sequence;
-Outputs: 
-Success evaluation: Visualize foldedAptamer_0.pdb in VMD or PyMOL
+* **Key inputs**: DNA aptamer sequence
+
+* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb
+
+* **Success evaluation**: visualize MMB-folded aptamer structure in software like VMD or PyMOL 
 
 
-3. `--mode='3d coarse'`
+3. `--mode='3d smooth'`
 
-Key inputs: DNA aptamer sequence;
-Outputs: 
-Success evaluation:
+* **Key inputs**: DNA aptamer sequence
+
+* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Short MD relaxation trajectory of free aptamer: foldedAptamer_0_processed_trajectory.dcd and clean_foldedAptamer_0_processed_trajectory.dcd (without solvent and ions); Relaxed aptamer structure: relaxedAptamer_0.pdb
+
+* **Success evaluation**: simulation logfile, MDlog_freeAptamerSmoothing.txt, indicates 100% completion; visualize the relaxation trajectory and relaxed structure in software like VMD or PyMOL 
 
 4. `--mode='coarse dock'`
 
-Key inputs: DNA aptamer sequence; PDB filename of target ligand;
-Outputs: 
-Success evaluation:
+* **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
+
+* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; MMB-folded aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
+
+* **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
 5. `--mode='smooth dock'`
 
-Key inputs: DNA aptamer sequence; PDB filename of target ligand;
-Outputs: 
-Success evaluation:
+* **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
+
+* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Short MD relaxation trajectory of free aptamer: foldedAptamer_0_processed_trajectory.dcd and clean_foldedAptamer_0_processed_trajectory.dcd (without solvent and ions); Relaxed aptamer structure: relaxedAptamer_0.pdb; Relaxed aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
+
+* **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
 
 6. `--mode='free aptamer'`
 
-Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Last step is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. (if we ask contact predictor for >1 ssStructure)
+* **Key inputs**: DNA aptamer sequence
 
-Key inputs: DNA aptamer sequence;
-Outputs: 
-Secondary structure prediction: such as ((....))....((.(...).)).. in “record.txt”
-MMB folded structure: “foldedAptamer_0.pdb”
+* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb
 
-MD simulation: 
-Binary trajectory: “clean_foldedAptamer_0_processed_complete_trajectory.dcd”
-Topology: “clean_foldedAptamer_0_processed.pdb”
-Representative conformation: “repStructure_0.pdb”
-
-Success evaluation: 
-The DCD trajectory file is generated, and file “log.txt” shows that the MD sampling of free aptamer is 100% complete.
-Visualize MD trajectory of free aptamer using the topology and the binary trajectory file.
-Visualize representative conformation of the DNA aptamer.
+* **Success evaluation**: simulation logfile, MDlog_freeAptamerSampling.txt, indicates 100% completion; visualize the sampling trajectory and representative structure of free aptamer in software like VMD or PyMOL 
 
 7. `--mode='full dock'`
 
-Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Next is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. Finally, the representative structure will be docked by a target ligand of interest (its structure must be provided as a PDB file).
-
-Key inputs: DNA aptamer sequence; PDB filename of target ligand;
-Outputs: 
-Secondary structure prediction: such as ((....))....((.(...).)).. in “record.txt”
-MMB folded structure: “foldedAptamer_0.pdb”
-
-MD simulation: 
-Binary trajectory: “clean_foldedAptamer_0_processed_complete_trajectory.dcd”
-Topology: “clean_foldedAptamer_0_processed.pdb”
-Representative conformation: “repStructure_0.pdb”
-Docking: Aptamer-ligand complex structure: “top_1.pdb”. Docking score is in “record.txt”.
-
-Success evaluation: 
-The DCD trajectory file is generated, and file “log.txt” shows that the MD sampling of free aptamer is 100% complete.
-Visualize MD trajectory of free aptamer using the topology and the binary trajectory file.
-Visualize representative conformation of the DNA aptamer.
-Visualize aptamer-ligand complex structure.
+* **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
+* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
+* **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
 8. `--mode='full binding'`
 
-Given a DNA sequence, its secondary structure will be predicted and represented by a contact map of dot-parenthesis notation. Under the guidance of the predicted secondary structure, the sequence will then be folded into an initial three dimensional conformation. Next is to run a molecular-dynamics simulation to sample its conformational space and find out the representative conformation from the MD trajectory. The representative structure will be docked by a target ligand of interest (its structure must be provided as a PDB file). Finally, the aptamer-ligand complex molecule will be sampled by MD simulation to investigate its dynamics.
+* **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 
-Key inputs: DNA aptamer sequence; PDB filename of target ligand;
+* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened); Long MD sampling trajectory of aptamer-ligand complex: complex_0_0_processed_complete_trajectory.dcd and clean_complex_0_0_processed_complete_trajectory.dcd (without solvent and ions)
 
-Outputs: 
-Secondary structure prediction: such as ((....))....((.(...).)).. in “record.txt”
-MMB folded structure: “foldedAptamer_0.pdb”
-MD simulation of free aptamer: 
-Binary trajectory: “clean_foldedAptamer_0_processed_complete_trajectory.dcd”
-Topology: “clean_foldedAptamer_0_processed.pdb”
-Representative conformation: “repStructure_0.pdb”
-Docking: Aptamer-ligand complex structure: “top_1.pdb”. Docking score is in “record.txt”.
-MD simulation of aptamer-ligand complex:
-Binary trajectory: “clean_complex_0_0_processed_trajectory.dcd”
-Topology: “clean_complex_0_0_processed.pdb”
+* **Success evaluation**: simulation logfile, MDlog_complexSampling.txt, indicates 100% completion; visualize the sampling trajectory of aptamer-ligand complex in software like VMD or PyMOL 
 
-Success evaluation: 
-File “log.txt” shows that the MD sampling of free aptamer is 100% complete and the DCD trajectory file is generated.
-Visualize MD trajectory of free aptamer using the topology and the binary trajectory file.
-Visualize representative conformation of the DNA aptamer.
-Visualize aptamer-ligand complex structure
-The DCD trajectory file is generated, and file “log_complex.txt” shows that the MD sampling of aptamer-ligand is 100% complete.
-Visualize MD trajectory of aptamer-ligand using its binary and topolog file. It is worth noting that the aptamer might seem far apart from the target ligand, which could be a result of the periodic boundary condition. Should we correct it or leave user to do it?
-
-MD simulation might stop at the onset with “Particle coordinate is nan” error. It could be due to the energy minimization being too aggressive so tha the coordinate gets out of boundary, then integrator cannot work on those non-sense coordinate values. In this case, re-run the pipeline.
-
-MMB folding could take a while if multiple refolding takes place for any tricky sequence.
-
-
-
-# __work in progress__
-
-### Physical Parameters
-
-Default force field is AMBER 14. Other AMBER fields and explicit water models are trivial to implement. Implicit water requires moving to building systems from AMBER prmtop files. CHARMM may also be easily implemented, but hasn't been tested. AMOEBA 2013 parameters do not include nucleic acids, and AMOEBABIO18 parameters are not implemented in OpenMM.  
-```
-* params['force field'] = 'AMBER'
-* params['water model'] = 'tip3p'
-```
-
-Default parameters here - for guidance on adjustments start [here](http://docs.openmm.org/latest/userguide/application.html).
-
-```
-params['box offset'] = 1.0 # nanometers
-params['barostat interval'] = 25
-params['friction'] = 1.0 # 1/picosecond
-params['nonbonded method'] = PME
-params['nonbonded cutoff'] = 1.0 # nanometers
-params['ewald error tolerance'] = 5e-4
-params['constraints'] = HBonds
-params['rigid water'] = True
-params['constraint tolerance'] = 1e-6
-params['pressure'] = 1 
-```
-
-Increasing hydrogen mass e.g., to 4 AMU enables longer time-steps up to ~3-4 fs. See documentation for details.
-```
-params['hydrogen mass'] = 1.0 # in amu
-```
-Temperature, pH and ionic strength are taken into account for 2D folding in NUPACK, ion concentration in MD simulation, and protonation of molecules for MD (safest near 7-7.4).
-```
-params['temperature'] = 310 # Kelvin - used to predict secondary structure and for MD thermostatting
-params['ionic strength'] = .163 # mmol - used to predict secondary structure and add ions to simulation box
-params['pH'] = 7.4 # simulation will automatically protonate the peptide up to this pH
-```
-The peptide backbone constraint constant is the constant used to constrain backbone dihedrals. 
-A minimum of 10000, as it is currently set, is recommended for good constraints (deviations < 5° were always seen with this value).
-For more info, please read README_CONSTRAINTS.md.
-```
-params['peptide backbone constraint constant'] = 10000
-```
-#### Implicit Solvent
-```
-params['implicit solvent'] = True
-if params['implicit solvent']:
-    params['implicit solvent model'] = OBC1  # only meaningful if implicit solvent is True
-    params['leap template'] = 'leap_template.in'
-    # TODO add more options to params: implicitSolventSaltConc, soluteDielectric, solventDielectric, implicitSolventKappa
-```
-#### Starting with a folded DNA aptamer structure (instead of just a FASTA sequence)
-```
-params['skip MMB'] = True  # it will skip '2d analysis' and 'do MMB'
-if params['skip MMB'] is True:
-    params['folded initial structure'] = 'foldedSequence_0.pdb'  # if wishing to skip MMB, must provide a folded structure
-```
