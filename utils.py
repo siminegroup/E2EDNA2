@@ -216,6 +216,15 @@ def cleanTrajectory(structure, trajectory):
         for ts in u.trajectory:  # indexing over the trajectory
             W.write(goodStuff)
 
+def cleanPDB(structure):
+    """
+    Remove water, salt from PDB
+    :param structure:    
+    :return:
+    """
+    u = mda.Universe(structure)    
+    goodStuff = u.segments[:-2].atoms  # cut out salts and solvents
+    goodStuff.write("clean_" + structure)  # write topology
 
 def extractFrame(structure, trajectory, frame, outFileName):
     """
