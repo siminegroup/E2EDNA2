@@ -20,8 +20,7 @@ authors:
 affiliations:
  - name: Department of Chemistry, McGill University, Montreal, Quebec, Canada
    index: 1
- - name: Department of Chemistry, New York University, New York, New York, USA
-date: 28 January 2022
+date: 31 January 2022
 bibliography: paper.bib
 ---
 
