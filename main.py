@@ -5,7 +5,7 @@ An automated pipeline for simulating DNA aptamers complexed with target ligands 
 
 Michael Kilgour, Tao Liu, Ilya S. Dementyev, Lena Simine
 
-Copyright 2022 Tao Liu and contributors of E2EDNA 2.0
+Copyright 2022 Michael Kilgour, Tao Liu and contributors of E2EDNA 2.0
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
