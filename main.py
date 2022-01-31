@@ -9,9 +9,9 @@ params['device platform'] = 'macos'  # 'macos' or 'linux' or 'WSL' (Windows Subs
 params['platform'] = 'CPU'           # 'CPU' or 'CUDA'
 if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'single' or 'double'
 if params['device'] == 'local':
-    params['workdir'] = '/path-to-E2EDNA-JOSS/localruns'                           # working directory    
-    params['mmb dir'] = '/path-to-E2EDNA-JOSS/Installer.3_0.OSX/lib'      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
-    params['mmb']     = '/path-to-E2EDNA-JOSS/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable, MMB is the *name* of the executable here
+    params['workdir'] = '/path-to-E2EDNA2-JOSS/localruns'                           # working directory    
+    params['mmb dir'] = '/path-to-E2EDNA2-JOSS/Installer.3_0.OSX/lib'      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
+    params['mmb']     = '/path-to-E2EDNA2-JOSS/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable, MMB is the *name* of the executable here
 else:  # params['device'] == 'cluster':
     params['workdir'] = '/home/taoliu/scratch/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
