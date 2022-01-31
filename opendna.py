@@ -283,7 +283,7 @@ class opendna:
                 else:  # if given a folded structure, skip MMB and directly use the provided structure
                     self.MDSmoothing(self.pdbDict['folded aptamer {}'.format(self.i)], relaxationTime=self.params['smoothing time'], implicitSolvent=self.params['implicit solvent'])  # relax for xx nanoseconds
 
-            if self.actionDict['get equil repStructure']:  # definitely did smoothing if want an equil structure                    
+            if self.actionDict['get equil repStructure']:
                 if self.params['pick up from freeAptamerChk'] is False:
                     outputDict['free aptamer results {}'.format(self.i)] = self.freeAptamerDynamics(self.pdbDict['relaxed aptamer {}'.format(self.i)], implicitSolvent=self.params['implicit solvent'])
                 else:  # user must make sure they have provided a .chk file
@@ -304,15 +304,16 @@ class opendna:
                 # num_docked_structure = self.params['N docked structures']
                 num_docked_structure = len(self.topDockingScores)
                 
-                printRecord('Running over %d' % num_docked_structure + ' docked structures.')
+                
             
             if self.params['pick up from complexChk'] is True:  # it means we did not dock but we have a complex structure.
                 num_docked_structure = 1
                 printRecord('Resuming the sampling of 1 docked aptamer-ligand structure')
 
             if self.actionDict['do binding'] is True:  # run MD on the aptamer-ligand structure
-                for self.j in range(num_docked_structure):  # loop over docking configurations for a given secondary structure                
-                    printRecord('Docked structure #{}'.format(self.j))                
+                printRecord('\nSampling %d' % num_docked_structure + ' docked structures...')
+                for self.j in range(num_docked_structure):  # loop over docking configurations for a given secondary structure
+                    printRecord('\nDocked structure #{}:'.format(self.j))                
                     if self.params['pick up from complexChk'] is False:
                         outputDict['binding results {} {}'.format(self.i, self.j)] = self.complexDynamics(self.pdbDict['binding complex {} {}'.format(self.i, int(self.j))], implicitSolvent=self.params['implicit solvent'])
                         # TODO why need int(self.j)? Why sometimes %d % string, but sometimes {}.format?
@@ -430,7 +431,7 @@ class opendna:
         omm = interfaces.omm(structurePDB=processedStructure, params=self.params, simTime=relaxationTime, binding=False, implicitSolvent=implicitSolvent)
         self.ns_per_day = omm.doMD()  # run MD in OpenMM framework
 
-        printRecord('Pre-relaxation simulation speed %.1f' % self.ns_per_day + 'ns/day')  # print out sampling speed
+        printRecord('Pre-relaxation simulation speed %.1f' % self.ns_per_day + ' ns/day')  # print out sampling speed
         printRecord("Try cleaning...")
         if implicitSolvent is False:
             cleanTrajectory(processedStructure, processedStructureTrajectory)  # remove water and salt from trajectory
@@ -442,12 +443,18 @@ class opendna:
 
         printRecord("Generated: clean_" + processedStructureTrajectory)
         self.dcdDict['relaxed aptamer {}'.format(self.i)] = 'clean_' + processedStructureTrajectory
-        self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'relaxedAptamer_{}.pdb'.format(self.i)  # specify the file name for the extracted final frame, ie, relaxed aptamer
-        # extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed aptamer {}'.format(self.i)])  # extract final frame        
-        # # Current warning from MDA: UserWarning: Unit cell dimensions not found. CRYST1 record set to unitary values. I think: MDA cannot find unit cell dimension info. Can we add info when using implicit solvent?            
-        # Another possible way to extract the last frame is to use OpenMM:
+        
+        # extractFrame(processedStructure, processedStructureTrajectory, -1, self.pdbDict['relaxed aptamer {}'.format(self.i)])  # extract final frame and omit solvent and salts
+        # # Current warning from MDA: UserWarning: Unit cell dimensions not found. CRYST1 record set to unitary values. MDA cannot find unit cell dimension info. Can we add info when using implicit solvent?
+        # Another possible way to extract the last frame is to use OpenMM:        
         printRecord("Extracting the last frame of the relaxation trajectory as the relaxed structure.")
-        omm.extractLastFrame(self.pdbDict['relaxed aptamer {}'.format(self.i)])
+        relaxedAptamerPDB = 'relaxedAptamer_{}.pdb'.format(self.i)  # specify the file name for the extracted final frame
+        omm.extractLastFrame(lastFrameFileName=relaxedAptamerPDB)
+        cleanPDB(relaxedAptamerPDB)  # remove ion and generate the following clean_relaxedAptamer.pdb
+        clean_relaxedAptamerPDB = 'clean_' + relaxedAptamerPDB
+        os.system('mv ' + clean_relaxedAptamerPDB + ' ' + relaxedAptamerPDB)  # update relaxed aptamer with the one without ions and solvent
+        printRecord('OpenMM: saved the last frame into: ' + relaxedAptamerPDB)
+        self.pdbDict['relaxed aptamer {}'.format(self.i)] = relaxedAptamerPDB
         
         # in "smooth dock" mode:
         self.pdbDict['representative aptamer {}'.format(self.i)] = self.pdbDict['relaxed aptamer {}'.format(self.i)]  # ie, 'relaxedAptamer_{}.pdb'.format(self.i)
@@ -459,7 +466,7 @@ class opendna:
         :param aptamerPDB: PDB file name of the aptamer to be simulated
         :return:
         """
-        structureName = aptamerPDB.split('.')[0]  # aptamerPDB: eg "relaxedAptamer_0.pdb" or "relaxedAptamer_0_processed.pdb" (if resuming sampling)
+        structureName = aptamerPDB.split('.')[0]  # aptamerPDB: eg "foldedAptamer_0.pdb" or "foldedAptamer_0_processed.pdb" (if resuming sampling)
 
         if self.params['pick up from freeAptamerChk'] is True:
             printRecord('\nResuming a previous free aptamer dynamics')
@@ -472,7 +479,7 @@ class opendna:
                 # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
                 prepPDB(aptamerPDB, self.params['box offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
             else:  # prepare prmtop and crd file using LEap in ambertools
-                printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for relaxed aptamer...')
+                printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for aptamer...')
                 # os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
                 copyfile(aptamerPDB, structureName + '_amb_processed.pdb')
                 copyfile('./leap_template.in', 'leap_freeAptamerMD.in')
@@ -502,11 +509,8 @@ class opendna:
         self.pdbDict['sampled aptamer {}'.format(self.i)] = 'clean_' + processedAptamer
         
         printRecord("Analyzing the trajectory to look for free aptamer's representative configuration...")
-        aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])
-        # Within analyzeTrajectory, the last step is also to save an representative frame. We can also replace it using OpenMM??
-            # self.omm.extractLastFrame('repStructure_%d' % self.i + '.pdb', representativeIndex) # need more scripting to complete it
-        # aptamerDict = {}
-        # TODO: analyzeTraj --> getNucDAtraj --> Dihedral: raise ValueError("All AtomGroups must contain 4 atoms")        
+        aptamerDict = self.analyzeTrajectory(self.pdbDict['sampled aptamer {}'.format(self.i)], self.dcdDict['sampled aptamer {}'.format(self.i)])        
+        # old issue: analyzeTraj --> getNucDAtraj --> Dihedral: raise ValueError("All AtomGroups must contain 4 atoms")        
         self.pdbDict['representative aptamer {}'.format(self.i)] = 'repStructure_{}.pdb'.format(self.i)        
         printRecord('Generated representative structure of free aptamer: {}.'.format(self.pdbDict['representative aptamer {}'.format(self.i)]))
         printRecord('Free aptamer sampling complete.')
@@ -531,11 +535,12 @@ class opendna:
 
         ld = interfaces.ld(aptamerPDB, targetPDB, self.params, self.i)  # ld is a new class, therefore need to pass in this class's params: self.params
         ld.run()
-        topScores = ld.topScores
+        topScores = ld.topScores  # empty list or contains float value of docking score
 
         for i in range(len(topScores)):
             copyfile('top_%d' % self.i + '/top_%d' % int(i+1) + '.pdb', 'complex_{}_{}.pdb'.format(self.i, int(i)))                
             self.pdbDict['binding complex {} {}'.format(self.i, int(i))] = 'complex_{}_{}.pdb'.format(self.i, int(i))
+            printRecord('Generated aptamer-ligand complex structure: ' + 'complex_{}_{}.pdb'.format(self.i, int(i)))
                 
         self.topDockingScores = topScores
         if len(topScores) == 0:
