@@ -67,6 +67,6 @@ We conclude the presentation of E2EDNA 2.0 by listing the available simulation m
 
 # Acknowledgements
 
-Funding from the NSERC Discovery grant RGPIN-201924734 and an NSERC PDF for M.K. is greatly appreciated. B.W. and P.R. are grateful for support from the National Institutes of Health (No. R01GM106137). Computations were made on the supercomputer Beluga, managed by Calcul Quebec (https://www.calculquebec.ca/) and Compute Canada (https://www.computecanada.ca/). The operation of this supercomputer is funded by the Canada Foundation for Innovation (CFI).
+Funding from the NSERC Discovery grant RGPIN-201924734 and an NSERC PDF for M.K. is greatly appreciated. Computations were made on the supercomputer Beluga, managed by Calcul Quebec (https://www.calculquebec.ca/) and Compute Canada (https://www.computecanada.ca/). The operation of this supercomputer is funded by the Canada Foundation for Innovation (CFI).
 
 # References
