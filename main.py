@@ -68,8 +68,8 @@ params['pH'] = 7.4                   # simulation will automatically protonate t
 
 if params['implicit solvent'] is True: 
     params['impSolv'] = 'HCT'  # 'HCT', 'OBC1', 'OBC2', 'GBn' or 'GBn2'
-    params['DNA force field'] = 'DNA.OL15'  # 'DNA.OL15' or 'DNA.bsc1'. For free aptamer MD sampling if implicit solvent.
-                                            # If target is peptide or RNA, will also add "leaprc.protein.ff14SB" or "source leaprc.RNA.OL3" to the "leap.in"
+    params['DNA force field'] = 'DNA.OL15'  # 'DNA.OL15' or 'DNA.bsc1': used by free aptamer MD sampling in implicit solvent.
+                                            # For complex MD sampling: if target is peptide or RNA, will add "leaprc.protein.ff14SB" or "source leaprc.RNA.OL3" to leap input file.
 params['build a peptide as target ligand'] = False
 params['peptide backbone constraint constant'] = 0  # if target ligand is a peptide, we can choose to put constraint on the peptide's dihedral angles. force constant k. 
 # Ask Ilya: What's its unit? Only works if the target ligand is a peptide?
@@ -139,15 +139,20 @@ if params['pick up from complexChk'] is True:
 else:
     params['chk file'] = ""
 
-# The following three are only used in explicit solvent
-params['force field'] = 'AMBER'  # this does nothing. The force field is specified in __init__ of interfaces.py
-params['water model'] = 'tip3p'  # 'tip3p' (runs on Amber 14), other explicit models are also easy to add
+# For guidance on adjustments, check out: http://docs.openmm.org/latest/userguide/application.html
+params['force field'] = 'amber14-all'    # other choices: amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
+params['water model'] = 'amber14/tip3p'  # other choices: amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc.
+''' For complete list of available force fields that are bundled with OpenMM: 
+    http://docs.openmm.org/latest/userguide/application/02_running_sims.html?highlight=forcefield#force-fields    
+    The force field is specified in __init__ of interfaces.py
+'''
 params['box offset'] = 1.0  # nanometers
-params['barostat interval'] = 25  # NOT USED.
+# The three params above are only used in explicit solvent.
+params['barostat interval'] = 25  # NOT USED for a constant volume simulation. Useful when using a barostat in a constant pressure simulation.
 params['friction'] = 1.0  # 1/picoseconds: friction coefficient determines how strongly the system is coupled to the heat bath (OpenMM)
 # OpenMM parameters for either explicit or implicit solvent when createSystem()
 params['nonbonded method'] = PME  # Particle Mesh Ewald: efficient full electrostatics method for use with periodic boundary conditions to calculate long-range interactions
-                                    #  use PME for long-range electrostatics, cutoff for short-range interactions
+                                  #  use PME for long-range electrostatics, cutoff for short-range interactions
 params['nonbonded cutoff'] = 1.0  # nanometers
 params['ewald error tolerance'] = 5e-4  # In implicit solvent: this is the error tolerance to use if nonbondedMethod is Ewald, PME, or LJPME; In explicit solvent, it's "**args": Arbitrary additional keyword arguments
 params['constraints'] = HBonds
