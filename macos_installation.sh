@@ -7,6 +7,7 @@ conda env create -f e2edna-env.yml
 
 echo ACTIVATING E2EDNA ENV
 conda activate e2edna
+# source activate ~/miniconda3/envs/e2edna
 
 echo INSTALLING NUPACK
 python -m pip install -U nupack -f ~/Downloads/nupack-4.0.0.27/package
@@ -16,6 +17,3 @@ pip install lightdock
 
 echo THE FINAL STEP IS TO DOWNLOAD MMB from https://simtk.org/projects/rnatoolbox and set it up
 echo GOOD LUCK!
-
-
-
