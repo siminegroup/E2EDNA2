@@ -11,7 +11,7 @@ authors:
   - name: Tao Liu^[co-first author]
     orcid: 0000-0002-1082-5570
     affiliation: 1
-  - name: Ilya Dementyev
+  - name: Ilya S. Dementyev
     orcid: 0000-0001-7171-1078
     affiliation: 1
   - name: Lena Simine^[corresponding author]
