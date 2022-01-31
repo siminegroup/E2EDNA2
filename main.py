@@ -11,7 +11,7 @@ if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'sin
 if params['device'] == 'local':
     params['workdir'] = '/path-to-E2EDNA2-main/localruns'                  # directory manually created to store all future jobs
     params['mmb dir'] = '/path-to-E2EDNA2-main/Installer.3_0.OSX/lib'      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
-    params['mmb']     = '/path-to-E2EDNA2-main/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable; Note here MMB is the name of the executable file
+    params['mmb']     = '/path-to-E2EDNA2-main/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable; MMB is the *name* of the executable here
 else:  # params['device'] == 'cluster':
     params['workdir'] = '/home/taoliu/scratch/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
