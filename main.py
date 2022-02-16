@@ -132,7 +132,7 @@ else:
 
 # OpenMM params
 # If wants to resume a simulation, user must specify the chk file, which will be copied to the workdir
-if params['pick up from freeAptamerChk'] is True:
+if (params['pick up from freeAptamerChk'] is True) or (params['pick up from complexChk'] is True):
     params['chk file'] = 'relaxedAptamer_0_processed_state.chk'
     # CAUTIOUS: a .chk file created on CUDA platform cannot be run on a CPU platform.
     ''' A checkpoint contains data that is highly specific to the Context from which it was created.
@@ -150,15 +150,15 @@ if params['pick up from freeAptamerChk'] is True:
 else:
     params['chk file'] = ""  # empty string <==> not resume a sampling from .chk file
 # Can only pick up from freeAptamerChk or complexChk. It makes no sense to resume both free aptamer and aptamer-ligand dynamics
-if params['pick up from complexChk'] is True:
-    params['chk file'] = 'complex_1_2_processed_state.chk'
-    if params['implicit solvent'] is False:  # in explicit solvent
-        params['resumed structurePDB'] = 'complex_1_2_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
-    else:
-        params['resumed structurePrmtop'] = 'complex_1_2_processed.top'  # not complete: resume from top and crd file in implicit solvent
-        params['resumed structureInpcrd'] = 'complex_1_2_processed.crd'
-else:
-    params['chk file'] = ""
+# if params['pick up from complexChk'] is True:
+#     params['chk file'] = 'complex_1_2_processed_state.chk'
+#     if params['implicit solvent'] is False:  # in explicit solvent
+#         params['resumed structurePDB'] = 'complex_1_2_processed.pdb'  # everything before _state then + .pdb # Just to provide the structureName
+#     else:
+#         params['resumed structurePrmtop'] = 'complex_1_2_processed.top'  # not complete: resume from top and crd file in implicit solvent
+#         params['resumed structureInpcrd'] = 'complex_1_2_processed.crd'
+# else:
+#     params['chk file'] = ""
 
 # For guidance on adjustments, check out: http://docs.openmm.org/latest/userguide/application.html
 params['force field'] = 'amber14-all'    # other choices: amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
