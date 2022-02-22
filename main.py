@@ -214,23 +214,15 @@ params['mmb params'] = 'lib/mmb/parameters.csv'                       # paramete
 params['mmb normal template'] = 'lib/mmb/commands.template.dat'       # MMB folding protocol template No.1
 params['mmb quick template'] = 'lib/mmb/commands.template_quick.dat'  # MMB folding protocol template No.2
 params['mmb long template'] = 'lib/mmb/commands.template_long.dat'    # MMB folding protocol template No.3
-# LightDock: these python scripts will be copied to 'ld_scripts' in workdir, therefore all addresses are relative to the workdir
-if params['device'] == 'local':        
-    params['ld setup path'] = 'python ld_scripts/lightdock3_setup.py'
-    params['ld run path'] = 'python ld_scripts/lightdock3.py'
-    params['lgd generate path'] = 'python ../ld_scripts/lgd_generate_conformations.py'
-    params['lgd cluster path'] = 'python ../ld_scripts/lgd_cluster_bsas.py'
-    params['lg ant path'] = 'python ld_scripts/ant_thony.py'
-    params['lgd rank path'] = 'python ld_scripts/lgd_rank.py'
-    params['lgd top path'] = 'python ld_scripts/lgd_top.py'
-elif params['device'] == 'cluster':    
-    params['ld setup path'] = 'python ld_scripts/lightdock3_setup.py'
-    params['ld run path'] = 'python ld_scripts/lightdock3.py'
-    params['lgd generate path'] = 'python ../ld_scripts/lgd_generate_conformations.py'
-    params['lgd cluster path'] = 'python ../ld_scripts/lgd_cluster_bsas.py'
-    params['lg ant path'] = 'python ld_scripts/ant_thony.py'  # ant? thony?
-    params['lgd rank path'] = 'python ld_scripts/lgd_rank.py'
-    params['lgd top path'] = 'python ld_scripts/lgd_top.py'
+# LightDock: these python scripts are available in the virtual environment's "bin" directory. 
+# Once the environment is activated, these scripts are available at any path.
+params['ld setup']     = 'lightdock3_setup.py'
+params['ld run']       = 'lightdock3.py'
+params['lgd generate'] = 'lgd_generate_conformations.py'
+params['lgd cluster']  = 'lgd_cluster_bsas.py'
+params['lgd rank']     = 'lgd_rank.py'
+params['lgd top']      = 'lgd_top.py'
+# params['lg ant']       = 'ant_thony.py'
 
 # ================================ main function entrance ==============================
 if __name__ == '__main__':

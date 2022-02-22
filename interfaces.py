@@ -483,12 +483,12 @@ class omm:
 
 class ld:  # lightdock
     def __init__(self, aptamerPDB, targetPDB, params, ind1):
-        self.setupPath = params['ld setup path']  # ld_scripts/... there should be a directory ld/scripts in workdir
-        self.runPath = params['ld run path']
-        self.genPath = params['lgd generate path']
-        self.clusterPath = params['lgd cluster path']
-        self.rankPath = params['lgd rank path']
-        self.topPath = params['lgd top path']
+        self.setup   = params['ld setup']
+        self.run     = params['ld run']
+        self.gen     = params['lgd generate']
+        self.cluster = params['lgd cluster']
+        self.rank    = params['lgd rank']
+        self.top     = params['lgd top']
 
         self.aptamerPDB = aptamerPDB
         self.targetPDB = targetPDB
@@ -538,26 +538,26 @@ class ld:  # lightdock
 
     def runLightDock(self):
         # Run setup
-        os.system(self.setupPath + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
+        os.system(self.setup + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
 
         # Run docking
-        os.system(self.runPath + ' setup.json ' + str(self.dockingSteps) + ' -s dna >> outfiles/lightdockRun.out')
+        os.system(self.run + ' setup.json ' + str(self.dockingSteps) + ' -s dna >> outfiles/lightdockRun.out')
 
     def generateAndCluster(self):
         # Generate docked structures and cluster them
         for i in range(self.swarms):
             os.chdir('swarm_%d' % i)
-            os.system(self.genPath + ' ../' + self.aptamerPDB2 + ' ../' + self.targetPDB2 + ' gso_%d' % self.dockingSteps + '.out' + ' %d' % self.glowWorms + ' > /dev/null 2> /dev/null; >> generate_lightdock.list')  # generate configurations
-            os.system(self.clusterPath + ' gso_%d' % self.dockingSteps + '.out >> cluster_lightdock.list')  # cluster glowworms
+            os.system(self.gen + ' ../' + self.aptamerPDB2 + ' ../' + self.targetPDB2 + ' gso_%d' % self.dockingSteps + '.out' + ' %d' % self.glowWorms + ' > /dev/null 2> /dev/null; >> generate_lightdock.list')  # generate configurations
+            os.system(self.cluster + ' gso_%d' % self.dockingSteps + '.out >> cluster_lightdock.list')  # cluster glowworms
             os.chdir('../')
 
     def rank(self):
         # Rank the clustered docking setups
-        os.system(self.rankPath + ' %d' % self.swarms + ' %d' % self.dockingSteps + ' >> outfiles/ld_rank.out')
+        os.system(self.rank + ' %d' % self.swarms + ' %d' % self.dockingSteps + ' >> outfiles/ld_rank.out')
 
     def extractTopStructures(self):
         # Generate top structures
-        os.system(self.topPath + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
+        os.system(self.top + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
         os.mkdir('top_%d'%self.ind1)
         if os.path.exists('top_1.pdb'):  # if there is any docked structure
             os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)        
