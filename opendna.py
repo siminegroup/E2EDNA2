@@ -178,8 +178,6 @@ class opendna:
             else:  # user provides a targetPDB
                 copyfile(self.targetPDB, self.workDir + '/' + self.targetPDB)
             # From now on, "self.targetPDB == 'False'" is equivalent to "'do docking' is False".
-            # copy lightdock scripts        
-            copytree('lib/lightdock', self.workDir + '/ld_scripts')  # if destination dir does not already exist, create one then copy the whole source dir
 
         # copy csv file (dihedral restraints) if target ligand is a peptide and constraint is enabled
         if self.params['peptide backbone constraint constant'] != 0:
