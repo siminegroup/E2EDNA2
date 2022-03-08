@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''
 E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
 
