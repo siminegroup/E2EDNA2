@@ -25,6 +25,7 @@ import argparse
 import glob
 from opendna import *
 import os
+import platform
 import shutil
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -91,13 +92,6 @@ def get_args():
                              default='local',
                              help='Device configuration',
                              choices=['local', 'cluster'])
-    system_info.add_argument('-os',
-                             '--system',
-                             metavar='OS',
-                             type=str,
-                             default='macos',
-                             help='Operating system',
-                             choices=['macos', 'linux', 'WSL'])
     system_info.add_argument('-p',
                              '--platform',
                              metavar='DEV',
@@ -199,7 +193,7 @@ args=get_args()
 params = {}
 # ============================================= Specify your settings within this block for a local test ===================================================
 params['device'] = args.device
-params['device platform'] = args.system
+params['device platform'] = platform.system().lower()
 params['platform'] = args.platform
 if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'single' or 'double'
 if params['device'] == 'local':
