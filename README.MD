@@ -66,7 +66,7 @@ Directory Settings:
 * Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test run all 8 modes automatically. Check out [Test runs](https://github.com/siminegroup/E2EDNA2#5-test-runs-inputs-and-outcomes) section for details. 
 * All 8 modes take about 15 minutes to run on a macbook pro laptop and the outputs are saved in the work directory. We chose very simple systems for the the test-run and where ever docking is performed the docking configuration may or may not be found due to the limitations of the chosen system. Please note that a failure to find a docked configuration is not a failure of E2EDNA.
 
-Running on your own data
+### Running on your own data
 * Alternatively, a single run can be carried out by specifying the following parameters: run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
 # Modeling a free aptamer with no ligand
@@ -84,14 +84,14 @@ Parameters passed as command line inputs:
   * `-a/--aptamer`: DNA aptamer sequence (5'->3'). Can be a string or the name of a readable text file containing the sequence.
   * `-l/--ligand`: PDB filename of target ligand; If no ligand, `--ligand False` and the following two inputs (`--ligand_type` and `--ligand_seq`) can be left off.
   * `-t/--ligand_type`: 'peptide', 'DNA', 'RNA', or 'other', assuming 'other' ligand can be described by force field used in MD simulation (default: Amber14).
-  * `-s/--ligand_seq`: target ligand's sequence (5'->3') if target ligand is a peptide or DNA or RNA. Can be a string or the name of a readable text file containing the sequence. If `--ligand_type='other'`, do not use this flag.
+  * `-s/--ligand_seq`: target ligand's sequence (5'->3') if target ligand is a peptide or DNA or RNA. Can be a string or the name of a readable text file containing the sequence. If `--ligand_type other`, do not use this flag.
 * System Configuration
   * `-d/--device`: running device; either 'local' or 'cluster'
   * `-p/--platform`: processing platform; either 'CPU' or 'CUDA'
 * Directory Settings
   * `-w/--workdir`: ouput directory to write results for each run
   * `-md/--mmb_dir`: MMB library directory. Wildcards can be used to describe location, for instance the default is "Installer-*/lib" which will match both "Installer-3.0-Ubuntu18.04/lib" and "Installer.3_0.OSX/lib". Both absolute and relative paths are accepted.
-  * `-mb/--mmb`: path to MMB executable. Wild cards can be used to describe location.
+  * `-mb/--mmb`: path to MMB executable. Wild cards can be used to describe location. Both absolute and relative paths are accepted.
 
 * A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py) to allow for flexible control of the simulation conditions, including solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
 
