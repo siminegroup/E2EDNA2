@@ -111,13 +111,13 @@ def get_args():
                           '--mmb_dir',
                           metavar='DIR',
                           type=str,
-                          default='Installer-*/lib',
+                          default='Installer*/lib',
                           help='MMB library directory')
     paths.add_argument('-mb',
                           '--mmb',
                           metavar='MMB',
                           type=str,
-                          default='Installer-*/bin/MMB',
+                          default='Installer*/bin/MMB',
                           help='Path to MMB executable')
 
     args = parser.parse_args()
