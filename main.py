@@ -42,12 +42,17 @@ def get_args():
     system_info = parser.add_argument_group('System Configuration')
     paths = parser.add_argument_group('Directory Settings')
 
-    run_info.add_argument('-o',
-                             '--outdir',
-                             metavar='DIR',
+    parser.add_argument('-f',
+                             '--force',
+                             action='store_true',
+                             help='Overwrite existing --run_num')
+
+    run_info.add_argument('-r',
+                             '--run_num',
+                             metavar='INT',
                              type=int,
                              required=True,
-                             help='Output directory for run created in --workdir')
+                             help='Run number. Output will be written to {--workdir}/run{--run_num}/')
     run_info.add_argument('-m',
                              '--mode',
                              metavar='MODE',
@@ -79,10 +84,6 @@ def get_args():
                              type=str,
                              default='',
                              help='Target ligand sequence if peptide, DNA, or RNA')
-    run_info.add_argument('-f',
-                             '--force',
-                             action='store_true',
-                             help='Overwrite existing --outdir')
     
 
     system_info.add_argument('-d',
@@ -127,12 +128,12 @@ def get_args():
 
     # Check if output directory for run exists;
     # Either fail or force overwrite if so
-    out_dir = os.path.join(args.workdir, 'run' + str(args.outdir))
+    out_dir = os.path.join(args.workdir, 'run' + str(args.run_num))
     if os.path.isdir(out_dir):
         if args.force:
             shutil.rmtree(out_dir)
         else:
-            parser.error(f'--outdir already exists at {out_dir}\n'
+            parser.error(f'--run_num already exists at {out_dir}\n'
                         '\t use -f/--force to overwrite')
 
     # Validate run mode
@@ -206,7 +207,7 @@ else:  # params['device'] == 'cluster':
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
 # cmdLineInputs = get_input()  # get input arguments from command lines
-params['run num'] = args.outdir
+params['run num'] = args.run_num
 params['mode'] = args.mode
 params['aptamerSeq'] = args.aptamer
 params['target ligand'] = args.ligand
