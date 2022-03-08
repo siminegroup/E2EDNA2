@@ -43,7 +43,7 @@ def get_args():
     run_info.add_argument('-o',
                              '--outdir',
                              metavar='DIR',
-                             type=str,
+                             type=int,
                              required=True,
                              help='Output directory for run created in --workdir')
     run_info.add_argument('-m',
@@ -70,7 +70,7 @@ def get_args():
                              type=str,
                              default='',
                              help='Target ligand molecule type',
-                             choices=['peptide', 'DNA', 'RNA', 'other', 'False'])
+                             choices=['peptide', 'DNA', 'RNA', 'other', ''])
     run_info.add_argument('-s',
                              '--ligand_seq',
                              metavar='SEQ',
@@ -132,7 +132,7 @@ def get_args():
 
     # Check if output directory for run exists;
     # Either fail or force overwrite if so
-    out_dir = os.path.join(args.workdir, args.outdir)
+    out_dir = os.path.join(args.workdir, str(args.outdir))
     if os.path.isdir(out_dir):
         if args.force:
             os.removedirs()
@@ -202,7 +202,7 @@ else:  # params['device'] == 'cluster':
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
-cmdLineInputs = get_input()  # get input arguments from command lines
+# cmdLineInputs = get_input()  # get input arguments from command lines
 params['run num'] = args.outdir
 params['mode'] = args.mode
 params['aptamerSeq'] = args.aptamer
