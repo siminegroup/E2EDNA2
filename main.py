@@ -25,6 +25,7 @@ import argparse
 import glob
 from opendna import *
 import os
+import shutil
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -132,10 +133,10 @@ def get_args():
 
     # Check if output directory for run exists;
     # Either fail or force overwrite if so
-    out_dir = os.path.join(args.workdir, str(args.outdir))
+    out_dir = os.path.join(args.workdir, 'run' + str(args.outdir))
     if os.path.isdir(out_dir):
         if args.force:
-            os.removedirs()
+            shutil.rmtree(out_dir)
         else:
             parser.error(f'--outdir already exists at {out_dir}\n'
                         '\t use -f/--force to overwrite')
@@ -176,13 +177,21 @@ def get_args():
     if not glob.glob(args.mmb_dir):
         parser.error(f'MMB library could not be found at {args.mmb_dir}.')
     else:
-        args.mmb_dir = glob.glob(args.mmb_dir)[0]
+        found_path = glob.glob(args.mmb_dir)[0]
+        if os.getcwd() in found_path: # Already absolute path
+            args.mmb_dir = found_path
+        else: # Need to make absolute path
+            args.mmb_dir = os.path.join(os.getcwd(), found_path)
 
     # Try to find MMB executable
     if not glob.glob(args.mmb):
         parser.error(f'MMB executable could not be found at {args.mmb}.')
     else:
-        args.mmb = glob.glob(args.mmb)[0]
+        found_path = glob.glob(args.mmb)[0]
+        if os.getcwd() in found_path: # Already absolute path
+            args.mmb = found_path
+        else: # Need to make absolute path
+            args.mmb = os.path.join(os.getcwd(), found_path)
 
     return args
 
