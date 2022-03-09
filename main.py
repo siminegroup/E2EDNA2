@@ -206,7 +206,6 @@ else:  # params['device'] == 'cluster':
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
-# cmdLineInputs = get_input()  # get input arguments from command lines
 params['run num'] = args.run_num
 params['mode'] = args.mode
 params['aptamerSeq'] = args.aptamer
