@@ -1,7 +1,7 @@
 # Documentation
 ## E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
 
-### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules)../m  
+### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
 
 **Michael Kilgour, Tao Liu, Ilya S. Dementyev, Lena Simine**
 
