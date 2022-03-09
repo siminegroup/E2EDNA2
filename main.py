@@ -58,7 +58,10 @@ def get_args():
                              metavar='MODE',
                              type=str,
                              required=True,
-                             help='Run mode')
+                             help='Run mode',
+                             choices=['2d structure', '3d coarse', '3d smooth',
+                                      'coarse dock', 'smooth dock', 'free aptamer',
+                                      'full dock', 'full binding'])
     run_info.add_argument('-a',
                              '--aptamer',
                              metavar='SEQ',
@@ -135,15 +138,6 @@ def get_args():
         else:
             parser.error(f'--run_num already exists at {out_dir}\n'
                         '\t use -f/--force to overwrite')
-
-    # Validate run mode
-    valid_modes = ['2d structure', '3d coarse', '3d smooth',
-                   'coarse dock', 'smooth dock', 'free aptamer',
-                   'full dock', 'full binding']
-
-    if args.mode not in valid_modes:
-        parser.error(f'Invalid --mode "{args.mode}". Must be one of: ' +
-                     ', '.join(valid_modes) + '.')
 
     # Read in aptamer sequence if it is in a file
     if os.path.isfile(args.aptamer):
