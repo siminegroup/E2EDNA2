@@ -14,7 +14,7 @@ import Bio.PDB  # biopython
 # import mdtraj as md  # mdtraj calls "simtk.openmm", hence "Warning: importing 'simtk.openmm' is deprecated.  Import 'openmm' instead."
 import MDAnalysis as mda
 
-from pdbfixersource import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
+from pdbfixer import PDBFixer # pdbfixer package has been installed by conda
 from collections import Counter
 
 from PeptideBuilder import Geometry  # pip install PeptideBuilder
@@ -477,95 +477,3 @@ def appendLine(file, string):
     f = open(file, 'w')
     f.write(text)
     f.close()
-
-
-# # Doesn't seem to be used?
-# def writeCheckpoint(text):
-#     """
-#     write some output to the checkpoint file
-#     :return:
-#     """
-#     f = open('checkpoint.txt', 'a')
-#     f.write('\n' + text)
-#     f.close()
-#
-# def combinePDB(file1, file2):
-#     """
-#     combine 2 pdb files into one
-#     some special formatting for MDA outputs in particular
-#     :param file1:
-#     :param file2:
-#     :return:
-#     """
-#     filenames = [file1, file2]
-#     for file in filenames:  # remove title, periodic box, endpoints
-#         removeLine(file, 'CRYST1')
-#         removeLine(file, 'TITLE')
-#         removeLine(file, 'END')
-#         if 'repStructure' in file:
-#             appendLine(file, 'TER')
-#
-#     with open('combined.pdb', 'w') as outfile:
-#         for fname in filenames:
-#             with open(fname) as infile:
-#                 for line in infile:
-#                     outfile.write(line)
-#
-#
-# def fullPipelineTrajectory(ind1,ind2):
-#     '''
-#     combine folding, smoothing, sampling, docking and binding trajectories into one nice video
-#     '''
-#
-#     # this needs to be updated with the new file formatting system
-#     trajectories = []
-#     # fold
-#     dir = './mmbFiles_%d'%ind1
-#     copyfile(dir + '/last.1.pdb','foldFrame1.pdb')
-#     dirList = os.listdir(dir)
-#
-#     filenames = []
-#     for file in dirList:
-#         if 'trajectory' in file:
-#             filenames.append(dir + '/' +file)
-#
-#     with open('foldingTraj_%d'%ind1 + '.pdb', 'w') as outfile:
-#         for fname in filenames:
-#             with open(fname) as infile:
-#                 for line in infile:
-#                     outfile.write(line)
-#
-#     replaceText('foldingTraj_%d'%ind1 + '.pdb', '*', "'")  # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
-#
-#     u = mda.Universe('foldingTraj_%d'%ind1 + '.pdb')
-#     with mda.Writer('foldingTraj_%d'%ind1 +'.dcd', u.atoms.n_atoms) as W:
-#         for ts in u.trajectory:
-#             W.write(u)
-#
-#     trajectories.append('foldingTraj_%d'%ind1 + '.dcd')
-#
-#     # initial relaxation
-#     trajectories.append('smoothed_sequence_%d'%ind1 + '.dcd')
-#
-#     # free aptamer
-#     trajectories.append('clean_finished_sequence_%d'%ind1 + '.dcd')
-#
-#     u = mda.Universe('foldFrame1.pdb', trajectories)
-#
-#     with mda.Writer('fullPipeTraj.dcd', u.atoms.n_atoms) as W:
-#         for ts in u.trajectory:
-#             W.write(u)
-#
-#
-#     # docking
-#
-#     # binding
-#     trajectories.append('clean_finished_complex_%d'%ind1 + '_%d'%ind2 + '.dcd')
-#
-#
-# def copyLine(file, line_number):
-#     # copy a line of text from a file and return it
-#     f = open(file, 'r')
-#     text = f.read()
-#     f.close()
-#     return text.split('\n')[line_number - 1]  # copy a line from the file, indexing from 1
