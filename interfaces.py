@@ -1,5 +1,5 @@
 """
-interfaces for other major software used by OpenDNA
+interfaces for other major software used by E2EDNA
 MacroMolecule Builder (MMB)
 PeptideBuilder: installed by pip
 OpenMM (omm)
