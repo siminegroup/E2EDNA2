@@ -24,11 +24,12 @@ from analysisTools import *
 
 
 class nupack:
-    def __init__(self, aptamerSeq, temperature, ionicStrength, mgConc=0):
+    def __init__(self, aptamerSeq, temperature, ionicStrength, mgConc=0, stacking='nostacking'):
         self.aptamerSeq = aptamerSeq
         self.temperature = temperature
         self.naConc = ionicStrength
         self.mgConc = mgConc
+        self.stacking = stacking
         self.R = 0.0019872  # ideal gas constant in kcal/mol/K
 
     def run(self):
@@ -44,20 +45,53 @@ class nupack:
         Ouput a lot of analysis results in self.output
         :return:
         """
-        if self.temperature > 273:  # auto-detect Kelvins
+        # Compute free energy gap used by looking for suboptimal structure whose energy <= delta_G_mfe + gap
+        if self.temperature > 273.15:  # auto-detect Kelvins
             gap = 2 * self.R * self.temperature
-            CelsiusTemprature = self.temperature - 273
+            CelsiusTemprature = self.temperature - 273.15
         else:
-            gap = 2 * self.R * (self.temperature + 273)  # convert to Kelvin fir kT
+            gap = 2 * self.R * (self.temperature + 273.15)  # convert to Kelvin for kT
             CelsiusTemprature = self.temperature
 
-        A = Strand(self.aptamerSeq, name='A')
-        comp = Complex([A], name='AA')
-        set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp]))
-        model1 = Model(material='dna', celsius=CelsiusTemprature, sodium=self.naConc, magnesium=self.mgConc)
-        results = complex_analysis(set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
-        self.output = results[comp]
-    # TODO: what do these nupack functions do?
+        A = Strand(self.aptamerSeq, name='A') # specify a strand and name
+        # A.nt() # calculate the number of nucleotides
+        comp = Complex([A], name='AA', bonus=0) # specify a complex of one or more interacting strands and name is optional.
+        
+        # specify a set of strands that interact to form a set of complexes
+        set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp])) # 1 complex set: [[A]]
+
+        model1 = Model(ensemble=self.stacking, material='dna', celsius=CelsiusTemprature, sodium=self.naConc, magnesium=self.mgConc)
+        '''
+        - ensemble: whether to consider coaxial or dangle stacking for multiloop or exterior loop. 
+            - 'stacking': default. Complex ensemble with coaxial and dangle stacking
+            - 'nostacking': Complex ensemble without coaxial and dangle stacking
+            - Historical options in nupack3 are supported too: all are about dangle stacking and no coaxial stacking.
+                - 'none-nupack3', 'some-nupack3', 'all-nupack3'
+        - material: another historical parameter sets for DNA (https://docs.nupack.org/model/#historical-options)
+            - 'dna04-nupack3: Same as 'dna' but treat G-T as a wobble pair instead of a mismatch.
+        - sodium: the sum of the molar concentrations of sodium, potassium, and ammonium ions: Na+, K+, and NH4+. range=[0.05,1.1]
+        - magnesium: molar concentration of Mg++. range=[0.0,0.2]
+        '''
+        results = complex_analysis(complexes=set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
+        ''' compute:
+        - 'pfunc': partition function
+        - 'mfe': MFE proxy structure
+        - 'subopt': suboptimal proxy structure
+        - 'pairs': matrix of equilibrium base-pairing probabilities
+        '''
+        # print(results)
+        # print(results.complexes)
+        # print(comp)
+        self.output = results[comp] # return a ComplexResult object contains all the complex ensemble quantities for our complex [[A]]
+        results.save_text('nupack-result.txt')
+        # print('Physical quantities for complex comp:')
+        # print('Complex free energy: %.2f kcal/mol' % self.output.free_energy)
+        # print('Partition function: %.2e' % self.output.pfunc)
+        # print('MFE proxy structure: %s' % self.output.mfe[0].structure)
+        # print('Free energy of MFE proxy structure: %.2f kcal/mol' % self.output.mfe[0].energy)
+        # print('MFE proxy structure:\n%s' % self.output.mfe[0].structure.matrix()) # represent MFE proxy structure as a nupack structure matrix of 0 and 1
+        # print('Equilibrium pair probabilities: \n%s' % self.output.pairs) # equilibrium pair probability matrix
+    
 
     def structureAnalysis(self):
         """

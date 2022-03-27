@@ -1,7 +1,7 @@
 """
 Utitilies -- how to intuitively distinguish it from analysisTools.py?
 """
-from openmm.app import *
+from openmm.app import *  # eg. PDBFile
 import openmm.unit as unit
 
 import argparse
@@ -14,7 +14,7 @@ import Bio.PDB  # biopython
 # import mdtraj as md  # mdtraj calls "simtk.openmm", hence "Warning: importing 'simtk.openmm' is deprecated.  Import 'openmm' instead."
 import MDAnalysis as mda
 
-from pdbfixersource import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
+from pdbfixer import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
 from collections import Counter
 
 from PeptideBuilder import Geometry  # pip install PeptideBuilder
@@ -37,6 +37,7 @@ def get_input():
     parser.add_argument('--ligand', type=str, default='False')
     parser.add_argument('--ligandType', type=str, default='')
     parser.add_argument('--ligandSeq', type=str, default='')
+    parser.add_argument('--friction', type=float, default=1.0)
     
     cmd_line_input = parser.parse_args()
     run_num = cmd_line_input.run_num
@@ -45,8 +46,9 @@ def get_input():
     ligand = cmd_line_input.ligand
     ligandType = cmd_line_input.ligandType
     ligandSeq = cmd_line_input.ligandSeq
+    friction = cmd_line_input.friction
     
-    return [run_num, mode, aptamerSeq, ligand, ligandType, ligandSeq]
+    return [run_num, mode, aptamerSeq, ligand, ligandType, ligandSeq, friction]
 
 
 # def recenterDCD(topology, trajectory):
