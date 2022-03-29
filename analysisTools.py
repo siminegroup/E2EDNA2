@@ -101,7 +101,7 @@ def getPairTraj(wcTraj):
 
     return pairedBases
 
-def getPepBaseDistTraj(u, peptide, sequence):
+def getPepBaseDistTraj(u, peptideSeq, aptamerSeq):
     """
     given an MDA universe
     return distances between each peptide and each base
@@ -109,16 +109,16 @@ def getPepBaseDistTraj(u, peptide, sequence):
     :return: pepNucDists - peptide-nucleicacid distances
     """
 
-    pepNucDists = np.zeros((len(u.trajectory), len(peptide), len(sequence)))  # distances between peptides and nucleotiedes
+    pepNucDists = np.zeros((len(u.trajectory), len(peptideSeq), len(aptamerSeq)))  # distances between peptides and nucleotiedes
     tt = 0
     for ts in u.trajectory:
-        analyteResidues = u.segments[1]
+        targetResidues = u.segments[1]
         baseResidues = u.segments[0]
-        posMat1 = np.zeros((len(peptide), 3))
-        posMat2 = np.zeros((len(sequence), 3))
-        for i in range(len(peptide)):
-            posMat1[i] = analyteResidues.residues[i].atoms.center_of_geometry()
-        for i in range(len(sequence)):
+        posMat1 = np.zeros((len(peptideSeq), 3))
+        posMat2 = np.zeros((len(aptamerSeq), 3))
+        for i in range(len(peptideSeq)):
+            posMat1[i] = targetResidues.residues[i].atoms.center_of_geometry()
+        for i in range(len(aptamerSeq)):
             posMat2[i] = baseResidues.residues[i].atoms.center_of_geometry()
 
         pepNucDists[tt, :, :] = distances.distance_array(posMat1, posMat2, box=u.dimensions)
@@ -286,18 +286,16 @@ def numbers2letters(sequences):  # Transforming letters to numbers:
     return my_seq
 
 
-
-
-def getSeqfoldStructure(sequence, temperature):
+def getSeqfoldStructure(aptamerSeq, temperature):
     """
     output the secondary structure for a given sequence at a given condition
     formats - ss string and pair list
     """
-    dg(sequence, temp=temperature)  # get energy of the structure
+    dg(aptamerSeq, temp=temperature)  # get energy of the structure
     # printRecord(round(sum(s.e for s in structs), 2)) # predicted energy of the final structure
 
-    structs = fold(sequence)  # identify structural features
-    desc = ["."] * len(sequence)
+    structs = fold(aptamerSeq)  # identify structural features
+    desc = ["."] * len(aptamerSeq)
     pairList = []
     for s in structs:
         pairList.append(s.ij[0])
@@ -567,18 +565,20 @@ def doTrajectoryDimensionalityReduction(trajectory):
     :param trajectory:
     :return:
     """
-    converged = False
-    nComponents = 10
-    while converged == False:  # add components until some threshold, then take components greater than the average
-        components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(nComponents, trajectory, False)  # do it with a bunch of components, then re-do it with only the necessary number
-        totVariance = np.sum(eigenvalues)
-        if totVariance > 0.85:
-            converged = True
-        else:
-            nComponents += 1
-
-    # we want there to be a gap in this spectrum, or at least, to neglect only the small contributions
-    n_components = min(5, np.sum(eigenvalues > np.average(eigenvalues)))  # with the threshold above, this removes some of the variation from having too many components
+    # converged = False
+    # nComponents = 10
+    # while converged == False:  # add components until some threshold, then take components greater than the average
+    #     components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(nComponents, trajectory, False)  # do it with a bunch of components, then re-do it with only the necessary number
+    #     totVariance = np.sum(eigenvalues)
+    #     if totVariance > 0.85:
+    #         converged = True
+    #     else:
+    #         nComponents += 1
+    # # we want there to be a gap in this spectrum, or at least, to neglect only the small contributions
+    # n_components = min(5, np.sum(eigenvalues > np.average(eigenvalues)))  # with the threshold above, this removes some of the variation from having too many components
+    # components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(n_components, trajectory, True)
+    
+    n_components = 5
     components, eigenvalues, reducedTrajectory, pcaModel = trajectoryPCA(n_components, trajectory, True)
 
     return n_components, reducedTrajectory, pcaModel
@@ -616,20 +616,22 @@ def isolateRepresentativeStructure(trajectory):
 
     return representativeIndex, reducedTrajectory, eigenvalues
 
-def bindingAnalysis(bindu, freeu, peptide, sequence):
+def bindingAnalysis(bindu, freeu, peptideSeq, aptamerSeq):
     """
-    analyze the binding of analyte to aptamer by computing relative distances
+    analyze the binding of target to aptamer by computing relative distances
     :param u:
+    :peptideSeq: peptide sequence
+    :aptamerSeq: aptamer sequence
     :return:
     """
     assert bindu.segments.n_segments == 2
-    # identify base-analyte distances
-    pepNucDists = getPepBaseDistTraj(bindu, peptide, sequence)
+    # identify base-target distances
+    pepNucDists = getPepBaseDistTraj(bindu, peptideSeq, aptamerSeq)
     contacts, nContacts = getPepContactTraj(pepNucDists)
     if np.nonzero(nContacts[:,0])[0] != []:
         firstContact = np.nonzero(nContacts[:, 0])[0][0]  # first time when the peptide and aptamer were in close-range contact
         closeContactRatio = np.average(nContacts[firstContact:, 0] > 0)  # amount of time peptide spends in close contact with aptamer
-        contactScore = np.average(nContacts[firstContact:, :] / len(peptide))  # per-peptide average contact score, linear average over 8-12 angstrom
+        contactScore = np.average(nContacts[firstContact:, :] / len(peptideSeq))  # per-peptide average contact score, linear average over 8-12 angstrom
     else:
         print('Never made contact!')
         closeContactRatio = 0
@@ -654,7 +656,7 @@ def getConformationChange(bindu, freeu):
     compare the pre-complexation (free aptamer) conformation with post-complexation
     NOTE intimately depends on naming conventions for trajectory files!
     """
-    # function to analyze analyte impact on aptamer conformation
+    # function to analyze target impact on aptamer conformation
 
     freeAngles = getNucDATraj(freeu)
     bindAngles = getNucDATraj(bindu)
@@ -671,14 +673,13 @@ def getConformationChange(bindu, freeu):
 
     return reducedDifference
 
-def checkMidTrajectoryBinding(structure, trajectory, peptide, sequence, params, cutoffTime=1):
+def checkMidTrajectoryBinding(structure, trajectory, peptideSeq, aptamerSeq, params, cutoffTime=1):
     """
-    check if the analyte has come unbound from the aptamer
-    and stayed unbound for a certain amount of time
+    check if the target has come unbound from the aptamer and stayed unbound for a certain amount of time
     :return: True or False
     """
     u = mda.Universe(structure, trajectory)  # load up trajectory
-    pepNucDists = getPepBaseDistTraj(u, peptide, sequence)
+    pepNucDists = getPepBaseDistTraj(u, peptideSeq, aptamerSeq)
     contacts, nContacts = getPepContactTraj(pepNucDists)
     try:
         lastContact = np.nonzero(nContacts[:, 0])[0][-1]  # last time when the peptide and aptamer were in close-range contact

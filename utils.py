@@ -1,10 +1,8 @@
 """
-Utitilies -- how to intuitively distinguish it from analysisTools.py?
+Utitilies
 """
 from simtk.openmm.app import *  # eg. PDBFile
 import simtk.unit as unit
-# from openmm.app import *
-# import openmm.unit as unit
 
 import argparse
 import os
@@ -13,10 +11,10 @@ import numpy as np
 import time
 
 import Bio.PDB  # biopython
-import mdtraj as md
+# import mdtraj as md # mdtraj calls "simtk.openmm", hence "Warning: importing 'simtk.openmm' is deprecated.  Import 'openmm' instead."
 import MDAnalysis as mda
 
-from pdbfixersource import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
+from pdbfixer import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
 from collections import Counter
 
 from PeptideBuilder import Geometry  # pip install PeptideBuilder
@@ -54,15 +52,18 @@ def get_input():
     return [run, sequence, peptide, walltime, temp, pH, ionicStrength, Mg, impSolv]
 
 
-def recenterDCD(topology, trajectory):
-    """
-    topology as pdb
-    trajectory as dcd
-    creates a new dcd without periodic artifacts
-    """
-    traj = md.load(trajectory, top = topology)
-    traj.image_molecules()
-    traj.save(trajectory.split('.')[0] + '_recentered.dcd')
+# def recenterDCD(topology, trajectory):
+#     """
+#     topology as pdb
+#     trajectory as dcd
+#     creates a new dcd without periodic artifacts
+#     """
+#     traj = md.load(trajectory, top = topology)
+#     traj.image_molecules()
+#     traj.save(trajectory.split('.')[0] + '_recentered.dcd')
+# # MDAnalysis provides something similar: https://userguide.mdanalysis.org/1.1.1/examples/transformations/center_protein_in_box.html
+# # In the future, implement it using MDAnalysis, because mdtraj-1.9.7 still calls "simtk.openmm" which is a deprecated package.
+# # In fact, MDAnalysis also interacts with openmm package, unfortunately, also by calling "simtk.openmm". So the depreceation warning persists but not shows up in the beginning of the command line output.
 
 
 class Timer:
@@ -218,6 +219,15 @@ def cleanTrajectory(structure, trajectory):
         for ts in u.trajectory:  # indexing over the trajectory
             W.write(goodStuff)
 
+def cleanPDB(structure):
+    """
+    Remove water, salt from PDB
+    :param structure:    
+    :return:
+    """
+    u = mda.Universe(structure)    
+    goodStuff = u.segments[:-2].atoms  # cut out salts and solvents
+    goodStuff.write("clean_" + structure)  # write topology
 
 def extractFrame(structure, trajectory, frame, outFileName):
     """
@@ -312,7 +322,7 @@ def mode(lst):
     return mode_list
 
 
-def buildPeptide(peptide, customAngles=False):
+def buildPeptide(peptideSeq, peptidePDB, customAngles=False):
     """
     Construct a peptide with optionally custom angles and constraints
     :param peptide:
@@ -320,7 +330,7 @@ def buildPeptide(peptide, customAngles=False):
     :return:
     """
     print('custom angles=', customAngles)
-    geo = Geometry.geometry(peptide[0])
+    geo = Geometry.geometry(peptideSeq[0])
     # angles_to_constrain = findAngles()  # all values in the list are strings
     # printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
 
@@ -336,10 +346,10 @@ def buildPeptide(peptide, customAngles=False):
                 printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]], "\n")  # only used for debugging
                 geo.phi, geo.psi = phis[row[0]], psis[row[0]]
 
-    structure = PeptideBuilder.initialize_res(peptide[0])
+    structure = PeptideBuilder.initialize_res(peptideSeq[0])
 
-    for i in range(1, len(peptide)):
-        geo = Geometry.geometry(peptide[i])
+    for i in range(1, len(peptideSeq)):
+        geo = Geometry.geometry(peptideSeq[i])
 
         if customAngles:
             for row in angles_to_constrain:
@@ -360,7 +370,7 @@ def buildPeptide(peptide, customAngles=False):
 
     out = Bio.PDB.PDBIO()
     out.set_structure(structure)
-    out.save('peptide.pdb')
+    out.save(peptidePDB)
 
 
 def killH(structure):
@@ -470,95 +480,3 @@ def appendLine(file, string):
     f = open(file, 'w')
     f.write(text)
     f.close()
-
-
-# # Doesn't seem to be used?
-# def writeCheckpoint(text):
-#     """
-#     write some output to the checkpoint file
-#     :return:
-#     """
-#     f = open('checkpoint.txt', 'a')
-#     f.write('\n' + text)
-#     f.close()
-#
-# def combinePDB(file1, file2):
-#     """
-#     combine 2 pdb files into one
-#     some special formatting for MDA outputs in particular
-#     :param file1:
-#     :param file2:
-#     :return:
-#     """
-#     filenames = [file1, file2]
-#     for file in filenames:  # remove title, periodic box, endpoints
-#         removeLine(file, 'CRYST1')
-#         removeLine(file, 'TITLE')
-#         removeLine(file, 'END')
-#         if 'repStructure' in file:
-#             appendLine(file, 'TER')
-#
-#     with open('combined.pdb', 'w') as outfile:
-#         for fname in filenames:
-#             with open(fname) as infile:
-#                 for line in infile:
-#                     outfile.write(line)
-#
-#
-# def fullPipelineTrajectory(ind1,ind2):
-#     '''
-#     combine folding, smoothing, sampling, docking and binding trajectories into one nice video
-#     '''
-#
-#     # this needs to be updated with the new file formatting system
-#     trajectories = []
-#     # fold
-#     dir = './mmbFiles_%d'%ind1
-#     copyfile(dir + '/last.1.pdb','foldFrame1.pdb')
-#     dirList = os.listdir(dir)
-#
-#     filenames = []
-#     for file in dirList:
-#         if 'trajectory' in file:
-#             filenames.append(dir + '/' +file)
-#
-#     with open('foldingTraj_%d'%ind1 + '.pdb', 'w') as outfile:
-#         for fname in filenames:
-#             with open(fname) as infile:
-#                 for line in infile:
-#                     outfile.write(line)
-#
-#     replaceText('foldingTraj_%d'%ind1 + '.pdb', '*', "'")  # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
-#
-#     u = mda.Universe('foldingTraj_%d'%ind1 + '.pdb')
-#     with mda.Writer('foldingTraj_%d'%ind1 +'.dcd', u.atoms.n_atoms) as W:
-#         for ts in u.trajectory:
-#             W.write(u)
-#
-#     trajectories.append('foldingTraj_%d'%ind1 + '.dcd')
-#
-#     # initial relaxation
-#     trajectories.append('smoothed_sequence_%d'%ind1 + '.dcd')
-#
-#     # free aptamer
-#     trajectories.append('clean_finished_sequence_%d'%ind1 + '.dcd')
-#
-#     u = mda.Universe('foldFrame1.pdb', trajectories)
-#
-#     with mda.Writer('fullPipeTraj.dcd', u.atoms.n_atoms) as W:
-#         for ts in u.trajectory:
-#             W.write(u)
-#
-#
-#     # docking
-#
-#     # binding
-#     trajectories.append('clean_finished_complex_%d'%ind1 + '_%d'%ind2 + '.dcd')
-#
-#
-# def copyLine(file, line_number):
-#     # copy a line of text from a file and return it
-#     f = open(file, 'r')
-#     text = f.read()
-#     f.close()
-#     return text.split('\n')[line_number - 1]  # copy a line from the file, indexing from 1

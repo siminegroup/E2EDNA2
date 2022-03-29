@@ -7,28 +7,21 @@ lastStage 3
 
 #general simulation parameters
 readAtStage 1
-baseInteractionScaleFactor     100
-reportingInterval 2.0
+baseInteractionScaleFactor     50
+reportingInterval 1.0
+numReportingIntervals 5
+readBlockEnd
+readAtStage 2
+baseInteractionScaleFactor     200
+reportingInterval 1.0
+numReportingIntervals 5
+readBlockEnd
+readAtStage 3
+baseInteractionScaleFactor     500
+reportingInterval 1.0
 numReportingIntervals 10
 readBlockEnd
 
-readAtStage 2
-baseInteractionScaleFactor     1500
-reportingInterval 1.0
-numReportingIntervals 20
-readBlockEnd
-
-readAtStage 3
-baseInteractionScaleFactor     1000
-reportingInterval 1.0
-numReportingIntervals 20
-readBlockEnd
-
-# readAtStage 4
-# baseInteractionScaleFactor     1000
-# reportingInterval 1.0
-# numReportingIntervals 20
-# readBlockEnd
 
 # scrubber
 # dutyCycle .9

@@ -1,6 +1,6 @@
-# source leaprc.protein.ff14SB
-source leaprc.DNA.OL15  # or leaprc.DNA.bsc1
-# source leaprc.RNA.OL3
-myPDB = loadPdb "myDNASEQ_amb_processed.pdb"
-saveAmberParm myPDB myDNASEQ_amb_processed.top myDNASEQ_amb_processed.crd
+# TARGET_IS_PEPTIDE source leaprc.protein.ff14SB
+source leaprc.DNA_FF  # leaprc.DNA.OL15 or leaprc.DNA.bsc1
+# TARGET_IS_RNA source leaprc.RNA.OL3
+myPDB = loadPdb "mySTRUCTURE_amb_processed.pdb"
+saveAmberParm myPDB mySTRUCTURE_amb_processed.top mySTRUCTURE_amb_processed.crd
 quit
