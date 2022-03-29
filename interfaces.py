@@ -1,6 +1,6 @@
 """
-interfaces for other major software used by OpenDNA
-MacroMolecule Builder (MMB): installed PeptideBuilder on pip. Is it enough?
+interfaces for other major software used by E2EDNA
+MacroMolecule Builder (MMB)
 OpenMM (omm)
 LightDock (ld)
 NUPACK
@@ -13,20 +13,16 @@ from nupack import *
 from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
 from simtk.openmm.app import *
 import simtk.unit as unit
-# from openmm import *
-# from openmm.app import *
-# import openmm.unit as unit
-
-from utils import *
-from analysisTools import *
-
 # installed openmm: http://docs.openmm.org/7.5.0/userguide/application.html#installing-openmm
 # openmm is installed as an individual package;
 # package simtk is created with packages "openmm" and "unit" inside but literally import the stand-alone openmm.
 
+from utils import *
+from analysisTools import *
+
 
 class nupack:
-    def __init__(self, sequence, temperature, ionicStrength, mgConc=0):
+    def __init__(self, aptamerSeq, temperature, ionicStrength, mgConc=0, stacking='nostacking'):
         self.sequence = sequence
         self.temperature = temperature
         self.ionicStrength = ionicStrength
@@ -40,26 +36,59 @@ class nupack:
 
     def energyCalc(self):
         """
-        sequence is DNA FASTA format
+        aptamerSeq is in FASTA format
         temperature in C or K
         ionicStrength in Molar
         Ouput a lot of analysis results in self.output
         :return:
         """
-        if self.temperature > 273:  # auto-detect Kelvins
+        # Compute free energy gap used by looking for suboptimal structure whose energy <= delta_G_mfe + gap
+        if self.temperature > 273.15:  # auto-detect Kelvins
             gap = 2 * self.R * self.temperature
-            CelsiusTemprature = self.temperature - 273
+            CelsiusTemprature = self.temperature - 273.15
         else:
-            gap = 2 * self.R * (self.temperature + 273)  # convert to Kelvin fir kT
+            gap = 2 * self.R * (self.temperature + 273.15)  # convert to Kelvin for kT
             CelsiusTemprature = self.temperature
 
-        A = Strand(self.sequence, name='A')
-        comp = Complex([A], name='AA')
-        set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp]))
-        model1 = Model(material='dna', celsius=CelsiusTemprature, sodium=self.naConc, magnesium=self.mgConc)
-        results = complex_analysis(set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
-        self.output = results[comp]
-    # TODO: what do these nupack functions do?
+        A = Strand(self.aptamerSeq, name='A') # specify a strand and name
+        # A.nt() # calculate the number of nucleotides
+        comp = Complex([A], name='AA', bonus=0) # specify a complex of one or more interacting strands and name is optional.
+        
+        # specify a set of strands that interact to form a set of complexes
+        set1 = ComplexSet(strands=[A], complexes=SetSpec(max_size=1, include=[comp])) # 1 complex set: [[A]]
+
+        model1 = Model(ensemble=self.stacking, material='dna', celsius=CelsiusTemprature, sodium=self.naConc, magnesium=self.mgConc)
+        '''
+        - ensemble: whether to consider coaxial or dangle stacking for multiloop or exterior loop. 
+            - 'stacking': default. Complex ensemble with coaxial and dangle stacking
+            - 'nostacking': Complex ensemble without coaxial and dangle stacking
+            - Historical options in nupack3 are supported too: all are about dangle stacking and no coaxial stacking.
+                - 'none-nupack3', 'some-nupack3', 'all-nupack3'
+        - material: another historical parameter sets for DNA (https://docs.nupack.org/model/#historical-options)
+            - 'dna04-nupack3: Same as 'dna' but treat G-T as a wobble pair instead of a mismatch.
+        - sodium: the sum of the molar concentrations of sodium, potassium, and ammonium ions: Na+, K+, and NH4+. range=[0.05,1.1]
+        - magnesium: molar concentration of Mg++. range=[0.0,0.2]
+        '''
+        results = complex_analysis(complexes=set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
+        ''' compute:
+        - 'pfunc': partition function
+        - 'mfe': MFE proxy structure
+        - 'subopt': suboptimal proxy structure
+        - 'pairs': matrix of equilibrium base-pairing probabilities
+        '''
+        # print(results)
+        # print(results.complexes)
+        # print(comp)
+        self.output = results[comp] # return a ComplexResult object contains all the complex ensemble quantities for our complex [[A]]
+        # results.save_text('nupack-result.txt')
+        # print('Physical quantities for complex comp:')
+        # print('Complex free energy: %.2f kcal/mol' % self.output.free_energy)
+        # print('Partition function: %.2e' % self.output.pfunc)
+        # print('MFE proxy structure: %s' % self.output.mfe[0].structure)
+        # print('Free energy of MFE proxy structure: %.2f kcal/mol' % self.output.mfe[0].energy)
+        # print('MFE proxy structure:\n%s' % self.output.mfe[0].structure.matrix()) # represent MFE proxy structure as a nupack structure matrix of 0 and 1
+        # print('Equilibrium pair probabilities: \n%s' % self.output.pairs) # equilibrium pair probability matrix
+    
 
     def structureAnalysis(self):
         """
@@ -484,16 +513,16 @@ class omm:
 
 
 class ld:  # lightdock
-    def __init__(self, aptamer, peptide, params, ind1):
-        self.setupPath = params['ld setup path']  # ld_scripts/... there should be a directory ld/scripts in workdir
-        self.runPath = params['ld run path']
-        self.genPath = params['lgd generate path']
-        self.clusterPath = params['lgd cluster path']
-        self.rankPath = params['lgd rank path']
-        self.topPath = params['lgd top path']
+    def __init__(self, aptamerPDB, targetPDB, params, ind1):
+        self.setupScript   = params['ld setup']
+        self.runScript     = params['ld run']
+        self.genScript     = params['lgd generate']
+        self.clusterScript = params['lgd cluster']
+        self.rankScript    = params['lgd rank']
+        self.topScript     = params['lgd top']
 
-        self.aptamerPDB = aptamer
-        self.peptidePDB = peptide
+        self.aptamerPDB = aptamerPDB
+        self.targetPDB = targetPDB
 
         self.glowWorms = 300  # params['glowworms']
         self.dockingSteps = params['docking steps']
@@ -533,39 +562,46 @@ class ld:  # lightdock
 
     def prepPDBs(self):  # different from prepPDB in utils.py
         killH(self.aptamerPDB)  # DNA needs to be deprotonated on the phosphate groups
-        addH(self.peptidePDB, self.pH)  # peptide needs to be hydrogenated: side chains or terminal amino and carbonate groups?
+        addH(self.targetPDB, self.pH)  # peptide needs to be hydrogenated: side chains or terminal amino and carbonate groups?
         self.aptamerPDB2 = self.aptamerPDB.split('.')[0] + "_noH.pdb"
-        self.peptidePDB2 = self.peptidePDB.split('.')[0] + "_H.pdb"
-        changeSegment(self.peptidePDB2, 'A', 'B')
+        self.targetPDB2 = self.targetPDB.split('.')[0] + "_H.pdb"
+        changeSegment(self.targetPDB2, 'A', 'B')
 
     def runLightDock(self):
         # Run setup
-        os.system(self.setupPath + ' ' + self.aptamerPDB2 + ' ' + self.peptidePDB2 + ' -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
+        os.system(self.setupScript + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' -s ' + str(self.swarms) + ' -g ' + str(self.glowWorms) + ' >> outfiles/lightdockSetup.out')
 
         # Run docking
-        os.system(self.runPath + ' setup.json ' + str(self.dockingSteps) + ' -s dna >> outfiles/lightdockRun.out')
+        os.system(self.runScript + ' setup.json ' + str(self.dockingSteps) + ' -s dna >> outfiles/lightdockRun.out')
 
     def generateAndCluster(self):
         # Generate docked structures and cluster them
         for i in range(self.swarms):
             os.chdir('swarm_%d' % i)
-            os.system(self.genPath + ' ../' + self.aptamerPDB2 + ' ../' + self.peptidePDB2 + ' gso_%d' % self.dockingSteps + '.out' + ' %d' % self.glowWorms + ' > /dev/null 2> /dev/null; >> generate_lightdock.list')  # generate configurations
-            os.system(self.clusterPath + ' gso_%d' % self.dockingSteps + '.out >> cluster_lightdock.list')  # cluster glowworms
+            os.system(self.genScript + ' ../' + self.aptamerPDB2 + ' ../' + self.targetPDB2 + ' gso_%d' % self.dockingSteps + '.out' + ' %d' % self.glowWorms + ' > /dev/null 2> /dev/null; >> generate_lightdock.list')  # generate configurations
+            os.system(self.clusterScript + ' gso_%d' % self.dockingSteps + '.out >> cluster_lightdock.list')  # cluster glowworms
             os.chdir('../')
 
     def rank(self):
         # Rank the clustered docking setups
-        os.system(self.rankPath + ' %d' % self.swarms + ' %d' % self.dockingSteps + ' >> outfiles/ld_rank.out')
+        os.system(self.rankScript + ' %d' % self.swarms + ' %d' % self.dockingSteps + ' >> outfiles/ld_rank.out')
 
     def extractTopStructures(self):
         # Generate top structures
-        os.system(self.topPath + ' ' + self.aptamerPDB2 + ' ' + self.peptidePDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
+        os.system(self.topScript + ' ' + self.aptamerPDB2 + ' ' + self.targetPDB2 + ' rank_by_scoring.list %d' % self.numTopStructures + ' >> outfiles/ld_top.out')
         os.mkdir('top_%d'%self.ind1)
-        os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)
+        if os.path.exists('top_1.pdb'):  # if there is any docked structure
+            os.system('mv top*.pdb top_%d'%self.ind1 + '/')  # collect top structures (clustering currently dubiously working)        
 
     def extractTopScores(self):
-        self.topScores = readInitialLines('rank_by_scoring.list', self.numTopStructures + 1)[1:]
-        for i in range(len(self.topScores)):
-            self.topScores[i] = float(self.topScores[i].split(' ')[-1])  # get the last number, which is the score
-
-        return self.topScores
+        self.topScores = []
+        topScoresFromFile = readInitialLines('rank_by_scoring.list', self.numTopStructures + 1)[1:]  # always read the header but not record to self.topScores
+        if len(topScoresFromFile) < self.numTopStructures:
+            printRecord('Number of identified docked structures is less than what you are looking for!')
+        for i in range(len(topScoresFromFile)):
+            scoreStr = topScoresFromFile[i].split(' ')[-1]  # get the last number, which is the score in string format
+            if len(scoreStr) != 0:       # if not an empty string, there is indeed a score. Other options: if scoreStr or if os.path.exists('top_0/top_1.pdb')  # if there is 1 docked structure
+                score = float(scoreStr)  # convert from str to float
+                self.topScores.append(score)
+        printRecord('Number of identified docked structures = {}'.format(len(self.topScores)))
+        # return self.topScores
