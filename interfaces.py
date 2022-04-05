@@ -264,7 +264,10 @@ class omm:
             self.pdb = PDBFile(structurePDB)
             self.forceFieldFilename = params['force field']
             self.waterModelFilename = params['water model']
-            self.forcefield = ForceField(self.forceFieldFilename + '.xml', self.waterModelFilename + '.xml')
+            if self.waterModelFilename == 'no standalone water model': # for example, amoeba2018.xml doesn't need another water model file
+                self.forcefield = ForceField(self.forceFieldFilename + '.xml')
+            else:
+                self.forcefield = ForceField(self.forceFieldFilename + '.xml', self.waterModelFilename + '.xml')
 
         # System configuration
         self.nonbondedMethod = params['nonbonded method']  # Currently PME!!! It's used with periodic boundary condition applied
@@ -469,7 +472,7 @@ class omm:
         else:
             pass  # if resuming a run, the initial position comes from the chk file.        
 
-    doMD(self):  # no need to be aware of the implicitSolvent
+    def doMD(self):  # no need to be aware of the implicitSolvent
         # if not os.path.exists(self.structureName + '_state.chk'):
         if not self.chkFile:  # "self.chkFile is not empty" is equivalent to "either params['pick up from freeAptamerChk'] or params['pick up from complexChk'] is True"
             # User did not specify a .chk file ==> we are doing a fresh sampling, not resuming.

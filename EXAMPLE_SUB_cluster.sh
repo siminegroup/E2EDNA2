@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --account=ACCOUNT
+#SBATCH --account=def-simine
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=4G
-#SBATCH --time=0-4:00
-#SBATCH --mail-user=YOUR EMAIL
-#SBATCH --mail-type=END
+#SBATCH --mem=64G
+#SBATCH --time=3-00:00
+#SBATCH --mail-user=tao.liu7@mail.mcgill.ca
+#SBATCH --mail-type=ALL
 #SBATCH --error="error-%j.out"
 #SBATCH --output="slurm-%j.out"
 
@@ -26,11 +26,11 @@ virtualenv --no-download $SLURM_TMPDIR/env  # need to load a Python module befor
 source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
 pip install --no-index -r requirements.txt
-pip install --no-index MDAnalysis=2.0.0
-pip install --no-index lightdock=0.9.0
-pip install --no-index pdbfixer=1.7
+pip install --no-index MDAnalysis==2.0.0
+pip install --no-index lightdock==0.9.0
+pip install --no-index pdbfixer==1.7
 
-#pip install numpy==1.20.2
+#pip install --no-index numpy==1.20.2
 #pip install /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo/generic/numpy-1.20.2+computecanada-cp37-cp37m-linux_x86_64.whl
 #ambertools21 and ambertools20 seems to contain numpy already: numpy-1.21.2
 pip install --no-index --upgrade numpy
@@ -44,8 +44,8 @@ pip install ~/projects/def-simine/programs/opendnaWheels/nupack-4.0.0.23-cp37-cp
 python -c "import simtk.openmm"
 
 date -u
-# seq1:
-python ./main.py --run_num=5 --mode='free aptamer' --aptamerSeq='ACCTGGGGGAGTATTGCGGAGGAAGGT' --ligand='False' --ligandType='' --ligandSeq='' --friction=16.0
+# friction = 1.0
+python ./main.py --run_num=1 --mode='free aptamer' --aptamerSeq='ACCTGGGGGAGTATTGCGGAGGAAGGT' --ligand='False' --ligandType='' --ligandSeq='' --friction=1.0
 # python ./main.py --run_num=1 --sequence='AACGCTTTTTGCGTA' --peptide='A' --walltime=10 --temperature=310 --pH=7.4 --ionicStrength=0.163 --Mg=0.05 --impSolv='HCT'
 
 date -u

@@ -34,7 +34,7 @@ if params['device'] == 'local':
     params['mmb dir'] = '/Users/taoliu/Downloads/E2EDNA2-JOSS/Installer.3_0.OSX/lib'      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
     params['mmb']     = '/Users/taoliu/Downloads/E2EDNA2-JOSS/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable; MMB is the *name* of the executable here
 else:  # params['device'] == 'cluster':   
-    params['workdir'] = '/home/taoliu/scratch/runs/freeAptamer'
+    params['workdir'] = '/home/taoliu/scratch/adenosine_binding_aptamer/27nt_aptamer/test_amoeba_FF/runs/freeAptamer'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
@@ -162,8 +162,10 @@ else:
 #     params['chk file'] = ""
 
 # For guidance on adjustments, check out: http://docs.openmm.org/latest/userguide/application.html
-params['force field'] = 'amber14-all'    # other choices: amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
-params['water model'] = 'amber14/tip3p'  # other choices: amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc.
+#params['force field'] = 'amber14-all'    # other choices: amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
+#params['water model'] = 'amber14/tip3p'  # other choices: amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc.
+params['force field'] = 'amoeba2018'  # for explicit solvent simulations using ameoba2018, just include single file; for implicit solvent, also include "amoeba2018_gk.xml"
+params['water model'] = 'no standalone water model'
 ''' For complete list of available force fields that are bundled with OpenMM: 
     http://docs.openmm.org/latest/userguide/application/02_running_sims.html?highlight=forcefield#force-fields    
     The force field is specified in __init__ of interfaces.py
@@ -226,8 +228,6 @@ params['lgd rank']     = 'lgd_rank.py'
 params['lgd top']      = 'lgd_top.py'
 # params['lg ant']       = 'ant_thony.py'
 
-# structure files: peptide analyte (target)
-params['analyte pdb'] = 'lib/peptide/peptide.pdb'  # optional analyte - currently not used
 
 '''
 ==============================================================

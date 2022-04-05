@@ -29,27 +29,46 @@ def get_input():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_num', type=int, default=0)
-    parser.add_argument('--sequence', type=str, default='XXX')
-    parser.add_argument('--peptide', type=str, default='BBB')
-    parser.add_argument('--walltime', type=float, default=24)
-    parser.add_argument('--temperature', type=float, default=298)
-    parser.add_argument('--pH', type=float, default=7.0)
-    parser.add_argument('--ionicStrength', type=float, default=0.1)
-    parser.add_argument('--Mg', type=float, default=0.05)
-    parser.add_argument('--impSolv', default=None)
+    parser.add_argument('--mode', type=str, default='simulation_mode')
+    parser.add_argument('--aptamerSeq', type=str, default='NOSEQUENCE')
+    parser.add_argument('--ligand', type=str, default='False')
+    parser.add_argument('--ligandType', type=str, default='')
+    parser.add_argument('--ligandSeq', type=str, default='')
+    parser.add_argument('--friction', type=float, default=1.0)
 
     cmd_line_input = parser.parse_args()
-    run = cmd_line_input.run_num
-    sequence = cmd_line_input.sequence
-    peptide = cmd_line_input.peptide
-    walltime = cmd_line_input.walltime
-    temp = cmd_line_input.temperature
-    pH = cmd_line_input.pH
-    ionicStrength = cmd_line_input.ionicStrength
-    Mg = cmd_line_input.Mg
-    impSolv = cmd_line_input.impSolv
+    run_num = cmd_line_input.run_num
+    mode = cmd_line_input.mode
+    aptamerSeq = cmd_line_input.aptamerSeq
+    ligand = cmd_line_input.ligand
+    ligandType = cmd_line_input.ligandType
+    ligandSeq = cmd_line_input.ligandSeq
+    friction = cmd_line_input.friction
 
-    return [run, sequence, peptide, walltime, temp, pH, ionicStrength, Mg, impSolv]
+    return [run_num, mode, aptamerSeq, ligand, ligandType, ligandSeq, friction]
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--run_num', type=int, default=0)
+    # parser.add_argument('--sequence', type=str, default='XXX')
+    # parser.add_argument('--peptide', type=str, default='BBB')
+    # parser.add_argument('--walltime', type=float, default=24)
+    # parser.add_argument('--temperature', type=float, default=298)
+    # parser.add_argument('--pH', type=float, default=7.0)
+    # parser.add_argument('--ionicStrength', type=float, default=0.1)
+    # parser.add_argument('--Mg', type=float, default=0.05)
+    # parser.add_argument('--impSolv', default=None)
+
+    # cmd_line_input = parser.parse_args()
+    # run = cmd_line_input.run_num
+    # sequence = cmd_line_input.sequence
+    # peptide = cmd_line_input.peptide
+    # walltime = cmd_line_input.walltime
+    # temp = cmd_line_input.temperature
+    # pH = cmd_line_input.pH
+    # ionicStrength = cmd_line_input.ionicStrength
+    # Mg = cmd_line_input.Mg
+    # impSolv = cmd_line_input.impSolv
+
+    # return [run, sequence, peptide, walltime, temp, pH, ionicStrength, Mg, impSolv]
 
 
 # def recenterDCD(topology, trajectory):
@@ -109,7 +128,7 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
     fixer = PDBFixer(filename=file)
     padding, boxSize, boxVectors = None, None, None
-    geompadding = float(boxOffset) * unit.nanometer  # TODO what does unit.nanometer do
+    geompadding = float(boxOffset) * unit.nanometer
 
     boxMode = 'cubic'  # TODO toggle for box type - look at openmm-setup source code for other box types
 
