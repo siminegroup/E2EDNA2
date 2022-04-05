@@ -1,8 +1,8 @@
 """
 Utitilies
 """
-from simtk.openmm.app import *  # eg. PDBFile
-import simtk.unit as unit
+from openmm.app import *  # eg. PDBFile
+import openmm.unit as unit
 
 import argparse
 import os
@@ -128,7 +128,7 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
     fixer = PDBFixer(filename=file)
     padding, boxSize, boxVectors = None, None, None
-    geompadding = float(boxOffset) * unit.nanometer
+    geompadding = float(boxOffset) * unit.nanometer  # TODO what does unit.nanometer do
 
     boxMode = 'cubic'  # TODO toggle for box type - look at openmm-setup source code for other box types
 

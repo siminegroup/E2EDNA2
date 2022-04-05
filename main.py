@@ -164,10 +164,12 @@ else:
 # For guidance on adjustments, check out: http://docs.openmm.org/latest/userguide/application.html
 #params['force field'] = 'amber14-all'    # other choices: amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
 #params['water model'] = 'amber14/tip3p'  # other choices: amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc.
-params['force field'] = 'amoeba2018'  # for explicit solvent simulations using ameoba2018, just include single file; for implicit solvent, also include "amoeba2018_gk.xml"
-params['water model'] = 'no standalone water model'
+# if using ameoba force field bundled with OpenMM. OpenMM 7.5.0 only supports up to amoeba2013.xml
+params['force field'] = 'amoeba2018'
+params['water model'] = 'no standalone water model' # if explicit solvent: not need a standalone water model file. Check the documentation linked below.
 ''' For complete list of available force fields that are bundled with OpenMM: 
-    http://docs.openmm.org/latest/userguide/application/02_running_sims.html?highlight=forcefield#force-fields    
+    http://docs.openmm.org/7.5.0/userguide/application.html#force-fields
+    latest: http://docs.openmm.org/latest/userguide/application/02_running_sims.html?highlight=forcefield#force-fields    
     The force field is specified in __init__ of interfaces.py
 '''
 params['box offset'] = 1.0  # nanometers

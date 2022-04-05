@@ -22,4 +22,5 @@ six==1.15.0
 tqdm==4.59.0
 scikit_learn==0.24.2
 Cython==0.29.23
-mdtraj==1.9.5
+mdtraj==1.9.6
+netCDF4==1.5.6

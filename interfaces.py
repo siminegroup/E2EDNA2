@@ -11,12 +11,11 @@ from shutil import copyfile
 from numpy import pi
 from nupack import *
 
-from simtk.openmm import *  # In fact what happens under the hood: from openmm import *
-from simtk.openmm.app import *
-import simtk.unit as unit
-# installed openmm: http://docs.openmm.org/7.5.0/userguide/application.html#installing-openmm
-# openmm is installed as an individual package;
-# package simtk is created with packages "openmm" and "unit" inside but literally import the stand-alone openmm.
+from openmm import *
+from openmm.app import *
+import openmm.unit as unit
+# In OpenMM/7.7.0: the prefix of "simtk" has been removed.
+# In OpenMM/7.5.0: package simtk is created with packages "openmm" and "unit" inside but literally import the stand-alone openmm.
 
 from utils import *
 from analysisTools import *

@@ -3,11 +3,11 @@
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=64G
-#SBATCH --time=3-00:00
+#SBATCH --time=0-02:00
 #SBATCH --mail-user=tao.liu7@mail.mcgill.ca
 #SBATCH --mail-type=ALL
-#SBATCH --error="error-%j.out"
-#SBATCH --output="slurm-%j.out"
+#SBATCH --error="error-%j_gamma1_amoeba.out"
+#SBATCH --output="slurm-%j_gamma1_amoeba.out"
 
 # put your MMB path here. Don't use ~
 export LD_LIBRARY_PATH="/home/taoliu/projects/def-simine/programs/MMB/Installer.2_14.Linux64"
