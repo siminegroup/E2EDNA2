@@ -40,10 +40,10 @@ pip install --no-index --upgrade pip
 pip install --no-index -r requirements.txt
 pip install --no-index MDAnalysis==2.0.0
 pip install --no-index lightdock==0.9.0
-pip install --no-index pdbfixer==1.8 #"import openmm...." -> compatible with OpenMM/7.7.0; In pdbfixer/1.7: import simtk.openmm.... -> compatible with OpenMM/7.5.0
+pip install --no-index pdbfixer==1.8.1 #"import openmm...." -> compatible with OpenMM/7.7.0; In pdbfixer/1.7: import simtk.openmm.... -> compatible with OpenMM/7.5.0
 pip install --no-index nupack==4.0.0.27
 
-#pip install --no-index numpy==1.20.2
+pip install --no-index numpy==1.21.0
 #pip install /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo/generic/numpy-1.20.2+computecanada-cp37-cp37m-linux_x86_64.whl
 #ambertools21 and ambertools20 seems to contain numpy already: numpy-1.21.2
 #pip install --no-index --upgrade numpy
