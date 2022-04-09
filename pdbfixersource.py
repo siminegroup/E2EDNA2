@@ -29,18 +29,18 @@ __version__ = "1.7"
 
 # # importing 'simtk.openmm' is deprecated.  Import 'openmm' instead
 # # There is another statement down under "try"
-import openmm as mm
-import openmm.app as app
-import openmm.unit as unit
-from openmm.app.internal.pdbstructure import PdbStructure
-from openmm.app.internal.pdbx.reader.PdbxReader import PdbxReader
-from openmm.app.element import hydrogen, oxygen
-from openmm.app.forcefield import NonbondedGenerator
+import simtk.openmm as mm
+import simtk.openmm.app as app
+import simtk.unit as unit
+from simtk.openmm.app.internal.pdbstructure import PdbStructure
+from simtk.openmm.app.internal.pdbx.reader.PdbxReader import PdbxReader
+from simtk.openmm.app.element import hydrogen, oxygen
+from simtk.openmm.app.forcefield import NonbondedGenerator
 
 # Support Cythonized functions in OpenMM 7.3
 # and also implementations in older versions.
 try:    
-    from openmm.app.internal import compiled
+    from simtk.openmm.app.internal import compiled
 
     matchResidue = compiled.matchResidueToTemplate
 except ImportError:
