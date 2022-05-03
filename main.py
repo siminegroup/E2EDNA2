@@ -63,7 +63,7 @@ def get_args():
                                       'coarse dock', 'smooth dock', 'free aptamer',
                                       'full dock', 'full binding'])
     run_info.add_argument('-a',
-                             '--aptamer',
+                             '--aptamerSeq',
                              metavar='SEQ',
                              type=str,
                              required=True,
@@ -72,6 +72,7 @@ def get_args():
                              '--ligand',
                              metavar='PDB',
                              type=str,
+                             default='False',
                              required=True,
                              help='Filename of target ligand')
     run_info.add_argument('-t',
@@ -120,7 +121,7 @@ def get_args():
                           '--mmb',
                           metavar='MMB',
                           type=str,
-                          default='Installer*/bin/MMB',
+                          default='Installer*/bin/MMB*',
                           help='Path to MMB executable')
 
     args = parser.parse_args()
@@ -138,6 +139,8 @@ def get_args():
         else:
             parser.error(f'--run_num already exists at {out_dir}\n'
                         '\t use -f/--force to overwrite')
+    # One comment: since the workdir and run are created here in main.py,
+    # will need to update opendna.py: the method setup() was designed to create workdir and run.
 
     # Read in aptamer sequence if it is in a file
     if os.path.isfile(args.aptamer):
@@ -151,7 +154,7 @@ def get_args():
     # If ligand is 'False', these arguments are not used
     if args.ligand == 'False' and args.ligand_type:
         parser.error('--ligand_type is not used if --ligand is "False".')
-    if args.ligand == 'False' and args.ligand_type:
+    if args.ligand == 'False' and args.ligand_seq:
         parser.error('--ligand_seq is not used if --ligand is "False".')
 
     # If ligand is peptide, DNA, or RNA, sequence is required
@@ -187,9 +190,10 @@ def get_args():
 args=get_args()
 params = {}
 # ============================================= Specify your settings within this block for a local test ===================================================
-params['device'] = args.device
-params['device platform'] = platform.system().lower()
-params['platform'] = args.platform
+params['device'] = args.device # 'local' or 'cluster'
+params['device platform'] = platform.system().lower()  # 'macos' or 'linux' or 'WSL'. Not supporting pure Windows OS (due to NUPACK)
+                                                       # on macOS, it returns 'Darwin' instead of 'macos' - need to add an argparse argument for it
+params['platform'] = args.platform # 'CPU' or 'CUDA'
 if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'single' or 'double'
 if params['device'] == 'local':
     params['workdir'] = args.workdir                # directory manually created to store all future jobs
