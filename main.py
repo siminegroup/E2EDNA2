@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''
 E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
 
@@ -19,32 +21,191 @@ Copyright 2022 Michael Kilgour, Tao Liu and contributors of E2EDNA 2.0
    See the License for the specific language governing permissions and
    limitations under the License.
 '''
+import argparse
+import glob
 from opendna import *
+import os
+import platform
+import shutil
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+
+def get_args():
+    ''' Parse commandline arguments '''
+
+    parser = argparse.ArgumentParser(
+        description='E2EDNA: Simulate DNA aptamers complexed with target ligands',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    run_info = parser.add_argument_group('Run Parameters')
+    system_info = parser.add_argument_group('System Configuration')
+    paths = parser.add_argument_group('Directory Settings')
+
+    parser.add_argument('-f',
+                             '--force',
+                             action='store_true',
+                             help='Overwrite existing --run_num')
+
+    run_info.add_argument('-r',
+                             '--run_num',
+                             metavar='INT',
+                             type=int,
+                             required=True,
+                             help='Run number. Output will be written to {--workdir}/run{--run_num}/')
+    run_info.add_argument('-m',
+                             '--mode',
+                             metavar='MODE',
+                             type=str,
+                             required=True,
+                             help='Run mode',
+                             choices=['2d structure', '3d coarse', '3d smooth',
+                                      'coarse dock', 'smooth dock', 'free aptamer',
+                                      'full dock', 'full binding'])
+    run_info.add_argument('-a',
+                             '--aptamer',
+                             metavar='SEQ',
+                             type=str,
+                             required=True,
+                             help="DNA Aptamer sequence (5'-3')")
+    run_info.add_argument('-l',
+                             '--ligand',
+                             metavar='PDB',
+                             type=str,
+                             required=True,
+                             help='Filename of target ligand')
+    run_info.add_argument('-t',
+                             '--ligand_type',
+                             metavar='TYPE',
+                             type=str,
+                             default='',
+                             help='Target ligand molecule type',
+                             choices=['peptide', 'DNA', 'RNA', 'other', ''])
+    run_info.add_argument('-s',
+                             '--ligand_seq',
+                             metavar='SEQ',
+                             type=str,
+                             default='',
+                             help='Target ligand sequence if peptide, DNA, or RNA')
+    
+
+    system_info.add_argument('-d',
+                             '--device',
+                             metavar='RUN',
+                             type=str,
+                             default='local',
+                             help='Device configuration',
+                             choices=['local', 'cluster'])
+    system_info.add_argument('-p',
+                             '--platform',
+                             metavar='DEV',
+                             type=str,
+                             default='CPU',
+                             help='Processing platform',
+                             choices=['CPU', 'CUDA'])
+
+    paths.add_argument('-w',
+                          '--workdir',
+                          metavar='DIR',
+                          type=str,
+                          default='./localruns',
+                          help='Output directory to store runs')
+    paths.add_argument('-md',
+                          '--mmb_dir',
+                          metavar='DIR',
+                          type=str,
+                          default='Installer*/lib',
+                          help='MMB library directory')
+    paths.add_argument('-mb',
+                          '--mmb',
+                          metavar='MMB',
+                          type=str,
+                          default='Installer*/bin/MMB',
+                          help='Path to MMB executable')
+
+    args = parser.parse_args()
+
+    # Check if workdir exists, and create if not
+    if not os.path.isdir(args.workdir):
+        os.mkdir(args.workdir)
+
+    # Check if output directory for run exists;
+    # Either fail or force overwrite if so
+    out_dir = os.path.join(args.workdir, 'run' + str(args.run_num))
+    if os.path.isdir(out_dir):
+        if args.force:
+            shutil.rmtree(out_dir)
+        else:
+            parser.error(f'--run_num already exists at {out_dir}\n'
+                        '\t use -f/--force to overwrite')
+
+    # Read in aptamer sequence if it is in a file
+    if os.path.isfile(args.aptamer):
+        args.aptamer = open(args.aptamer).read().rstrip()
+    
+    # If ligand is not 'False', it should be a pdb file
+    if not args.ligand == 'False' and not os.path.isfile(args.ligand):
+        parser.error(f'Invalid --ligand "{args.ligand}".'
+                     'Must be either "False" or a valid PDB file.')
+
+    # If ligand is 'False', these arguments are not used
+    if args.ligand == 'False' and args.ligand_type:
+        parser.error('--ligand_type is not used if --ligand is "False".')
+    if args.ligand == 'False' and args.ligand_type:
+        parser.error('--ligand_seq is not used if --ligand is "False".')
+
+    # If ligand is peptide, DNA, or RNA, sequence is required
+    if args.ligand_type in ['peptide', 'DNA', 'RNA'] and not args.ligand_seq:
+        parser.error(f'--ligand_seq is required if --ligand_type is {args.ligand_type}')
+
+    # Read in ligand sequence if it is in a file
+    if os.path.isfile(args.ligand_seq):
+        args.ligand_seq = open(args.ligand_seq).read().rstrip()
+
+    # Try to find MMB library directory
+    if not glob.glob(args.mmb_dir):
+        parser.error(f'MMB library could not be found at {args.mmb_dir}.')
+    else:
+        found_path = glob.glob(args.mmb_dir)[0]
+        if os.getcwd() in found_path: # Already absolute path
+            args.mmb_dir = found_path
+        else: # Need to make absolute path
+            args.mmb_dir = os.path.join(os.getcwd(), found_path)
+
+    # Try to find MMB executable
+    if not glob.glob(args.mmb):
+        parser.error(f'MMB executable could not be found at {args.mmb}.')
+    else:
+        found_path = glob.glob(args.mmb)[0]
+        if os.getcwd() in found_path: # Already absolute path
+            args.mmb = found_path
+        else: # Need to make absolute path
+            args.mmb = os.path.join(os.getcwd(), found_path)
+
+    return args
+
+args=get_args()
 params = {}
 # ============================================= Specify your settings within this block for a local test ===================================================
-params['device'] = 'local'           # 'local' or 'cluster'
-params['device platform'] = 'macos'  # 'macos' or 'linux' or 'WSL' (Windows Subsystem for Linux). Not supporting pure Windows OS (due to NUPACK)
-params['platform'] = 'CPU'           # 'CPU' or 'CUDA'
+params['device'] = args.device
+params['device platform'] = platform.system().lower()
+params['platform'] = args.platform
 if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'single' or 'double'
 if params['device'] == 'local':
-    params['workdir'] = '/path-to-E2EDNA2-main/localruns'                  # directory manually created to store all future jobs
-    params['mmb dir'] = '/path-to-E2EDNA2-main/Installer.3_0.OSX/lib'      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
-    params['mmb']     = '/path-to-E2EDNA2-main/Installer.3_0.OSX/bin/MMB'  # path to the MMB executable; MMB is the *name* of the executable here
+    params['workdir'] = args.workdir                # directory manually created to store all future jobs
+    params['mmb dir'] = args.mmb_dir      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
+    params['mmb']     = args.mmb  # path to the MMB executable; MMB is the *name* of the executable here
 else:  # params['device'] == 'cluster':
     params['workdir'] = '/home/taoliu/scratch/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
     params['mmb'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64/MMB.2_14.Linux64'
 params['explicit run enumeration'] = True  # To resume a previous run from .chk file, use ``False`` here
-cmdLineInputs = get_input()  # get input arguments from command lines
-params['run num'] = cmdLineInputs[0]
-params['mode'] = cmdLineInputs[1]
-params['aptamerSeq'] = cmdLineInputs[2]
-params['target ligand'] = cmdLineInputs[3]
-params['target ligand type'] = cmdLineInputs[4]
-params['target sequence'] = cmdLineInputs[5]
+params['run num'] = args.run_num
+params['mode'] = args.mode
+params['aptamerSeq'] = args.aptamer
+params['target ligand'] = args.ligand
+params['target ligand type'] = args.ligand_type
+params['target sequence'] = args.ligand_seq
 # params['run num'] = 1  # 0: auto-increase run-num for a fresh run; > 0 AND params['explicit run enumeration'] = True: fresh run; > 0 AND params['explicit run enumeration'] = False: pickup on a previous run;
 # params['mode'] = 'full binding'  # specify simulation mode
 # params['aptamerSeq'] = 'TAATGTTAATTG'  # manually set DNA aptamer sequence from 5' to 3'
