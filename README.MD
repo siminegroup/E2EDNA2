@@ -25,8 +25,7 @@ The usage and help statements can be accessed with the `-h/--help` flags:
 
 ```
 $ ./main.py --help
-usage: main.py [-h] [-f] -r INT -m MODE -a SEQ -l PDB [-t TYPE] [-s SEQ]
-               [-d RUN] [-p DEV] [-w DIR] [-md DIR] [-mb MMB]
+usage: main_argparse.py [-h] [-f] -r INT -m MODE -a SEQ -l PDB [-t TYPE] [-s SEQ] [-pk PICKUP] [-d RUN] [-os OS] [-p DEV] [-w DIR] [-md DIR] [-mb MMB]
 
 E2EDNA: Simulate DNA aptamers complexed with target ligands
 
@@ -36,20 +35,22 @@ optional arguments:
 
 Run Parameters:
   -r INT, --run_num INT
-                        Run number. Output will be written to
-                        {--workdir}/run{--run_num}/ (default: None)
+                        Run number. Output will be written to {--workdir}/run{--run_num}/ (default: None)
   -m MODE, --mode MODE  Run mode (default: None)
   -a SEQ, --aptamerSeq SEQ
                         DNA Aptamer sequence (5'-3') (default: None)
-  -l PDB, --ligand PDB  Filename of target ligand (default: None)
+  -l PDB, --ligand PDB  Filename of target ligand (default: False)
   -t TYPE, --ligand_type TYPE
                         Target ligand molecule type (default: )
   -s SEQ, --ligand_seq SEQ
-                        Target ligand sequence if peptide, DNA, or RNA
-                        (default: )
+                        Target ligand sequence if peptide, DNA, or RNA (default: )
+  -pk PICKUP, --pick_up PICKUP
+                        If the run is to resume an unfinished run or elongate another run. (default: No)
 
 System Configuration:
   -d RUN, --device RUN  Device configuration (default: local)
+  -os OS, --operating_system OS
+                        Operating system (default: macos)
   -p DEV, --platform DEV
                         Processing platform (default: CPU)
 
@@ -57,8 +58,8 @@ Directory Settings:
   -w DIR, --workdir DIR
                         Output directory to store runs (default: ./localruns)
   -md DIR, --mmb_dir DIR
-                        MMB library directory (default: Installer-*/lib)
-  -mb MMB, --mmb MMB    Path to MMB executable (default: Installer-*/bin/MMB)
+                        MMB library directory (default: Installer*/lib)
+  -mb MMB, --mmb MMB    Path to MMB executable (default: Installer*/bin/MMB*)
 ```
 
 ## 3. Running a job

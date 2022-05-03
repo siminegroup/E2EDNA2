@@ -88,6 +88,14 @@ def get_args():
                              type=str,
                              default='',
                              help='Target ligand sequence if peptide, DNA, or RNA')
+    run_info.add_argument('-pk',
+                             '--pick_up',
+                             metavar='PICKUP',
+                             type=str,
+                             default='No',
+                             help='If the run is to resume an unfinished run or elongate another run.',
+                             choices=['Yes', 'No'])
+    
     
 
     system_info.add_argument('-d',
@@ -97,6 +105,13 @@ def get_args():
                              default='local',
                              help='Device configuration',
                              choices=['local', 'cluster'])
+    system_info.add_argument('-os',
+                             '--operating_system',
+                             metavar='OS',
+                             type=str,
+                             default='macos',
+                             help='Operating system',
+                             choices=['macos', 'linux', 'WSL'])
     system_info.add_argument('-p',
                              '--platform',
                              metavar='DEV',
@@ -104,6 +119,8 @@ def get_args():
                              default='CPU',
                              help='Processing platform',
                              choices=['CPU', 'CUDA'])
+
+    
 
     paths.add_argument('-w',
                           '--workdir',
@@ -135,13 +152,12 @@ def get_args():
     out_dir = os.path.join(args.workdir, 'run' + str(args.run_num))
     if os.path.isdir(out_dir):
         if args.force:
-            shutil.rmtree(out_dir)
-        else:
+            shutil.rmtree(out_dir) # Delete an entire directory tree
+        elif args.pick_up == 'No':
             parser.error(f'--run_num already exists at {out_dir}\n'
                         '\t use -f/--force to overwrite')
-    # One comment: since the workdir and run are created here in main.py,
-    # will need to update opendna.py: the method setup() was designed to create workdir and run.
-
+        # The third scenario: resume the run in a certain output directory (ie, pick_up == 'Yes'), do nothing.
+    
     # Read in aptamer sequence if it is in a file
     if os.path.isfile(args.aptamer):
         args.aptamer = open(args.aptamer).read().rstrip()
@@ -191,14 +207,13 @@ args=get_args()
 params = {}
 # ============================================= Specify your settings within this block for a local test ===================================================
 params['device'] = args.device # 'local' or 'cluster'
-params['device platform'] = platform.system().lower()  # 'macos' or 'linux' or 'WSL'. Not supporting pure Windows OS (due to NUPACK)
-                                                       # on macOS, it returns 'Darwin' instead of 'macos' - need to add an argparse argument for it
+params['device platform'] = args.operating_system # 'macos' or 'linux' or 'WSL'. Not supporting pure Windows OS (due to NUPACK)
 params['platform'] = args.platform # 'CPU' or 'CUDA'
 if params['platform'] == 'CUDA': params['platform precision'] = 'single'  # 'single' or 'double'
 if params['device'] == 'local':
-    params['workdir'] = args.workdir                # directory manually created to store all future jobs
+    params['workdir'] = args.workdir      # directory manually created to store all future jobs
     params['mmb dir'] = args.mmb_dir      # path to MMB dylib files  # need to tell OS where to find the library files. All MMB files are in the same direcotory.
-    params['mmb']     = args.mmb  # path to the MMB executable; MMB is the *name* of the executable here
+    params['mmb']     = args.mmb          # path to the MMB executable; MMB is the *name* of the executable here
 else:  # params['device'] == 'cluster':
     params['workdir'] = '/home/taoliu/scratch/runs'
     params['mmb dir'] = '~/projects/def-simine/programs/MMB/Installer.2_14.Linux64'
