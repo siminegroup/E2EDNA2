@@ -39,7 +39,7 @@ Run Parameters:
                         Run number. Output will be written to
                         {--workdir}/run{--run_num}/ (default: None)
   -m MODE, --mode MODE  Run mode (default: None)
-  -a SEQ, --aptamer SEQ
+  -a SEQ, --aptamerSeq SEQ
                         DNA Aptamer sequence (5'-3') (default: None)
   -l PDB, --ligand PDB  Filename of target ligand (default: None)
   -t TYPE, --ligand_type TYPE
@@ -81,7 +81,7 @@ Parameters passed as command line inputs:
 * Run parameters
   * `-r/--run_num`: is used to name the folder for each job.
   * `-m/--mode`: mode of operation; one of the modes described in [Functionality](https://github.com/siminegroup/E2EDNA2#4-functionality_eight_different_modes_of_operation) -- '2d structure', '3d coarse', '3d smooth', 'coarse dock', 'smooth dock', 'free aptamer', 'full dock', 'full binding'
-  * `-a/--aptamer`: DNA aptamer sequence (5'->3'). Can be a string or the name of a readable text file containing the sequence.
+  * `-a/--aptamerSeq`: DNA aptamer sequence (5'->3'). Can be a string or the name of a readable text file containing the sequence.
   * `-l/--ligand`: PDB filename of target ligand; If no ligand, `--ligand False` and the following two inputs (`--ligand_type` and `--ligand_seq`) can be left off.
   * `-t/--ligand_type`: 'peptide', 'DNA', 'RNA', or 'other', assuming 'other' ligand can be described by force field used in MD simulation (default: Amber14).
   * `-s/--ligand_seq`: target ligand's sequence (5'->3') if target ligand is a peptide or DNA or RNA. Can be a string or the name of a readable text file containing the sequence. If `--ligand_type other`, do not use this flag.
