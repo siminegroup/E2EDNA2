@@ -10,7 +10,6 @@ from sklearn.decomposition import PCA
 from MDAnalysis.analysis.base import AnalysisBase
 from MDAnalysis.lib.distances import calc_bonds
 from MDAnalysis.analysis.dihedrals import Dihedral
-from nupack import *
 from seqfold import dg, fold
 
 
@@ -684,7 +683,7 @@ def checkMidTrajectoryBinding(structure, trajectory, peptideSeq, aptamerSeq, par
     try:
         lastContact = np.nonzero(nContacts[:, 0])[0][-1]  # last time when the peptide and aptamer were in close-range contact
 
-        dt = params['print step']
+        dt = params['print_step']
         detachedTime = (len(nContacts) - lastContact) * dt / 1e3  # in ns, since dt is in ps
         if detachedTime > cutoffTime:  # if we have been unbound longer than the cutoff
             return True
