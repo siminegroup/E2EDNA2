@@ -4,6 +4,10 @@
 
 printf "Note: make sure to have copied automated_tests.sh and simu_config_automated_tests.yaml from examples/automated_tests/ to the codebase directory which contains main.py etc.\n\n"
 
+printf "All the following tests start the pipeline with DNA sequence, therefore require NUPACK and MMB modules to be available.\n"
+printf "The \"macos_installation.sh\" script provides instructions on setting up NUPACK and MMB.\n"
+
+
 printf "\nStart automating tests one by one...\n"
 printf "===================================="
 
