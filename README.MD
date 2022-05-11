@@ -21,7 +21,7 @@ This installation path has been tested on macOS and it relies on conda and pip p
 6. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/JOSS/main.py):
 ```
 params['workdir'] = '/path-to-E2EDNA2-JOSS/localruns'                                # directory manually created to store all future jobs
-params['mmb dir'] = '/path-to-E2EDNA2-JOSS/Installer.version.OS/lib'                 # path to MMB dylib files
+params['mmb_dir'] = '/path-to-E2EDNA2-JOSS/Installer.version.OS/lib'                 # path to MMB dylib files
 params['mmb']     = '/path-to-E2EDNA2-JOSS/Installer.version.OS/bin/MMB-executable'  # path to MMB executable
 ```
 ## 2. Running a job
@@ -31,8 +31,8 @@ params['mmb']     = '/path-to-E2EDNA2-JOSS/Installer.version.OS/bin/MMB-executab
 * All 8 modes take about 15 minutes to run on a macbook pro laptop and the outputs are saved in the work directory. We chose very simple systems for the the test-run and where ever docking is performed the docking configuration may or may not be found due to the limitations of the chosen system. Please note that a failure to find a docked configuration is not a failure of E2EDNA. 
 * Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
-python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
-python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --ligand='YQTQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
+python main.py --run_num=1 --mode='free aptamer' --aptamer_seq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
+python main.py --run_num=2 --mode='full dock' --aptamer_seq='TAATGTTAATTG' --ligand='YQTQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
     
 # --ligand='False'        # if no ligand. --ligandType and --ligandSeq will be ignored.
 # --ligandType='peptide'  # or 'DNA' or 'RNA' or 'other'. Assuming 'other' ligand can be described by Amber14 force field.
@@ -41,11 +41,11 @@ python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --liga
 ### Customizing parameters
 * parameters passed as command line inputs:
   * `--run_num`: is used to name the folder for each job.
-  * `--aptamerSeq`: DNA aptamer sequence (5'->3').
+  * `--aptamer_seq`: DNA aptamer sequence (5'->3').
   * `--ligand`: PDB filename of target ligand; If no ligand, `--ligand='False'` and the following two inputs can be empty strings.
   * `--ligandType`: 'peptide' or 'DNA' or 'RNA' or 'other', assuming 'other' ligand can be described by force field used in MD simulation (default: Amber14).
   * `--ligandSeq`: target ligand's sequence (5'->3') if target ligand is a peptide or DNA or RNA. If `--ligandType='other'`, this input is empty string.
-* A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/JOSS/main.py) to allow for flexible control of the simulation conditions, including device platform (CPU or CUDA), solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
+* A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/JOSS/main.py) to allow for flexible control of the simulation conditions, including operating_system (CPU or CUDA), solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
 
 ## 3. Functionality: Eight different modes of operation
 E2EDNA 2.0 takes in a DNA aptamer sequence (5' to 3'), and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
@@ -67,7 +67,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Key inputs**: DNA aptamer sequence
 
-* **Outputs**: predicted secondary structure in record.txt
+* **Outputs**: predicted secondary structure in run_output_log.txt
 
 * **Success evaluation**: observe the dot-bracket notion for secondary structure, such as .(((....))).
 
@@ -75,7 +75,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Key inputs**: DNA aptamer sequence
 
-* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb
+* **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb
 
 * **Success evaluation**: visualize MMB-folded aptamer structure in software like VMD or PyMOL 
 
@@ -84,7 +84,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Key inputs**: DNA aptamer sequence
 
-* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Short MD relaxation trajectory of free aptamer: foldedAptamer_0_processed_trajectory.dcd and clean_foldedAptamer_0_processed_trajectory.dcd (without solvent and ions); Relaxed aptamer structure: relaxedAptamer_0.pdb
+* **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Short MD relaxation trajectory of free aptamer: foldedAptamer_0_processed_trajectory.dcd and clean_foldedAptamer_0_processed_trajectory.dcd (without solvent and ions); Relaxed aptamer structure: relaxedAptamer_0.pdb
 
 * **Success evaluation**: simulation logfile, MDlog_freeAptamerSmoothing.txt, indicates 100% completion; visualize the relaxation trajectory and relaxed structure in software like VMD or PyMOL 
 
@@ -92,7 +92,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 
-* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; MMB-folded aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
+* **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; MMB-folded aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
 
 * **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
@@ -100,7 +100,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 
-* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Short MD relaxation trajectory of free aptamer: foldedAptamer_0_processed_trajectory.dcd and clean_foldedAptamer_0_processed_trajectory.dcd (without solvent and ions); Relaxed aptamer structure: relaxedAptamer_0.pdb; Relaxed aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
+* **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Short MD relaxation trajectory of free aptamer: foldedAptamer_0_processed_trajectory.dcd and clean_foldedAptamer_0_processed_trajectory.dcd (without solvent and ions); Relaxed aptamer structure: relaxedAptamer_0.pdb; Relaxed aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
 
 * **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
@@ -109,21 +109,21 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Key inputs**: DNA aptamer sequence
 
-* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb
+* **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb
 
 * **Success evaluation**: simulation logfile, MDlog_freeAptamerSampling.txt, indicates 100% completion; visualize the sampling trajectory and representative structure of free aptamer in software like VMD or PyMOL 
 
 7. `--mode='full dock'`
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
-* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
+* **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
 * **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
 8. `--mode='full binding'`
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 
-* **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened); Long MD sampling trajectory of aptamer-ligand complex: complex_0_0_processed_complete_trajectory.dcd and clean_complex_0_0_processed_complete_trajectory.dcd (without solvent and ions)
+* **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened); Long MD sampling trajectory of aptamer-ligand complex: complex_0_0_processed_complete_trajectory.dcd and clean_complex_0_0_processed_complete_trajectory.dcd (without solvent and ions)
 
 * **Success evaluation**: simulation logfile, MDlog_complexSampling.txt, indicates 100% completion; visualize the sampling trajectory of aptamer-ligand complex in software like VMD or PyMOL 
 
