@@ -1,0 +1,15 @@
+There are two sets of automated tests:
+(1) automated_tests.sh + simu_config_automated_tests.yaml
+(2) automated_tests_no_NUPACK_MMB + simu_config_automated_tests_no_NUPACK_MMB.yaml
+
+Prerequisite: 
+(a) Must have created a conda environment "e2edna" using the installation script "macos_installation.sh".
+(b) For the first set of tests, must have NUPACK and MMB modules available. The "macos_installation.sh" script provides instructions on setting up NUPACK and MMB as well.
+
+To carry out either one of the tests, 
+- firstly, copy the corresponding two files (.sh and .yaml) to the codebase directory (containing scripts like main.py).
+
+- Secondly, in command line run:
+	$ bash automated_test.sh
+
+or  $ bash automated_tests_no_NUPACK_MMB.sh
