@@ -6,8 +6,8 @@ operating_system: macos # macos or linux or WSL. Not supporting pure Windows OS 
 platform        : CPU   # CPU or CUDA
 CUDA_precision:         # single or double. only meaningful if CUDA
 
-# Work directory and automate output directory "run{--run_num}"
-workdir: <path to your work directory>  # Store all output directories. If not exist, will be automatically created
+# Work directory and automate output directory "run{--run_num}". If not exist, will be automatically created
+workdir: <path to your work directory>  
 
 # MMB-related paths: if not using MMB, just leave the value parts blank
 mmb_dir: <path to MMB lib>              # path to MMB dylib, something like "./Installer*/lib"
@@ -43,11 +43,12 @@ ligand_seq:
 # `ligand_type`: peptide, DNA, RNA, or other
 # `ligand_seq` : ligand sequence if peptide, DNA, or RNA
 # If not applicable for any of those 3 args (eg, no ligand), leave as blank => will become Python None
-# DNA aptamer and ligand: expect them to be specified in cmd line because they are likely to be more frequently changed
+# mode, aptamer_seq and ligand: expect them to be specified in cmd line because they are likely to be more frequently changed
 
 # Example provided in examples/:
 example_target_pdb: 'examples/example_peptide_ligand.pdb'  # an example of ligand: a peptide, used to test docking.
 example_peptide_seq: 'YQTQTNSPRRAR'
+
 
 
 # =========================== Pipeline modules: NUPACK and MMB ===========================

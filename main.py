@@ -47,7 +47,7 @@ parser.add_argument('-yaml',
                          type=str,
                          default='simu_config.yaml',
                          required=True,
-                         help='A YAML configuration file that can specify all the arguments.')
+                         help='A YAML configuration file that can specify all the arguments')
 parser.add_argument('-ow',
                          '--overwrite',
                          action='store_true',
@@ -120,7 +120,7 @@ run_info.add_argument('-r',
                          metavar='\b',
                          type=int,
                          default=1,
-                         help='Run number. Output will be written to {--workdir}/run{--run_num}/')
+                         help='Run number. Output will be written to {--workdir}/run{--run_num}')
 
 # ================ DNA aptamer and ligand info ================
 run_info.add_argument('-m',
@@ -184,7 +184,7 @@ run_info.add_argument('--skip_MMB',
                          metavar='\b',
                          type=str,
                          default='No',
-                         help="'Yes': skip both 2D structure analysis and MMB folding, and start with a known --init_structure",
+                         help="If `Yes`: skip both 2D structure analysis and MMB folding, and start with a known --init_structure",
                          choices=['Yes','No'])
 run_info.add_argument('-init',
                          '--init_structure',
@@ -207,13 +207,13 @@ run_info.add_argument('--Mg_conc',
                          metavar='\b',
                          type=float,
                          default=0.0,
-                         help='Magnesium molar concentration used in NUPACK: [0, 0.2], default = 0.0')
+                         help='Magnesium molar concentration used in NUPACK: [0, 0.2]')
 
 run_info.add_argument('--fold_fidelity',
                          metavar='\b',
                          type=float,
                          default=0.9,
-                         help="Refold in MMB if score < fidelity (default = 0.9) unless the fold speed is 'quick'")
+                         help="Refold in MMB if score < `fold_fidelity` unless the `fold_speed` is `quick`")
 run_info.add_argument('--fold_speed',
                          metavar='\b',
                          type=str,
@@ -250,81 +250,81 @@ run_info.add_argument('-pk',
                          metavar='\b',
                          type=str,
                          default='No',
-                         help='Whether the run is to resume MD sampling of an unfinished run or an old run.',
+                         help='Whether the run is to resume MD sampling of an unfinished run or an old run',
                          choices=['Yes', 'No'])
 run_info.add_argument('--pickup_from_freeAptamerChk',
                          metavar='\b',
                          type=str,
                          default='No',
-                         help='Resume MD sampling of free aptamer: skip everything before',
+                         help='Resume MD sampling of free aptamer: skip everything before it',
                          choices=['Yes','No'])
 run_info.add_argument('--pickup_from_complexChk',
                          metavar='\b',
                          type=str,
                          default='No',
-                         help='Resume MD sampling of aptamer-ligand: skip everything before',
+                         help='Resume MD sampling of aptamer-ligand: skip everything before it',
                          choices=['Yes','No'])
 run_info.add_argument('--chk_file',
                          metavar='\b',
                          type=str,
                          default=None,
-                         help='Name of checkpoint file for resuming MD sampling (path/filename.chk)')
+                         help='Name of checkpoint file for resuming MD sampling, format: <path>/<filename>.chk')
 run_info.add_argument('--pickup_pdb',
                          metavar='\b',
                          type=str,
                          default=None,
-                         help='PDB file (topology+coordinates) for resuming MD sampling in explicit solvent (path/filename.pdb')
+                         help='PDB file (topology+coordinates) for resuming MD sampling in explicit solvent, format: <path>/<filename>.pdb')
 
 # # Environmental parameters
 run_info.add_argument('--pressure',
                          metavar='\b',
                          type=float,
                          default=1.0,
-                         help='Pressure in the unit of atm: default = 1.0')
+                         help='Pressure in the unit of atm')
 run_info.add_argument('--temperature',
                          metavar='\b',
                          type=float,
                          default=298.0,
-                         help='Temperature in Kelvin: default = 298.0')
+                         help='Temperature in Kelvin')
 run_info.add_argument('--ionicStrength',
                          metavar='\b',
                          type=float,
                          default=0.1,
-                         help='Sodium molar concentration (could be used by NUPACK and OpenMM): default = 0.1') # could be used in implicit solvent as well
+                         help='Sodium molar concentration (could be used by NUPACK and OpenMM)') # could be used in implicit solvent as well
 run_info.add_argument('--pH',
                          metavar='\b',
                          type=float,
                          default=7.4,
-                         help='Could be used by OpenMM: Default = 7.4')
+                         help='Could be used by OpenMM')
 
 # # MD sampling: time and Langevin integrator
 run_info.add_argument('--auto_sampling',
                          metavar='\b',
                          type=str,
                          default='No',
-                         help="'Yes': run MD sampling till convergence, currently only feasible in free aptamer sampling",
+                         help="If `Yes`: run MD sampling till convergence, currently only feasible in free aptamer sampling",
                          choices=['Yes','No'])
 run_info.add_argument('--autoMD_convergence_cutoff',
                          metavar='\b',
                          type=float,
                          default=1.0e-2,
-                         help='Convergence cutoff in {--auto_sampling}: default = 1.0e-2')
+                         help='Convergence cutoff if doing auto_sampling')
 run_info.add_argument('--max_aptamer_sampling_iter',
                          metavar='\b',
                          type=int,
                          default=20,
-                         help='Max number of iterations for free aptamer MD sampling if --auto_sampling')
+                         help='Max number of iterations for free aptamer MD sampling if doing auto_sampling')
 run_info.add_argument('--max_walltime',
                          metavar='\b',
                          type=float,
                          default=24.0,
-                         help='Walltime in hours to check runtime: default = 24.0')
+                         help='Walltime in hours to check runtime')
 
 run_info.add_argument('--skip_smoothing',
                          metavar='\b',
                          type=str,
                          default='Yes',
-                         help="Default is 'Yes': no short MD relaxation before MD sampling",
+                         help=" If `Yes`: no short MD relaxation before MD sampling",
                          choices=['Yes','No'])
 run_info.add_argument('--equilibration_time',
                          metavar='\b',
@@ -350,12 +350,12 @@ run_info.add_argument('--time_step',
                          metavar='\b',
                          type=float,
                          default=2.0,
-                         help='time step in femtoseconds in MD sampling: default = 2.0')
+                         help='time step in femtoseconds in MD sampling')
 run_info.add_argument('--print_step',
                          metavar='\b',
                          type=float,
                          default=10.0,
-                         help='Printout step in picoseconds in MD sampling: default = 10.0')
+                         help='Printout step in picoseconds in MD sampling')
 
 # # Create simulation system
 run_info.add_argument('--force_field',
@@ -369,7 +369,7 @@ run_info.add_argument('--hydrogen_mass',
                          metavar='\b',
                          type=float,
                          default=1.5,
-                         help='Default = 1.5 and unit is amu')
+                         help='Unit is amu')
 
 # # Default is to run simulation in explicit solvent
 run_info.add_argument('--water_model',
@@ -381,23 +381,23 @@ run_info.add_argument('--box_offset',
                          metavar='\b',
                          type=float,
                          default=1.0,
-                         help='Buffering offset in nanometers on explicit solvent box (if used): default = 1.0')
+                         help='Buffering offset in nanometers on solvent box, if using explicit solvent')
 run_info.add_argument('--constraints',
                          metavar='\b',
                          type=str,
                          default='None',
-                         help="Specify which bond angles and/or lengths should be implemented with constraints: default = 'None'",
+                         help="Specify which bond angles and/or lengths should be implemented with constraints",
                          choices=['None','HBonds','AllBonds','HAngles'])
 run_info.add_argument('--constraint_tolerance',
                          metavar='\b',
                          type=float,
                          default=1.0e-6,
-                         help='Distance tolerance for constraint in OpenMM integrator: default = 1.0e-6')
+                         help='Distance tolerance for constraint in OpenMM integrator')
 run_info.add_argument('--rigid_water',
                          metavar='\b',
                          type=str,
                          default='Yes',
-                         help='Whether to make water molecules completely rigid (bond lengths and angles)',
+                         help='Whether to make water molecules completely rigid at bond lengths and angles',
                          choices=['Yes','No'])
 run_info.add_argument('--nonbonded_method',
                          metavar='\b',
@@ -410,46 +410,46 @@ run_info.add_argument('--nonbonded_cutoff',
                          metavar='\b',
                          type=float,
                          default=1.0,
-                         help='The cutoff distance in nanometers to use for nonbonded interactions: default = 1.0')
+                         help='The cutoff distance in nanometers to use for nonbonded interactions')
 run_info.add_argument('--ewald_error_tolerance',
                          metavar='\b',
                          type=float,
                          default=5.0e-4,
-                         help="Error tolerance if --nonbonded_method is Ewald, PME, or LJPME: default = 5.0e-4")
+                         help="Error tolerance if `nonbonded_method` is `Ewald`, `PME`, or `LJPME`")
 run_info.add_argument('--friction',
                          metavar='\b',
                          type=float,
                          default=1.0,
-                         help='Friction coefficient in unit of 1/ps, used in Langevin integrator: default = 1.0')
+                         help='Friction coefficient in unit of 1/ps, used in Langevin integrator')
 
 # # Option: using implicit solvent
 run_info.add_argument('--implicit_solvent',
                          metavar='\b',
                          type=str,
                          default='No',
-                         help='Whether to use Amber implicit solvent',
+                         help='Whether to use an Amber GB implicit solvent model',
                          choices=['Yes','No'])
 run_info.add_argument('--implicit_solvent_model',
                          metavar='\b',
                          type=str,
                          default=None,
-                         help="Specify Amber GB implicit solvent model if needed",
+                         help="Specify an Amber GB implicit solvent model if needed",
                          choices=['HCT','OBC1','OBC2','GBn','GBn2'])
 run_info.add_argument('--soluteDielectric',
                          metavar='\b',
                          type=float,
                          default=1.0,
-                         help='The solute dielectric constant to use in the implicit solvent model: default = 1.0')
+                         help='The solute dielectric constant to use in the implicit solvent model')
 run_info.add_argument('--solventDielectric',
                          metavar='\b',
                          type=float,
                          default=78.5,
-                         help='The solvent dielectric constant to use in the implicit solvent model: default = 78.5')
+                         help='The solvent dielectric constant to use in the implicit solvent model')
 run_info.add_argument('--implicit_solvent_Kappa',
                          metavar='\b',
                          type=float,
                          default=None,
-                         help='Debye screening parameter. Default is None; If specified by user, OpenMM will ignore {--ionicStrength} in implicit solvent.')
+                         help='Debye screening parameter; If specified by user, OpenMM will ignore {--ionicStrength} in implicit solvent.')
 run_info.add_argument('--leap_template',
                          metavar='\b',
                          type=str,
@@ -467,7 +467,7 @@ run_info.add_argument('--DNA_force_field',
 run_info.add_argument('--docking_steps',
                          metavar='\b',
                          type=int,
-                         default=200,
+                         default=10,
                          help='Number of steps for docking simulations')
 run_info.add_argument('--N_docked_structures',
                          metavar='\b',
