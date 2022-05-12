@@ -23,8 +23,8 @@
 ## 1. Installation
 1. Download the E2EDNA 2.0 package from this repository.
 2. Locate `macos_installation.sh` in the downloaded E2EDNA2 codebase directory. Then at the codebase directory, run `$ source macos_installation.sh` in command line to create a conda virtual environment named `e2edna` and install required dependences. The `e2edna` environment should be activated when the installation script finishes, which means a string '(e2edna)' should show up at the beginning of the command line prompt.
-   * If the script fails to activate the environment automatically, this is likely because `$ conda activate e2edna` command gives an error such as `Your shell has not been properly configured to use 'conda activate'`. 
-   * If so, manully run `$ source activate <path_to_e2edna_conda_environment>` to activate the environment. To help find the path, run `$ conda info -e` to list all conda environments and their paths on your computer.
+   * If the script fails to activate the environment automatically, this is likely because `$ conda activate e2edna` command in the script gives an error such as `Your shell has not been properly configured to use 'conda activate'`. 
+   * If so, manually run `$ source activate <path_to_e2edna_conda_environment>` to activate the environment. To help find the path, run `$ conda info -e` to list all conda environments and their paths on your computer.
 3. As the message indicates at the end of installation process, if you wish to execute E2EDNA pipeline with a DNA aptamer sequence rather than its 3D structure, please register and download NUPACK and MMB from http://www.nupack.org/downloads and https://simtk.org/projects/rnatoolbox, respectively. Then:
    * To install NUPACK under the activated `e2edna` environment, run `$ python -m pip install -U nupack -f <path_to_downloaded_NUAPCK_installation_wheel>`
    * For MMB, copy or move the downloaded MMB folder to the codebase directory and remember to fill `MMB-related paths` section in the configuration file `simu_config.yaml`
@@ -184,7 +184,7 @@ Below list the part of parameters in [Usage](#2-usage) which call for particular
   * `-mb/--mmb`: path to MMB executable. Both absolute and relative (to the codebase directory) paths are accepted.
   <!-- Wild cards can be used to describe location. -->
 
-* Run parameters    
+* Run Parameters    
   * `-m/--mode`: mode of operation; Must be one of the modes described in [Functionality](#4-functionality-of-eight-different-operation-modes), ie, `'2d structure'`, `'3d coarse'`, `'3d smooth'`, `'coarse dock'`, `'smooth dock'`, `'free aptamer'`, `'full dock'`, `'full binding'`
   * `-a/--aptamerSeq`: DNA aptamer sequence (5'->3'). A string made of case sensitive letters from {A, G, C, T} only.
   <!-- or the name of a readable text file containing the sequence. -->
