@@ -18,36 +18,85 @@ This installation path has been tested on macOS and it relies on conda and pip p
    * To fix this issue, please, first remove the installed environment by ``conda remove --name e2edna --all`` in command line, then either replace the conda activation command in the script with `source activate /path-to-envs/e2edna`, e.g., `source activate ~/miniconda3/envs/e2edna` and run the script again
    * OR run the commands one by one interactively in your terminal. 
 5. Register and download MMB from https://simtk.org/projects/rnatoolbox. Place the "Installer.*version.OS*" folder, such as "Installer.3_0.OSX" into the E2EDNA2 directory. N.B.: Do not specify `DYLD_LIBRARY_PATH` for macOS against the recommendations of the MMB installation guide. This is to avoid interference with the OpenMM module.
-6. Update 3 paths in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py):
+
+## 2. Usage
+
+The usage and help statements can be accessed with the `-h/--help` flags:
+
 ```
-params['workdir'] = '/path-to-E2EDNA2-main/localruns'                                # directory manually created to store all future jobs
-params['mmb dir'] = '/path-to-E2EDNA2-main/Installer.version.OS/lib'                 # path to MMB dylib files
-params['mmb']     = '/path-to-E2EDNA2-main/Installer.version.OS/bin/MMB-executable'  # path to MMB executable
+$ ./main.py --help
+usage: main_argparse.py [-h] [-f] -r INT -m MODE -a SEQ -l PDB [-t TYPE] [-s SEQ] [-pk PICKUP] [-d RUN] [-os OS] [-p DEV] [-w DIR] [-md DIR] [-mb MMB]
+
+E2EDNA: Simulate DNA aptamers complexed with target ligands
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -f, --force           Overwrite existing --run_num (default: False)
+
+Run Parameters:
+  -r INT, --run_num INT
+                        Run number. Output will be written to {--workdir}/run{--run_num}/ (default: None)
+  -m MODE, --mode MODE  Run mode (default: None)
+  -a SEQ, --aptamerSeq SEQ
+                        DNA Aptamer sequence (5'-3') (default: None)
+  -l PDB, --ligand PDB  Filename of target ligand (default: False)
+  -t TYPE, --ligand_type TYPE
+                        Target ligand molecule type (default: )
+  -s SEQ, --ligand_seq SEQ
+                        Target ligand sequence if peptide, DNA, or RNA (default: )
+  -pk PICKUP, --pick_up PICKUP
+                        If the run is to resume an unfinished run or elongate another run. (default: No)
+
+System Configuration:
+  -d RUN, --device RUN  Device configuration (default: local)
+  -os OS, --operating_system OS
+                        Operating system (default: macos)
+  -p DEV, --platform DEV
+                        Processing platform (default: CPU)
+
+Directory Settings:
+  -w DIR, --workdir DIR
+                        Output directory to store runs (default: ./localruns)
+  -md DIR, --mmb_dir DIR
+                        MMB library directory (default: Installer*/lib)
+  -mb MMB, --mmb MMB    Path to MMB executable (default: Installer*/bin/MMB*)
 ```
-## 2. Running a job
-### Quickstart
-* Set 3 paths in `params`, as indicated in step6 of [Installation](https://github.com/siminegroup/E2EDNA2#1-installation) section. Leave the other keys of `params` unchanged.
-* Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test run all 8 modes automatically. Check out [Test runs](https://github.com/siminegroup/E2EDNA2#4-test-runs-inputs-and-outcomes) section for details. 
-* All 8 modes take about 15 minutes to run on a macbook pro laptop and the outputs are saved in the work directory. We chose very simple systems for the the test-run and where ever docking is performed the docking configuration may or may not be found due to the limitations of the chosen system. Please note that a failure to find a docked configuration is not a failure of E2EDNA. 
-* Alternatively, a single run can be carried out by run_num, mode, aptamer sequence, and ligand's structural file. For example,
+
+## 3. Running a job
+### Using the test script
+* Run the bash script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) to test run all 8 modes automatically. Check out [Test runs](https://github.com/siminegroup/E2EDNA2#5-test-runs-inputs-and-outcomes) section for details. 
+* All 8 modes take about 15 minutes to run on a macbook pro laptop and the outputs are saved in the work directory. We chose very simple systems for the the test-run and where ever docking is performed the docking configuration may or may not be found due to the limitations of the chosen system. Please note that a failure to find a docked configuration is not a failure of E2EDNA.
+
+### Running on your own data
+* Alternatively, a single run can be carried out by specifying the following parameters: run_num, mode, aptamer sequence, and ligand's structural file. For example,
 ```
-python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
-python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --ligand='YQTQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
-    
-# --ligand='False'        # if no ligand. --ligandType and --ligandSeq will be ignored.
-# --ligandType='peptide'  # or 'DNA' or 'RNA' or 'other'. Assuming 'other' ligand can be described by Amber14 force field.
-# --ligandSeq=''          # if no sequence. For instance, when ligandType is 'other'
+# Modeling a free aptamer with no ligand
+./main.py --run_num 1 --mode 'free aptamer' --aptamer TAATGTTAATTG --ligand False
+
+# Model full docking of ligand + aptamer
+./main.py --run_num 2 --mode 'full dock' --aptamer TAATGTTAATTG --ligand YQTQ.pdb --ligand_type peptide --ligand_seq YQTQTNSPRRAR
 ```
 ### Customizing parameters
-* parameters passed as command line inputs:
-  * `--run_num`: is used to name the folder for each job.
-  * `--aptamerSeq`: DNA aptamer sequence (5'->3').
-  * `--ligand`: PDB filename of target ligand; If no ligand, `--ligand='False'` and the following two inputs can be empty strings.
-  * `--ligandType`: 'peptide' or 'DNA' or 'RNA' or 'other', assuming 'other' ligand can be described by force field used in MD simulation (default: Amber14).
-  * `--ligandSeq`: target ligand's sequence (5'->3') if target ligand is a peptide or DNA or RNA. If `--ligandType='other'`, this input is empty string.
-* A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py) to allow for flexible control of the simulation conditions, including device platform (CPU or CUDA), solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
 
-## 3. Functionality: Eight different modes of operation
+Parameters passed as command line inputs:
+* Run parameters
+  * `-r/--run_num`: is used to name the folder for each job.
+  * `-m/--mode`: mode of operation; one of the modes described in [Functionality](https://github.com/siminegroup/E2EDNA2#4-functionality_eight_different_modes_of_operation) -- '2d structure', '3d coarse', '3d smooth', 'coarse dock', 'smooth dock', 'free aptamer', 'full dock', 'full binding'
+  * `-a/--aptamerSeq`: DNA aptamer sequence (5'->3'). Can be a string or the name of a readable text file containing the sequence.
+  * `-l/--ligand`: PDB filename of target ligand; If no ligand, `--ligand False` and the following two inputs (`--ligand_type` and `--ligand_seq`) can be left off.
+  * `-t/--ligand_type`: 'peptide', 'DNA', 'RNA', or 'other', assuming 'other' ligand can be described by force field used in MD simulation (default: Amber14).
+  * `-s/--ligand_seq`: target ligand's sequence (5'->3') if target ligand is a peptide or DNA or RNA. Can be a string or the name of a readable text file containing the sequence. If `--ligand_type other`, do not use this flag.
+* System Configuration
+  * `-d/--device`: running device; either 'local' or 'cluster'
+  * `-p/--platform`: processing platform; either 'CPU' or 'CUDA'
+* Directory Settings
+  * `-w/--workdir`: ouput directory to write results for each run
+  * `-md/--mmb_dir`: MMB library directory. Wildcards can be used to describe location, for instance the default is "Installer-*/lib" which will match both "Installer-3.0-Ubuntu18.04/lib" and "Installer.3_0.OSX/lib". Both absolute and relative paths are accepted.
+  * `-mb/--mmb`: path to MMB executable. Wild cards can be used to describe location. Both absolute and relative paths are accepted.
+
+* A handful of parameters can be adjusted in [main.py](https://github.com/siminegroup/E2EDNA2/blob/main/main.py) to allow for flexible control of the simulation conditions, including solvent ionic strength, temperature, pH, implicit solvent, simulation force field, etc.
+
+## 4. Functionality: Eight different modes of operation
 E2EDNA 2.0 takes in a DNA aptamer sequence (5' to 3'), and optionally a short peptide or other small molecule, and returns details of the aptamer structure and binding behaviour.
 This code implements several distinct operation modes so users may customize the level of computational cost and accuracy.
 
@@ -60,11 +109,11 @@ This code implements several distinct operation modes so users may customize the
 * `full dock` &rarr; Return best docking configurations and scores from a LightDock run using the fully-equilibrated aptamer structure 'free aptamer'. Similar cost (LightDock is relatively cheap)
 * `full binding` &rarr; Same steps as 'full dock', with follow-up extended MD simulation of the best binding configuration. Slowest, O(hours).
 
-## 4. Test runs: inputs and outcomes
+## 5. Test runs: inputs and outcomes
 Running this script [automate_tests.sh](https://github.com/siminegroup/E2EDNA2/blob/main/automate_tests.sh) will automatically run light tests of all 8 modes.
 Here we explain what outputs to look for and what success looks like for each mode.
 
-1. `--mode='2d structure'`
+1. `--mode '2d structure'`
 
 * **Key inputs**: DNA aptamer sequence
 
@@ -72,7 +121,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Success evaluation**: observe the dot-bracket notion for secondary structure, such as .(((....))).
 
-2. `--mode='3d coarse'`
+2. `--mode '3d coarse'`
 
 * **Key inputs**: DNA aptamer sequence
 
@@ -81,7 +130,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 * **Success evaluation**: visualize MMB-folded aptamer structure in software like VMD or PyMOL 
 
 
-3. `--mode='3d smooth'`
+3. `--mode '3d smooth'`
 
 * **Key inputs**: DNA aptamer sequence
 
@@ -89,7 +138,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Success evaluation**: simulation logfile, MDlog_freeAptamerSmoothing.txt, indicates 100% completion; visualize the relaxation trajectory and relaxed structure in software like VMD or PyMOL 
 
-4. `--mode='coarse dock'`
+4. `--mode 'coarse dock'`
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 
@@ -97,7 +146,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
-5. `--mode='smooth dock'`
+5. `--mode 'smooth dock'`
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 
@@ -106,7 +155,7 @@ Here we explain what outputs to look for and what success looks like for each mo
 * **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
 
-6. `--mode='free aptamer'`
+6. `--mode 'free aptamer'`
 
 * **Key inputs**: DNA aptamer sequence
 
@@ -114,13 +163,13 @@ Here we explain what outputs to look for and what success looks like for each mo
 
 * **Success evaluation**: simulation logfile, MDlog_freeAptamerSampling.txt, indicates 100% completion; visualize the sampling trajectory and representative structure of free aptamer in software like VMD or PyMOL 
 
-7. `--mode='full dock'`
+7. `--mode 'full dock'`
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 * **Outputs**: predicted secondary structure in record.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened)
 * **Success evaluation**: visualize the docked structure, if docking happened, in software like VMD or PyMOL 
 
-8. `--mode='full binding'`
+8. `--mode 'full binding'`
 
 * **Key inputs**: DNA aptamer sequence; PDB filename of target ligand
 
