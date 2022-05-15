@@ -1,5 +1,5 @@
 """
-Utitilies -- how to intuitively distinguish it from analysisTools.py?
+Utitilies
 """
 from openmm.app import *
 import openmm.unit as unit
@@ -14,39 +14,11 @@ import Bio.PDB  # biopython
 # import mdtraj as md  # mdtraj calls "simtk.openmm", hence "Warning: importing 'simtk.openmm' is deprecated.  Import 'openmm' instead."
 import MDAnalysis as mda
 
-from pdbfixersource import PDBFixer  # related to openmm. prepare PDB files for molecular simulations. https://openmm.org/ecosystem
+from pdbfixer import PDBFixer # pdbfixer package has been installed by conda
 from collections import Counter
 
 from PeptideBuilder import Geometry  # pip install PeptideBuilder
 import PeptideBuilder
-
-
-# I/O
-def get_input():
-    """
-    get the command line in put for the run num. defaulting to a new run (0)
-    :return:
-    """
-    # Two examples of commands:
-    # python main.py --run_num=1 --mode='free aptamer' --aptamerSeq='TAATGTTAATTG' --ligand='False' --ligandType='' --ligandSeq=''
-    # python main.py --run_num=2 --mode='full dock' --aptamerSeq='TAATGTTAATTG' --ligand='YQTQ.pdb' --ligandType='peptide' --ligandSeq='YQTQTNSPRRAR'
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--run_num', type=int, default=0)
-    parser.add_argument('--mode', type=str, default='simulation_mode')
-    parser.add_argument('--aptamerSeq', type=str, default='NOSEQUENCE')
-    parser.add_argument('--ligand', type=str, default='False')
-    parser.add_argument('--ligandType', type=str, default='')
-    parser.add_argument('--ligandSeq', type=str, default='')
-    
-    cmd_line_input = parser.parse_args()
-    run_num = cmd_line_input.run_num
-    mode = cmd_line_input.mode
-    aptamerSeq = cmd_line_input.aptamerSeq
-    ligand = cmd_line_input.ligand
-    ligandType = cmd_line_input.ligandType
-    ligandSeq = cmd_line_input.ligandSeq
-    
-    return [run_num, mode, aptamerSeq, ligand, ligandType, ligandSeq]
 
 
 # def recenterDCD(topology, trajectory):
@@ -80,11 +52,11 @@ def printRecord(statement, filepath=""):
     :return:
     """
     print(statement)
-    if os.path.exists(filepath + 'record.txt'):
-        with open(filepath + 'record.txt', 'a') as file:
+    if os.path.exists(filepath + 'run_output_log.txt'):
+        with open(filepath + 'run_output_log.txt', 'a') as file:
             file.write('\n' + statement)
     else:
-        with open(filepath + 'record.txt', 'w') as file:
+        with open(filepath + 'run_output_log.txt', 'w') as file:
             file.write('\n' + statement)
 
 
@@ -208,11 +180,21 @@ def cleanTrajectory(structure, trajectory):
     :param trajectory:
     :return:
     """
+    structureName  = os.path.basename(structure)
+    trajectoryName = os.path.basename(trajectory)
+    structureDir  = os.path.dirname(structure)
+    trajectoryDir = os.path.dirname(trajectory)
+    
+    # cleaned files are in the same directory as the uncleaned ones.
+    clean_structure  = os.path.join(structureDir, 'clean_'+structureName)
+    clean_trajectory = os.path.join(trajectoryDir, 'clean_'+trajectoryName)
+
     u = mda.Universe(structure, trajectory)
     # TODO: if u.segments.n_segments > 2:  # if > 2 segments, then there must be solvent and salts (assuming nonzero salt concentration)
     goodStuff = u.segments[:-2].atoms  # cut out salts and solvents
-    goodStuff.write("clean_" + structure)  # write topology
-    with mda.Writer("clean_" + trajectory, goodStuff.n_atoms) as W:
+
+    goodStuff.write(clean_structure)  # write topology
+    with mda.Writer(clean_trajectory, goodStuff.n_atoms) as W:
         for ts in u.trajectory:  # indexing over the trajectory
             W.write(goodStuff)
 
@@ -246,67 +228,6 @@ def extractFrame(structure, trajectory, frame, outFileName):
         printRecord('MDAnalysis: save the last frame into: {}'.format(outFileName))
 
 
-def findAngles():
-    """
-    Reads the angles required to constrain the dihedrals of the peptide backbone from the backbone_dihedrals.csv file.
-    For more info, see README_CONSTRAINTS.md
-    :param:
-    :return angles_to_constrain, a list that contains the numerical values for angles to constrain:
-    """
-    angles_to_constrain = []
-    resdict = {"ALA": "A", "CYS": "C", "ASP": "D", "GLU": "E", "PHE": "F",
-               "GLY": "G", "HIS": "H", "ILE": "I", "LYS": "K", "LEU": "L",
-               "MET": "M", "ASN": "N", "PRO": "P", "GLN": "Q", "ARG": "R",
-               "SER": "S", "THR": "T", "VAL": "V", "TRP": "W", "TYR": "Y"}
-    resdict_inv = {one_let: three_let for three_let, one_let in
-                   resdict.items()}  # 3-letter a.a. code easier to work with for OpenMM
-
-    with open("backbone_dihedrals.csv") as csv_file:
-        printRecord("Reading CSV file...")
-        read_csv = csv.reader(csv_file, delimiter=",")
-        residue_nums = []
-        rows = []
-        row_lengths = set()
-
-        for row in read_csv:
-            rows.append(row)
-            residue_nums.append(row[0])
-            row_lengths.add(len(row))
-
-        #         if len(rows) == 1 and params['peptide backbone constraint constant'] != 0:
-        #             printRecord("ERROR: Backbone angles file does not have any values, but the constraint constant in main.py is not zero. Exiting run.")
-        #             exit()
-
-        if len(row_lengths) != 1:  # won't work if there is 1 more faulty input for line 1, and 4 inputs for line 2
-            rows_unequal = []
-
-            for i in range(len(rows)):
-                if len(rows[i]) != 4:
-                    rows_unequal.append(i + 1)
-
-            printRecord("ERROR: Incorrect number of inputs for rows:")
-
-            for unequal_row in rows_unequal:
-                printRecord(unequal_row)
-
-            printRecord("Exiting run.")
-            exit()
-
-        elif mode(residue_nums) != residue_nums:
-            printRecord("ERROR: More than one input row for a residue_num in backbone_dihedrals.csv; exiting run.")
-            exit()
-
-        else:  # everything should be correct here
-            printRecord("Finding angles to constrain...")
-            angles_to_constrain = []
-
-            for i in range(len(rows)):
-                if i > 0:
-                    angles_to_constrain.append(rows[i])
-
-            return angles_to_constrain
-
-
 def mode(lst):
     """
     Returns the statistical mode(s) of a given list, only used for checking backbone_dihedrals
@@ -317,57 +238,6 @@ def mode(lst):
     c = Counter(lst)
     mode_list = [k for k, v in c.items() if v == c.most_common(1)[0][1]]
     return mode_list
-
-
-def buildPeptide(peptideSeq, peptidePDB, customAngles=False):
-    """
-    Construct a peptide with optionally custom angles and constraints
-    :param peptide:
-    :param customAngles:
-    :return:
-    """
-    print('custom angles=', customAngles)
-    geo = Geometry.geometry(peptideSeq[0])
-    # angles_to_constrain = findAngles()  # all values in the list are strings
-    # printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
-
-    if customAngles:
-        printRecord("CustomAngles on\n")
-        angles_to_constrain = findAngles()  # all values in the list are strings
-        printRecord("Found angles_to_constrain successfully, beginning to constrain...\n")
-        phis = {row[0]: float(row[1]) for row in angles_to_constrain}
-        psis = {row[0]: float(row[2]) for row in angles_to_constrain}
-
-        for row in angles_to_constrain:
-            if int(row[0]) == 0:
-                printRecord('phi[0] and psi[0]:', phis[row[0]], psis[row[0]], "\n")  # only used for debugging
-                geo.phi, geo.psi = phis[row[0]], psis[row[0]]
-
-    structure = PeptideBuilder.initialize_res(peptideSeq[0])
-
-    for i in range(1, len(peptideSeq)):
-        geo = Geometry.geometry(peptideSeq[i])
-
-        if customAngles:
-            for row in angles_to_constrain:
-                if int(row[0]) == i:
-                    printRecord(f'phi[{i}] and psi[{i}]: {phis[str(i)]}, {psis[str(i)]}\n')  # only used for debugging
-                    geo.phi, geo.psi = phis[str(i)], psis[str(i)]
-
-        printRecord("Adding Residue...\n")
-        PeptideBuilder.add_residue(structure, geo)
-
-    if customAngles:
-        constrain_str = " with custom angles & constraints"
-    else:
-        constrain_str = ""
-    printRecord("Successfully built peptide" + constrain_str + "\n")
-
-#     PeptideBuilder.add_terminal_OXT(structure) # OpenMM will not run without this, but LightDock will not run with it. Solution, add terminal oxygen in prepPDB after docking
-
-    out = Bio.PDB.PDBIO()
-    out.set_structure(structure)
-    out.save(peptidePDB)
 
 
 def killH(structure):
@@ -477,95 +347,3 @@ def appendLine(file, string):
     f = open(file, 'w')
     f.write(text)
     f.close()
-
-
-# # Doesn't seem to be used?
-# def writeCheckpoint(text):
-#     """
-#     write some output to the checkpoint file
-#     :return:
-#     """
-#     f = open('checkpoint.txt', 'a')
-#     f.write('\n' + text)
-#     f.close()
-#
-# def combinePDB(file1, file2):
-#     """
-#     combine 2 pdb files into one
-#     some special formatting for MDA outputs in particular
-#     :param file1:
-#     :param file2:
-#     :return:
-#     """
-#     filenames = [file1, file2]
-#     for file in filenames:  # remove title, periodic box, endpoints
-#         removeLine(file, 'CRYST1')
-#         removeLine(file, 'TITLE')
-#         removeLine(file, 'END')
-#         if 'repStructure' in file:
-#             appendLine(file, 'TER')
-#
-#     with open('combined.pdb', 'w') as outfile:
-#         for fname in filenames:
-#             with open(fname) as infile:
-#                 for line in infile:
-#                     outfile.write(line)
-#
-#
-# def fullPipelineTrajectory(ind1,ind2):
-#     '''
-#     combine folding, smoothing, sampling, docking and binding trajectories into one nice video
-#     '''
-#
-#     # this needs to be updated with the new file formatting system
-#     trajectories = []
-#     # fold
-#     dir = './mmbFiles_%d'%ind1
-#     copyfile(dir + '/last.1.pdb','foldFrame1.pdb')
-#     dirList = os.listdir(dir)
-#
-#     filenames = []
-#     for file in dirList:
-#         if 'trajectory' in file:
-#             filenames.append(dir + '/' +file)
-#
-#     with open('foldingTraj_%d'%ind1 + '.pdb', 'w') as outfile:
-#         for fname in filenames:
-#             with open(fname) as infile:
-#                 for line in infile:
-#                     outfile.write(line)
-#
-#     replaceText('foldingTraj_%d'%ind1 + '.pdb', '*', "'")  # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
-#
-#     u = mda.Universe('foldingTraj_%d'%ind1 + '.pdb')
-#     with mda.Writer('foldingTraj_%d'%ind1 +'.dcd', u.atoms.n_atoms) as W:
-#         for ts in u.trajectory:
-#             W.write(u)
-#
-#     trajectories.append('foldingTraj_%d'%ind1 + '.dcd')
-#
-#     # initial relaxation
-#     trajectories.append('smoothed_sequence_%d'%ind1 + '.dcd')
-#
-#     # free aptamer
-#     trajectories.append('clean_finished_sequence_%d'%ind1 + '.dcd')
-#
-#     u = mda.Universe('foldFrame1.pdb', trajectories)
-#
-#     with mda.Writer('fullPipeTraj.dcd', u.atoms.n_atoms) as W:
-#         for ts in u.trajectory:
-#             W.write(u)
-#
-#
-#     # docking
-#
-#     # binding
-#     trajectories.append('clean_finished_complex_%d'%ind1 + '_%d'%ind2 + '.dcd')
-#
-#
-# def copyLine(file, line_number):
-#     # copy a line of text from a file and return it
-#     f = open(file, 'r')
-#     text = f.read()
-#     f.close()
-#     return text.split('\n')[line_number - 1]  # copy a line from the file, indexing from 1

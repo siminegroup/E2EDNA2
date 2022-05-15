@@ -1,0 +1,165 @@
+# Note: In addition to 'Yes' or 'No', all the other non-numerical values are treated as strings by YAML, quotes('') are placed somewhere to be sure.
+
+# Compute platform info: device, OS, procssing platform, CUDA_precision
+device          : local # local or cluster
+operating_system: macos # macos or linux or WSL. Not supporting pure Windows OS (due to NUPACK)
+platform        : CPU   # CPU or CUDA
+CUDA_precision:         # single or double. only meaningful if CUDA
+
+# Work directory and automate output directory "run{--run_num}". If no exist, will be automatically created
+workdir: './localruns'
+
+# MMB-related paths: if not using MMB, just leave the value parts blank
+mmb_dir: <path to MMB lib>              # path to MMB dylib, something like "./Installer*/lib"
+mmb    : <path to MMB executable>       # path to the MMB executable, something like "./Installer*/bin/MMB*"
+
+# Control
+quick_check_mode: 'No' # 'Yes' or 'No'. Yes': To run a certain mode for quick check. Will overwrite "Pipeline modules" settings with simplistic default values at the end of main.py
+
+# The arguments commented out next are specified in command line for the automated tests.
+# # Output directory: {workdir}/run{run_num}
+# run_num: 1 
+# 
+# # Pipeline mode:
+# mode:
+# # '2d structure': NUPACK
+# # '3d coarse': NUPACK + MMB
+# # '3d smooth': NUPACK + MMB + short MD relaxation (smoothing)
+# # 'coarse dock': NUPACK + MMB + docking
+# # 'smooth dock': NUPACK + MMB + short MD relaxation + docking
+# # 'free aptamer': NUPACK + MMB + MD sampling
+# # 'full dock': NUPACK + MMB + MD sampling + docking
+# # 'full binding': NUPACK + MMB + MD sampling + docking + MD sampling
+#
+# # Information on DNA aptamer and target ligand if applicable
+# # 5'->3' DNA sequence
+# aptamer_seq:
+# ligand:
+# ligand_type:
+# ligand_seq:
+# # `ligand`     : pdb file name
+# # `ligand_type`: peptide, DNA, RNA, or other
+# # `ligand_seq` : ligand sequence if peptide, DNA, or RNA
+# # If not applicable for any of those 3 args (eg, no ligand), leave as blank => will become Python None
+# # mode, aptamer_seq and ligand: expect them to be specified in cmd line because they are likely to be more frequently changed
+
+# Example provided in examples/:
+example_target_pdb: 'examples/example_peptide_ligand.pdb'  # an example of ligand: a peptide, used to test docking.
+example_peptide_seq: 'YQTQTNSPRRAR'
+
+
+
+# =========================== Pipeline modules: NUPACK and MMB ===========================
+skip_MMB: 'No'      # 'Yes' or 'No'. 'Yes': skip both NUPACK and MMB, directly proceed to MD sampling or dock (in "coarse dock")
+                    # If MMB is not run because we are about to resume MD sampling, keep skip_MMB as 'No' 
+# NUPACK
+secondary_structure_engine: NUPACK
+N_2D_structures: 1 # Number of predicted secondary structures
+Mg_conc: 0.005      # Magnesium concentration used in NUPACK. [0, 0.2M]
+
+# MMB
+# No need to change the following 4 paths. Be sure to download `lib/mmb` folder from the E2EDNA GitHub repo
+mmb_params         : 'lib/mmb/parameters.csv'              # parameter for the MMB executable
+mmb_normal_template: 'lib/mmb/commands.template.dat'       # MMB folding protocol template No.1
+mmb_quick_template : 'lib/mmb/commands.template_quick.dat' # MMB folding protocol template No.2
+mmb_slow_template  : 'lib/mmb/commands.template_long.dat'  # MMB folding protocol template No.3
+fold_fidelity: 0.9  # MMB: if folding fidelity < this value, refold; unless the fold speed is 'quick'
+fold_speed: quick  # quick, normal, slow
+
+# If skip_MMB is 'Yes', provide pdb filename of initial structure; otherwise, leave it blank
+init_structure:
+
+
+
+
+# =========================== Pipeline module: OpenMM ===========================
+# OpenMM
+# # Whether to resume a simulation: if to resume, only applied to explicit solvent run; because implicit solvent run is fast
+pickup: 'No'        # 'Yes' or 'No'
+# If `pickup` is 'Yes': only one of the `pickup_from_...` is 'Yes'. It makes no sense to resume both free aptamer and aptamer-ligand dynamics
+pickup_from_freeAptamerChk: 'No'  # 'Yes' or 'No'. 'Yes': resume a MD of free aptamer. Skip everything before.
+pickup_from_complexChk    : 'No'  # 'Yes' or 'No'. 'Yes': resume a MD of aptamer-ligand. Skip everything before.
+# If `pickup` is 'Yes':
+#     (1) must provide a checkpoint file (path/filename.chk): it will be copied to run{--run_num}
+#         .chk file contains data that is highly specific to the Context from which it was created, including OpenMM version. 
+#         if checkpoint file is created on CUDA, does not work on CPU.
+chk_file:
+#     (2) must provide topology file (path/filename.pdb): it will be copied to run{--run_num}
+pickup_pdb:
+# # If `pickup` is 'No': leave those 2 args above blank.
+
+# # Environmental parameters of the simulation system
+pressure: 1.0             # atm
+temperature: 298.0        # Kevin: used to predict secondary structure and for MD thermostat
+ionicStrength: 0.150      # Sodium concentration used by NUPACK and OpenMM. [Na] in [50M, 1100M] for NUPACK. Could be used in implicit solvent as well.
+pH: 7.4                   # Used to decide protonation states of aptamer and/or target ligand in OpenMM explicit waterbox
+
+
+# # MD sampling: time and Langevin integrator
+auto_sampling : 'No'    # 'Yes' or 'No'. 'Yes': run sampling till reaction coordinate is converged. Currently only feasible in free aptamer sampling
+autoMD_convergence_cutoff: 1.0e-2 # how small should average of PCA slopes be to count as 'converged'
+max_aptamer_sampling_iter: 20 # number of allowable iterations before giving up on auto-sampling free aptamer - total max simulation length this * sampling_time
+max_walltime: 24.0      # hours
+
+skip_smoothing: 'Yes'    # 'Yes' or 'No'. 'Yes': no short MD relaxation before MD sampling
+equilibration_time: 0.0001
+# smoothing_time:           # specified in command line
+# aptamer_sampling_time:    # specified in command line
+# complex_sampling_time:    # specified in command line
+time_step: 2.0
+print_step: 0.05
+# # The meanings of 6 arguments about MD time:
+# ns. Initial equilibration time in nanoseconds
+# ns. MD relax after getting the initial 3D structure from user or MMB before MD sampling. Set as Python None because no smoothing by default
+# ns. Free aptamer sampling time in nanoseconds
+# ns. Only required if running aptamer-ligand complex dynamics, ie, mode: 'full binding' or pickup_from_complexChk
+# fs. MD time_step in fs
+# ps. MD printout step in ps. ns > ps > fs
+
+# # Create simulation system
+# For more check out: http://docs.openmm.org/latest/userguide/application/02_running_sims.html#force-fields
+# The force field is specified in __init__ of interfaces.py
+force_field: amber14-all # amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
+hydrogen_mass: 1.5       # amu. Heavier hydrogen allows us to sample for longer time
+                         # This applies only to hydrogens that are bonded to heavy atoms, 
+                         # and any mass added to the hydrogen is subtracted from the heavy atom. 
+                         # This keeps their total mass constant while slowing down the fast motions of hydrogens
+
+# # Default is to use explicit solvent
+water_model: amber14/tip3p  # amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc; Not used if implicit solvent
+box_offset: 1.0       # nanometers
+constraints: HBonds   # HBonds, AllBonds, HAngles, None (Python string)
+constraint_tolerance: 1.0e-6 # constraintTolerance of integrator
+rigid_water: 'Yes'    # 'Yes' or 'No'. 
+                      # Regardless of "constraints", OpenMM makes water molecules completely rigid, constraining both their bond lengths and angles; 
+                      # But by default OpenMM makes AMOEBA water flexible. If 'No', better to reduce integration step size to 0.5 fs
+nonbonded_method: PME # Ewald, PME, LJPME, CutoffPeriodic, CutoffNonPeriodic, NoCutoff (Python string)
+                      # Particle Mesh Ewald: efficient full electrostatics method in periodic boundary conditions to calculate long-range interactions
+nonbonded_cutoff: 1.0 # nanometers
+ewald_error_tolerance: 5.0e-4 # The error tolerance to use if nonbondedMethod is Ewald, PME, or LJPME.
+friction: 1.0 # Langevin friction coefficient. Unit: 1/ps. Determines how strongly the system is coupled to the heat bath
+
+# # Implicit solvent
+implicit_solvent      : 'No'    # 'Yes' or 'No'. If 'No', can leave `implicit_solvent_model` as blank to become Python None
+implicit_solvent_model:         # Amber GB: HCT, OBC1, OBC2, GBn, GBn2
+soluteDielectric :       # 1.0 means no screening effect
+solventDielectric:       # 78.5 for water
+implicit_solvent_Kappa:       # Debye screening parameter. Default is None. If specified, OpenMM will ignore params['implicit_solvent_salt_conc'] which is equal to params['ionicStrength']
+                              # Kappa=1/Debye_length and can be computed using ionic strength and dielectrics of solute and solvent
+leap_template:           # leap_template.in: a functonal script is provided in E2EDNA package
+DNA_force_field:         # DNA.OL15 or DNA.bsc1. For free aptamer MD sampling, available from ambertools21
+                         # For complex MD sampling: if target is peptide or RNA, will add "leaprc.protein.ff14SB" or "source leaprc.RNA.OL3" to leap input file.
+# # !!!!
+# # If `implicit_solvent`='Yes', uncomment out the following 2 args about nonbonded method to overwrite the earlier ones
+# nonbonded_method: CutoffNonPeriodic # CutoffPeriodic, CutoffNonPeriodic or NoCutoff
+# nonbonded_cutoff: 2.0  # nanometers. In implicit solvent models, better to pick a larger value such as 2.0 (OpenMM)
+# # No periodic boundaries in implicit solvent system => nonbonded_method cannot be Ewald, PME, or LJPME => ewald_error_tolerance is not used even specified
+# # PBC is used to avoid surface effects in explicit solvent and implicit solvent does not have solvent boundaries (the continuum goes on forever).
+
+
+
+
+# =========================== Pipeline module: Lightdock ===========================
+# Docking
+docking_steps: 5      # number of steps for docking simulations
+N_docked_structures: 1  # 2 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost) # TODO: "it will go this time"?
