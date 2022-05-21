@@ -42,6 +42,7 @@ pip install --no-index MDAnalysis==2.0.0
 pip install --no-index lightdock==0.9.0
 pip install --no-index pdbfixer==1.8.1 #"import openmm...." -> compatible with OpenMM/7.7.0; In pdbfixer/1.7: import simtk.openmm.... -> compatible with OpenMM/7.5.0
 pip install --no-index nupack==4.0.0.27
+pip install --no-index pyyaml==6.0 # v6.0 is available since python/3.8; For python/3.7, use pyyaml=5.4.1
 
 pip install --no-index numpy==1.21.0
 #pip install /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo/generic/numpy-1.20.2+computecanada-cp37-cp37m-linux_x86_64.whl
@@ -58,8 +59,7 @@ pip install ~/projects/def-simine/programs/opendnaWheels/PeptideBuilder-1.1.0-py
 #python -c "import simtk.openmm" #no longer needed for OpenMM/7.7.0
 
 date -u
-# friction = 1.0
-python ./main.py --run_num=1 --mode='free aptamer' --aptamerSeq='ACCTGGGGGAGTATTGCGGAGGAAGGT' --ligand='False' --ligandType='' --ligandSeq='' --friction=1.0
-# python ./main.py --run_num=1 --sequence='AACGCTTTTTGCGTA' --peptide='A' --walltime=10 --temperature=310 --pH=7.4 --ionicStrength=0.163 --Mg=0.05 --impSolv='HCT'
+
+python ./main.py --yaml_config=simu_config.yaml
 
 date -u

@@ -1,3 +1,24 @@
+'''
+E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
+
+An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
+    
+Copyright (C) 2022 Michael Kilgour, Tao Liu and Lena Simine
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+'''
+
 # tools for trajectory analysis
 from utils import printRecord
 import numpy as np
@@ -10,7 +31,6 @@ from sklearn.decomposition import PCA
 from MDAnalysis.analysis.base import AnalysisBase
 from MDAnalysis.lib.distances import calc_bonds
 from MDAnalysis.analysis.dihedrals import Dihedral
-from nupack import *
 from seqfold import dg, fold
 
 
@@ -684,7 +704,7 @@ def checkMidTrajectoryBinding(structure, trajectory, peptideSeq, aptamerSeq, par
     try:
         lastContact = np.nonzero(nContacts[:, 0])[0][-1]  # last time when the peptide and aptamer were in close-range contact
 
-        dt = params['print step']
+        dt = params['print_step']
         detachedTime = (len(nContacts) - lastContact) * dt / 1e3  # in ns, since dt is in ps
         if detachedTime > cutoffTime:  # if we have been unbound longer than the cutoff
             return True
