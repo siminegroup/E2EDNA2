@@ -3,11 +3,18 @@
 
 ### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
 
-**Michael Kilgour, Tao Liu, Ilya S. Dementyev, Lena Simine**
-
 * For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (https://doi.org/10.1021/acs.jcim.1c00696) and https://github.com/InfluenceFunctional/E2EDNA
 
 * Interested in contributing to developing E2EDNA? Check out how to contribute [here](https://github.com/siminegroup/E2EDNA2/blob/JOSS/CONTRIBUTING.md).
+
+<!-- ## Reference
+E2EDNA pipeline makes use of several other open-sourced software packages, therefore please be mindful of citing them as well as <E2EDNA 2.0 paper>, if you use this code in any future publications.
+  Add the reference to E2EDNA 2.0 paper after it is formally out.
+- [NUPACK](http://www.nupack.org/home/references)
+- [MMB](https://simtk.org/plugins/publications/index.php?type=group&id=359&pluginname=publications)
+- [OpenMM](http://docs.openmm.org/latest/userguide/introduction.html#referencing-openmm)
+- [LightDock](https://lightdock.org/reference/) or [LightDock_GitHub](https://github.com/lightdock/lightdock#2-reference)
+ -->
 
 ## Table of contents
 - [Installation](#1-installation)
@@ -224,7 +231,7 @@ The pipeline could implement several distinct operation modes so users may custo
 * `'full binding'` &rarr; Same steps as `'full dock'`, with follow-up extended MD simulation of the best binding configuration. Slowest, O(hours).
 
 ## 5. Automated test runs
-Running the scripts of automated tests mentioned in [Runing a job](#3-runing-a-job) will automatically run light tests of 8 modes. Here we explain the inputs, what outputs to look for, and what a successful run should look like for each mode. 
+Running the scripts of automated tests mentioned in [Runing a job](#3-running-a-job) will automatically run light tests of 8 modes. Here we explain the inputs, what outputs to look for, and what a successful run should look like for each mode. 
 
 1. `--mode='2d structure'`
 
@@ -289,4 +296,3 @@ Running the scripts of automated tests mentioned in [Runing a job](#3-runing-a-j
 * **Outputs**: predicted secondary structure in run_output_log.txt; MMB-folded aptamer structure: foldedAptamer_0.pdb; Long MD sampling trajectory of free aptamer: foldedAptamer_0_processed_complete_trajectory.dcd and clean_foldedAptamer_0_processed_complete_trajectory.dcd (without solvent and ions); Representative structure of free aptamer: repStructure_0.pdb; Representative aptamer docked by target ligand: complex_0_0.pdb (if docking happened); Long MD sampling trajectory of aptamer-ligand complex: complex_0_0_processed_complete_trajectory.dcd and clean_complex_0_0_processed_complete_trajectory.dcd (without solvent and ions)
 
 * **Success evaluation**: simulation logfile, MDlog_complexSampling.txt, indicates 100% completion; visualize the sampling trajectory of aptamer-ligand complex in software like VMD or PyMOL 
-

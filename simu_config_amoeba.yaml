@@ -22,7 +22,7 @@ quick_check_mode: 'No' # 'Yes' or 'No'. Yes': To run a certain mode for quick ch
 run_num: 1
 
 # Pipeline mode:
-mode: '2d structure'
+mode: 'free aptamer'
 # '2d structure': NUPACK
 # '3d coarse': NUPACK + MMB
 # '3d smooth': NUPACK + MMB + short MD relaxation (smoothing)
@@ -35,7 +35,7 @@ mode: '2d structure'
 
 # Information on DNA aptamer and target ligand if applicable
 # 5'->3' DNA sequence
-aptamer_seq: 'TAATGTTAATTG'
+aptamer_seq: 'CCTGGGGGAGTATTGCGGAGGAAGG'
 ligand:
 ligand_type:
 ligand_seq:
@@ -58,7 +58,7 @@ skip_MMB: 'No'      # 'Yes' or 'No'.
 # NUPACK
 secondary_structure_engine: NUPACK
 ensemble: nostacking # nostacking or stacking; historical options in NUPACK3: none-nupack3, some-nupack3, all-nupack3
-N_2D_structures: 1 # Number of predicted secondary structures
+N_2D_structures: 1   # Number of predicted secondary structures
 Mg_conc: 0.005      # Magnesium concentration used in NUPACK. [0, 0.2M]
 
 # MMB
@@ -124,14 +124,14 @@ print_step: 0.05
 # # Create simulation system
 # For more check out: http://docs.openmm.org/latest/userguide/application/02_running_sims.html#force-fields
 # The force field is specified in __init__ of interfaces.py
-force_field: amber14-all # amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
+force_field: amoeba2018  # amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
 hydrogen_mass: 1.5       # amu. Heavier hydrogen allows us to sample for longer time
                          # This applies only to hydrogens that are bonded to heavy atoms, 
                          # and any mass added to the hydrogen is subtracted from the heavy atom. 
                          # This keeps their total mass constant while slowing down the fast motions of hydrogens
 
 # # Default is to use explicit solvent
-water_model: amber14/tip3p  # amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc; Not used if implicit solvent
+water_model: 'no standalone water model'  # amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc; Not used if implicit solvent
 box_offset: 1.0       # nanometers
 constraints: HBonds   # HBonds, AllBonds, HAngles, None (Python string)
 constraint_tolerance: 1.0e-6 # constraintTolerance of integrator

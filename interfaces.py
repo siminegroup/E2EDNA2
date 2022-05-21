@@ -35,24 +35,23 @@ from numpy import pi
 from openmm import *
 from openmm.app import *
 import openmm.unit as unit
+# In OpenMM/7.7.0: the prefix of "simtk" has been removed.
+# In OpenMM/7.5.0: package simtk is created with packages "openmm" and "unit" inside but literally import the stand-alone openmm.
 
 from utils import *
 from analysisTools import *
 
-# installed openmm: http://docs.openmm.org/7.5.0/userguide/application.html#installing-openmm
-# openmm is installed as an individual package;
-# package simtk is created with packages "openmm" and "unit" inside but literally import the stand-alone openmm.
-
 
 class nupack:
-    def __init__(self, aptamerSeq, temperature, ionicStrength, mgConc=0):
+    def __init__(self, aptamerSeq, temperature, ionicStrength, mgConc=0, ensemble='nostacking'):
         self.aptamerSeq = aptamerSeq
         self.temperature = temperature
         self.naConc = ionicStrength
         self.mgConc = mgConc
+        self.ensemble = ensemble
         self.R = 0.0019872  # ideal gas constant in kcal/mol/K
 
-    def run(self):        
+    def run(self):
         self.energyCalc()
         self.structureAnalysis()
         return self.ssDict
@@ -72,19 +71,51 @@ class nupack:
             raise ImportError("Required module 'nupack' not found. Please download from http://www.nupack.org/downloads and install in your Python virtual environment.") from err            
         
         # Run nupack-dependent code
-        if self.temperature > 273:  # auto-detect Kelvins
+        if self.temperature > 273.15:  # auto-detect Kelvins
             gap = 2 * self.R * self.temperature
-            CelsiusTemprature = self.temperature - 273
+            CelsiusTemprature = self.temperature - 273.15
         else:
-            gap = 2 * self.R * (self.temperature + 273)  # convert to Kelvin fir kT
+            gap = 2 * self.R * (self.temperature + 273.15)  # convert to Kelvin for kT
             CelsiusTemprature = self.temperature
 
-        A = nupack.Strand(self.aptamerSeq, name='A')
-        comp = nupack.Complex([A], name='AA')
-        set1 = nupack.ComplexSet(strands=[A], complexes=nupack.SetSpec(max_size=1, include=[comp]))
-        model1 = nupack.Model(material='dna', celsius=CelsiusTemprature, sodium=self.naConc, magnesium=self.mgConc)
-        results = nupack.complex_analysis(set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
-        self.output = results[comp]
+        A = nupack.Strand(self.aptamerSeq, name='A') # specify a strand and name
+        # A.nt() # calculate the number of nucleotides
+        comp = nupack.Complex([A], name='AA', bonus=0) # specify a complex of one or more interacting strands and name is optional.
+
+        # specify a set of strands that interact to form a set of complexes
+        set1 = nupack.ComplexSet(strands=[A], complexes=nupack.SetSpec(max_size=1, include=[comp])) # 1 complex set: [[A]]
+        model1 = nupack.Model(ensemble=self.ensemble, material='dna', celsius=CelsiusTemprature, sodium=self.naConc, magnesium=self.mgConc)
+        '''
+        - ensemble: whether to consider coaxial or dangle stacking for multiloop or exterior loop. 
+            - 'stacking': default. Complex ensemble with coaxial and dangle stacking
+            - 'nostacking': Complex ensemble without coaxial and dangle stacking
+            - Historical options in nupack3 are supported too: all are about dangle stacking and no coaxial stacking.
+                - 'none-nupack3', 'some-nupack3', 'all-nupack3'
+        - material: another historical parameter sets for DNA (https://docs.nupack.org/model/#historical-options)
+            - 'dna04-nupack3: Same as 'dna' but treat G-T as a wobble pair instead of a mismatch.
+        - sodium: the sum of the molar concentrations of sodium, potassium, and ammonium ions: Na+, K+, and NH4+. range=[0.05,1.1]
+        - magnesium: molar concentration of Mg++. range=[0.0,0.2]
+        '''
+        results = nupack.complex_analysis(complexes=set1, model=model1, compute=['pfunc', 'mfe', 'subopt', 'pairs'], options={'energy_gap': gap})
+        ''' compute:
+        - 'pfunc': partition function
+        - 'mfe': MFE proxy structure
+        - 'subopt': suboptimal proxy structure
+        - 'pairs': matrix of equilibrium base-pairing probabilities
+        '''
+        # print(results)
+        # print(results.complexes)
+        # print(comp)
+        self.output = results[comp] # return a ComplexResult object contains all the complex ensemble quantities for our complex [[A]]
+        # results.save_text('nupack-result.txt')
+        # print('Physical quantities for complex comp:')
+        # print('Complex free energy: %.2f kcal/mol' % self.output.free_energy)
+        # print('Partition function: %.2e' % self.output.pfunc)
+        # print('MFE proxy structure: %s' % self.output.mfe[0].structure)
+        # print('Free energy of MFE proxy structure: %.2f kcal/mol' % self.output.mfe[0].energy)
+        # print('MFE proxy structure:\n%s' % self.output.mfe[0].structure.matrix()) # represent MFE proxy structure as a nupack structure matrix of 0 and 1
+        # print('Equilibrium pair probabilities: \n%s' % self.output.pairs) # equilibrium pair probability matrix
+
 
     def structureAnalysis(self):
         """
@@ -261,7 +292,10 @@ class omm:
             self.pdb = PDBFile(structurePDB)
             self.forceFieldFilename = params['force_field']
             self.waterModelFilename = params['water_model']
-            self.forcefield = ForceField(self.forceFieldFilename + '.xml', self.waterModelFilename + '.xml')
+            if self.waterModelFilename == 'no standalone water model': # for example, amoeba2018.xml doesn't need another water model file
+                self.forcefield = ForceField(self.forceFieldFilename + '.xml')
+            else:
+                self.forcefield = ForceField(self.forceFieldFilename + '.xml', self.waterModelFilename + '.xml')
 
         # System configuration
         self.nonbondedMethod = params['nonbonded_method']  # Currently PME!!! It's used with periodic boundary condition applied
@@ -390,7 +424,7 @@ class omm:
         # printRecord("Using LangevinMiddleIntegrator integrator, at T={}.".format(self.temperature))
         self.friction = params['friction'] / unit.picosecond
         self.integrator = LangevinIntegrator(self.temperature, self.friction, self.dt)  # another object
-        printRecord("Using LangevinIntegrator integrator, at T={}.".format(self.temperature))
+        printRecord("Using LangevinIntegrator integrator, at T={} and friction={}.".format(self.temperature, self.friction))
         
         self.integrator.setConstraintTolerance(self.constraintTolerance)
         

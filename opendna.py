@@ -309,15 +309,14 @@ class opendna:
                 self.actionDict['do smoothing'] = False
                 if self.params['mode'] != '2d structure':
                     printRecord('\nNo relaxation (smoothing) of the folded aptamer.')
-                self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'foldedAptamer_0.pdb'
+                # self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'foldedAptamer_0.pdb'
+                self.pdbDict['relaxed aptamer {}'.format(self.i)] = self.pdbDict['folded aptamer {}'.format(self.i)]
             elif self.actionDict['do smoothing']:  # just to double check
                 aptamer_smooth_dir = 'md_aptamer_relaxation_runfiles_%d' % self.i
                 os.mkdir(aptamer_smooth_dir)
 
-                if self.params['skip_MMB'] is False:
-                    self.MDSmoothing(runfilesDir=aptamer_smooth_dir, structure=self.pdbDict['mmb folded aptamer {}'.format(self.i)], relaxationTime=self.params['smoothing_time'], implicitSolvent=self.params['implicit_solvent'])  # relax for xx nanoseconds
-                else:  # if given a folded structure, skip_MMB and directly use the provided structure
-                    self.MDSmoothing(runfilesDir=aptamer_smooth_dir, structure=self.pdbDict['folded aptamer {}'.format(self.i)], relaxationTime=self.params['smoothing_time'], implicitSolvent=self.params['implicit_solvent'])  # relax for xx nanoseconds
+                # 'folded aptamer {}': could either be from mmb folding, or given by user (ie, skip_MMB)
+                self.MDSmoothing(runfilesDir=aptamer_smooth_dir, structure=self.pdbDict['folded aptamer {}'.format(self.i)], relaxationTime=self.params['smoothing_time'], implicitSolvent=self.params['implicit_solvent'])
 
             if self.actionDict['get equil repStructure']:
                 aptamer_sampling_dir = 'md_aptamer_sampling_runfiles_%d' % self.i
@@ -389,7 +388,7 @@ class opendna:
             # print('seqfold ssAnalysis: ',self.ssAnalysis)
             return pairList
         elif self.params['secondary_structure_engine'] == 'NUPACK':
-            nup = interfaces.nupack(aptamerSeq, self.params['temperature'], self.params['ionicStrength'], self.params['Mg_conc'])  # initialize nupack
+            nup = interfaces.nupack(aptamerSeq=aptamerSeq, temperature=self.params['temperature'], ionicStrength=self.params['ionicStrength'], mgConc=self.params['Mg_conc'], ensemble=self.params['ensemble'])  # initialize nupack            
             self.ssAnalysis = nup.run()  # run nupack analysis of possible 2D structures.
 
             distances = getSecondaryStructureDistance(self.ssAnalysis['config'])            
@@ -439,7 +438,7 @@ class opendna:
                 attempts += 1
                 intervalLength += 5  # on repeated attempts, try harder
 
-        self.pdbDict['mmb folded aptamer {}'.format(self.i)] = mmb.foldedAptamerSeq  # mmb.foldedAptamerSeq = foldedAptamer_{}.pdb: defined in the mmb.run()
+        self.pdbDict['folded aptamer {}'.format(self.i)] = mmb.foldedAptamerSeq  # mmb.foldedAptamerSeq = foldedAptamer_{}.pdb: defined in the mmb.run()
         
         # mmb.fileDump is a directory for intermediate files during running MMB
         os.system('mv commands.run* ' + mmb.fileDump)
@@ -448,12 +447,12 @@ class opendna:
         os.system('mv commands.template_quick.dat ' + mmb.fileDump)
         os.system('mv commands.template_long.dat ' + mmb.fileDump)
     
-        printRecord(">>> MMB folded the aptamer and generated folded structure: {}".format(self.pdbDict['mmb folded aptamer {}'.format(self.i)]))
-        
-        # For "coarse dock" mode:
-        self.pdbDict['representative aptamer {}'.format(self.i)] = self.pdbDict['mmb folded aptamer {}'.format(self.i)]  # ie, 'relaxedAptamer_{}.pdb'.format(self.i)
+        printRecord(">>> MMB folded the aptamer and generated folded structure: {}".format(self.pdbDict['folded aptamer {}'.format(self.i)]))
 
-    def MDSmoothing(self, runfilesDir, structure, relaxationTime=0.01, implicitSolvent=False):  # default relaxation time is 0.01 ns
+        # For "coarse dock" mode:
+        self.pdbDict['representative aptamer {}'.format(self.i)] = self.pdbDict['folded aptamer {}'.format(self.i)]
+
+    def MDSmoothing(self, runfilesDir, structure, relaxationTime=0.01, implicitSolvent=False):
         """
         Run a short MD sampling to relax the coarse MMB structure
         Relaxation time in nanoseconds, print time in picoseconds
