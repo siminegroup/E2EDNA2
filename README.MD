@@ -1,20 +1,25 @@
 <!-- # Documentation -->
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.04182/status.svg)](https://doi.org/10.21105/joss.04182)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6546661.svg)](https://doi.org/10.5281/zenodo.6546661)
+[![GitHub release](https://img.shields.io/github/v/release/siminegroup/E2EDNA2)](https://github.com/siminegroup/E2EDNA2/releases)
+
 ## E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
 
 ### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
 
-* For original version of E2EDNA: J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 (https://doi.org/10.1021/acs.jcim.1c00696) and https://github.com/InfluenceFunctional/E2EDNA
+* To view the original version of E2EDNA, refer to its [GitHub repo](https://github.com/InfluenceFunctional/E2EDNA) and [DOI](https://doi.org/10.1021/acs.jcim.1c00696). <!-- J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 -->
 
 * Interested in contributing to developing E2EDNA? Check out how to contribute [here](https://github.com/siminegroup/E2EDNA2/blob/JOSS/CONTRIBUTING.md).
 
-<!-- ## Reference
-E2EDNA pipeline makes use of several other open-sourced software packages, therefore please be mindful of citing them as well as <E2EDNA 2.0 paper>, if you use this code in any future publications.
-  Add the reference to E2EDNA 2.0 paper after it is formally out.
+## Reference
+If you use this code in any future publications, please cite our work using `Kilgour et al., (2022). E2EDNA 2.0: Python Pipeline for Simulating DNA Aptamers with Ligands. Journal of Open Source Software, 7(73), 4182`
+
+E2EDNA pipeline makes use of several other open-sourced software packages, therefore please be mindful of citing them as well:
 - [NUPACK](http://www.nupack.org/home/references)
 - [MMB](https://simtk.org/plugins/publications/index.php?type=group&id=359&pluginname=publications)
-- [OpenMM](http://docs.openmm.org/latest/userguide/introduction.html#referencing-openmm)
-- [LightDock](https://lightdock.org/reference/) or [LightDock_GitHub](https://github.com/lightdock/lightdock#2-reference)
- -->
+- [OpenMM](http://docs.openmm.org/7.7.0/userguide/introduction.html#referencing-openmm)
+- [LightDock](https://lightdock.org/reference/) 
+<!-- - or [LightDock_GitHub](https://github.com/lightdock/lightdock#2-reference) -->
 
 ## Table of contents
 - [Installation](#1-installation)
@@ -231,7 +236,7 @@ The pipeline could implement several distinct operation modes so users may custo
 * `'full binding'` &rarr; Same steps as `'full dock'`, with follow-up extended MD simulation of the best binding configuration. Slowest, O(hours).
 
 ## 5. Automated test runs
-Running the scripts of automated tests mentioned in [Runing a job](#3-running-a-job) will automatically run light tests of 8 modes. Here we explain the inputs, what outputs to look for, and what a successful run should look like for each mode. 
+Running the scripts of automated tests mentioned in [Running a job](#3-running-a-job) will automatically run light tests of 8 modes. Here we explain the inputs, what outputs to look for, and what a successful run should look like for each mode. 
 
 1. `--mode='2d structure'`
 
