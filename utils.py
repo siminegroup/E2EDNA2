@@ -99,7 +99,7 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
     fixer = PDBFixer(filename=file)
     padding, boxSize, boxVectors = None, None, None
-    geompadding = float(boxOffset) * unit.nanometer  # TODO what does unit.nanometer do
+    geompadding = float(boxOffset) * unit.nanometer
 
     boxMode = 'cubic'  # TODO toggle for box type - look at openmm-setup source code for other box types
 
@@ -126,12 +126,11 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
 
         boxSize = [xrange, yrange, zrange] * unit.nanometer  # for rectangular prism
 
-    fixer.findMissingResidues()
-    fixer.findMissingAtoms()
-    fixer.addMissingAtoms()  # may need to optimize bonding here
+    # fixer.findMissingResidues()
+    # fixer.findMissingAtoms()
+    # fixer.addMissingAtoms()  # may need to optimize bonding here
 
     fixer.addMissingHydrogens(pH=pH)  # add missing hydrogens
-    # TODO: Don't understand these above yet 
     
     if waterBox == True:
         ionicStrength = float(ionicStrength) * unit.molar
@@ -139,8 +138,21 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
         negativeIon = 'Cl-'  # params['negativeion']+'-'
         fixer.addSolvent(boxSize, padding, boxVectors, positiveIon, negativeIon, ionicStrength)
     
-    PDBFile.writeFile(fixer.topology, fixer.positions, open(file.split('.pdb')[0] + '_processed.pdb', 'w'))
+    solvated_file = file.split('.pdb')[0] + '_processed_not_centered.pdb'
+    PDBFile.writeFile(fixer.topology, fixer.positions, open(solvated_file, 'w'))
 
+    # center the solvated molecule in the simulation box
+    u = mda.Universe(solvated_file)
+    dim = u.dimensions[:3] # retrieve the box dimension (the last three are the box angles)
+    box_center = dim / 2
+    all_atoms = u.select_atoms("all")
+    # print(all_atoms.center_of_mass(pbc=True)) # translate the molecules so that their centers are within the same periodic box
+    # print(all_atoms.center_of_mass(pbc=False))
+    COM = all_atoms.center_of_mass(pbc=False)
+    u.atoms.translate(box_center - COM)
+    centered_file = file.split('.pdb')[0] + '_processed.pdb'
+    all_atoms.write(centered_file)
+    
 
 def replaceText(file, old_string, new_string):
     # search and replace string in a text file, then save the new version
@@ -211,7 +223,7 @@ def cleanTrajectory(structure, trajectory):
     clean_trajectory = os.path.join(trajectoryDir, 'clean_'+trajectoryName)
 
     u = mda.Universe(structure, trajectory)
-    # TODO: if u.segments.n_segments > 2:  # if > 2 segments, then there must be solvent and salts (assuming nonzero salt concentration)
+    # if u.segments.n_segments > 2:  # if > 2 segments, then there must be solvent and salts (assuming nonzero salt concentration)
     goodStuff = u.segments[:-2].atoms  # cut out salts and solvents
 
     goodStuff.write(clean_structure)  # write topology
