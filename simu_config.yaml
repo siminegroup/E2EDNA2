@@ -55,6 +55,16 @@ example_peptide_seq: 'YQTQTNSPRRAR'
 skip_MMB: 'No'      # 'Yes' or 'No'. 
                      # 'Yes': skip NUPACK and MMB together, directly proceed to MD sampling or dock (in "coarse dock")
                      # If MMB is not run because we are about to resume MD sampling, keep skip_MMB as 'No' 
+predict_2dSS: 'Yes' 
+# if 'No', then "user_input_2dSS" must be 'Yes'
+# if 'Yes', then it can be merged with user-input-2dSS -- but if there's conflict, report error. Conflict example: [1,27] vs. [1,26]
+
+user_input_2dSS: 'No' # if 'Yes', need to provide "user_input_pair_list"
+# manually define a 2D structure in opendna.py
+user_input_pair_list: 
+# Index starts from 1
+# eg, [[[1,27],[2,26],[3,25],[4,24]]]
+
 # NUPACK
 secondary_structure_engine: NUPACK
 ensemble: nostacking # nostacking or stacking; historical options in NUPACK3: none-nupack3, some-nupack3, all-nupack3
@@ -73,7 +83,8 @@ fold_speed: quick   # quick, normal, slow
 # If skip_MMB is 'Yes', provide pdb filename of initial structure; otherwise, leave it blank
 # init_structure: ./examples/foldedAptamer_0.pdb
 init_structure:
-
+process_pdb: 'Yes'
+# 'No' => make sure the input PDB file ends up "_processed.pdb"
 
 
 # =========================== Pipeline module: OpenMM ===========================

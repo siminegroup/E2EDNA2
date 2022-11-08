@@ -277,11 +277,63 @@ class opendna:
         np.save('final_output_dict', outputDict)  # Save an array to a binary file in NumPy ``.npy`` format.
         
         if self.actionDict['do 2d analysis']:  # get secondary structure
-            self.pairLists = self.getSecondaryStructure(self.aptamerSeq)
-            outputDict['2d analysis'] = self.ssAnalysis
-            np.save('final_output_dict', outputDict)  # save 2d structure results
-            printRecord('Running over %d' % len(self.pairLists) + ' possible 2D structures.')
-            num_2dSS = len(self.pairLists)
+            
+            if self.params['predict_2dSS'] == 'Yes':
+                self.pairLists = self.getSecondaryStructure(self.aptamerSeq)
+                outputDict['2d analysis'] = self.ssAnalysis
+                np.save('final_output_dict', outputDict)  # save 2d structure results
+                printRecord('Running over %d' % len(self.pairLists) + ' possible 2D structures.')
+                num_2dSS = len(self.pairLists)
+            else:
+                self.pairLists = [[]]
+
+            if self.params['user_input_2dSS'] == 'Yes':
+                # Manually define a simplistic 2D structure:
+                '''
+                self.ssAnalysis = {}
+                # # If starting with a 2D structure string: not convenient and more likely for user to make mistakes
+                ssString = '(.........................)'
+                self.ssAnalysis['pair list'] = []
+                self.ssAnalysis['pair list'].append(ssToList(ssString))
+                '''
+                
+                # # Starting with one and only one pair list: assuming only one 2dSS, ie, len(self.pairLists) == 1.
+                self.ssAnalysis = {}
+                self.ssAnalysis['pair list'] = self.params['user_input_pair_list'] # eg: [[[1,27],[4,24]]]. Index starts from 1.
+
+                # We may have predicted contact map, ie, there is a "self.pairLists", such as [[[1,27],[2,26],[3,25]]]
+                # then would need to add the user_input_2dSS in the predicted contact map:
+                if self.params['predict_2dSS'] == 'Yes':
+                    list_of_lists = self.pairLists[0] + self.ssAnalysis['pair list'][0] # eg: [[1,27],[2,26],[3,25],[1,27],[4,24]]
+                    # ***Caution***: assume there is no conflict such as predicted [1,27] and user input [1,26]
+                    # Then remove duplcates:
+                    new_list = []
+                    for l in list_of_lists:
+                        if l not in new_list:
+                            new_list.append(l)
+                    # new_list: [[1,27],[2,26],[3,25],[4,24]]
+                    # update self.ssAnalysis['pair list']:
+                    self.ssAnalysis['pair list'] = [new_list]
+
+                self.pairLists = self.ssAnalysis['pair list']
+                pair = np.asarray(self.pairLists[0]) # 2D numpy array
+                ssString = '.' * len(self.aptamerSeq)
+                stringArray = np.asarray(list(ssString))
+                stringArray[pair[:,0]-1] = '('
+                stringArray[pair[:,1]-1] = ')'
+                ssString = ''.join(stringArray) # eg: '((.......................))'
+
+                self.ssAnalysis['2d string'] = []
+                self.ssAnalysis['2d string'].append(ssString)
+                self.ssAnalysis['displayed 2d string'] = self.ssAnalysis['2d string']
+                
+                outputDict['2d analysis'] = self.ssAnalysis
+                np.save('final_output_dict', outputDict)
+                if self.params['predict_2dSS'] == 'Yes':
+                    printRecord('Adding a user-input 2D structure (make two termini in contact) to the predicted one.')
+                else:
+                    printRecord('Using a user-input simplistic 2D structure, ie, make two termini in contact.')
+                num_2dSS = len(self.pairLists)
         
         else:  # there are three cases where 2d analysis is not carried out.
             if self.params['pickup_from_complexChk'] is True:
@@ -542,9 +594,14 @@ class opendna:
         else:
             printRecord('\nRunning Fresh Free Aptamer Dynamics')
             if implicitSolvent is False:
-                # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
-                prepPDB(aptamerPDB, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
-                printRecord('Done preparing files with waterbox. Start OpenMM.')
+                if self.params['process_pdb'] == 'Yes':
+                    # # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
+                    prepPDB(aptamerPDB, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
+                    printRecord('Done preparing files with waterbox. Start OpenMM.')                
+                else:
+                    # make sure the input PDB file ends up "_processed.pdb"
+                    printRecord('Input PDB file was prepapred with ions and solvent. Start OpenMM.')
+
             else:  # prepare prmtop and crd file using LEap in ambertools
                 printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for aptamer...')
                 # os.system('pdb4amber {}.pdb > {}_amb_processed.pdb 2> {}_pdb4amber_out.log'.format(structureName, structureName, structureName))
@@ -560,7 +617,10 @@ class opendna:
                 # printRecord(readFinalLines('leap_freeAptamerMD.out', 1))  # show last line. problematic            
                 structureName += '_amb'  # after pdb4amber and saveAmberParm, will generate structureName_amb_processed.pdb/top/crd
 
-            processedAptamer = structureName + '_processed.pdb'
+            if self.params['process_pdb'] == 'Yes':
+                processedAptamer = structureName + '_processed.pdb'
+            else:
+                processedAptamer = aptamerPDB
             self.autoMD(runfilesDir=runfilesDir, structurePDB=processedAptamer, simTime=simTime, binding=False, implicitSolvent=implicitSolvent)  # run MD sampling either for a set amount of time or till converged to equilibrium sampling of RC's
             processedAptamerTrajectory = structureName + '_processed_complete_trajectory.dcd'  # this is output file of autoMD
 
@@ -589,10 +649,10 @@ class opendna:
             self.pdbDict['sampled aptamer {}'.format(self.i)] = processedAptamer
         
         printRecord("Analyzing the MD sampling trajectory to look for free aptamer's representative configuration...")
-        aptamerDict = self.analyzeTrajectory(os.path.join(runfilesDir, self.pdbDict['sampled aptamer {}'.format(self.i)]), os.path.join(runfilesDir, self.dcdDict['sampled aptamer {}'.format(self.i)]))
+        aptamerDict, representativeIndex = self.analyzeTrajectory(os.path.join(runfilesDir, self.pdbDict['sampled aptamer {}'.format(self.i)]), os.path.join(runfilesDir, self.dcdDict['sampled aptamer {}'.format(self.i)]))
         # old issue: analyzeTraj --> getNucDAtraj --> Dihedral: raise ValueError("All AtomGroups must contain 4 atoms")
-        self.pdbDict['representative aptamer {}'.format(self.i)] = 'repStructure_{}.pdb'.format(self.i)        
-        printRecord('>>> Generated representative structure of free aptamer from the trajectory: {}.'.format(self.pdbDict['representative aptamer {}'.format(self.i)]))
+        self.pdbDict['representative aptamer {}'.format(self.i)] = 'repStructure_{}_from_MD.pdb'.format(self.i)        
+        printRecord('>>> Generated representative structure of free aptamer from the trajectory: {} (ie, frame_{}).'.format(self.pdbDict['representative aptamer {}'.format(self.i)], representativeIndex))
         printRecord('Free aptamer MD sampling complete.')
 
         return aptamerDict
@@ -810,7 +870,7 @@ class opendna:
         analysisDict['RC trajectories'] = pcTrajectory
         analysisDict['representative structure index'] = representativeIndex
 
-        return analysisDict
+        return analysisDict, representativeIndex
 
     # def analyzeBinding(self, bindStructure, bindTrajectory, freeStructure, freeTrajectory):
     #     """
