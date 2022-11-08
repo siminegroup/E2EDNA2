@@ -124,7 +124,10 @@ print_step: 0.05
 # # Create simulation system
 # For more check out: http://docs.openmm.org/latest/userguide/application/02_running_sims.html#force-fields
 # The force field is specified in __init__ of interfaces.py
-force_field: amber14-all # amber14/protein.ff14SB, amber14/DNA.OL15, amber14/RNA.OL3, amber14/lipid17, etc.
+aptamer_force_field: amber14-all.xml # amber14/protein.ff14SB.xml, amber14/DNA.OL15.xml, amber14/RNA.OL3.xml, amber14/lipid17.xml, etc.
+ligand_force_field: 
+# /home/taoliu/RNA.OL3_AMP_hf_RESP.xml
+# modified RNA.OL3 is stored on CC home directory
 hydrogen_mass: 1.5       # amu. Heavier hydrogen allows us to sample for longer time
                          # This applies only to hydrogens that are bonded to heavy atoms, 
                          # and any mass added to the hydrogen is subtracted from the heavy atom. 
@@ -167,63 +170,3 @@ DNA_force_field:         # DNA.OL15 or DNA.bsc1. For free aptamer MD sampling, a
 # Docking
 docking_steps: 5      # number of steps for docking simulations
 N_docked_structures: 1  # 2 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost) # TODO: "it will go this time"?
-
-# =========================== Miscellaneous ===========================
-# Pipeline parameters used in quick_check_mode:
-# 
-#     # NUPACk and MMB
-#     params['skip_MMB'] = False
-#     params['secondary_structure_engine'] = 'NUPACK'
-#     params['N_2D_structures'] = 1
-#     params['Mg_conc'] = 0.005
-#     params['fold_fidelity'] = 0.9
-#     params['fold_speed'] = 'quick'
-#     params['init_structure'] = None
-# 
-#     # OpenMM
-#     params['pickup'] = False
-#     params['pickup_from_freeAptamerChk'] = False
-#     params['pickup_from_complexChk'] = False
-#     params['chk_file'] = None
-#     params['pickup_pdb'] = None
-# 
-#     params['auto_sampling'] = False
-#     params['autoMD_convergence_cutoff'] = 1e-2 # not used if auto_sampling=False
-#     params['max_aptamer_sampling_iter'] = 2    # not used if auto_sampling=False
-# 
-#     params['equilibration_time'] = 0.0001  # ns. 50 steps
-# 
-#     if params['mode'] in ['3d smooth', 'smooth dock']:
-#         params['skip_smoothing'] = False
-#         params['smoothing_time'] = 0.001   # ns. 500 steps
-#     else:
-#         params['skip_smoothing'] = True
-#         params['smoothing_time'] = None
-# 
-#     params['aptamer_sampling_time'] = 0.002      # ns. 1000 steps
-#     if params['mode'] == 'full binding':
-#         params['complex_sampling_time'] = 0.002  # ns. 1000 steps
-#     params['time_step'] = 2.0              # fs
-#     params['print_step'] = 0.05            # ps. print out every 25 steps
-#     params['force_field'] = 'amber14-all'
-#     params['hydrogen_mass'] = 1.5
-#     params['water_model'] = 'amber14/tip3p'
-#     params['box_offset'] = 1.0
-#     params['constraints'] = 'HBonds'
-#     params['constraint_tolerance'] = 1.0e-6
-#     params['rigid_water'] = True
-#     params['nonbonded_method'] = 'PME'
-#     params['nonbonded_cutoff'] = 1.0
-#     params['ewald_error_tolerance'] = 5.0e-4
-#     params['friction'] = 1.0
-#     params['implicit_solvent'] = False
-#     params['implicit_solvent_model'] = None
-#     params['soluteDielectric'] = None
-#     params['solventDielectric'] = None
-#     params['implicit_solvent_Kappa'] = None
-#     params['leap_template'] = None
-#     params['DNA_force_field'] = None
-# 
-#     # LightDock
-#     params['docking_steps'] = 10
-#     params['N_docked_structures'] = 1

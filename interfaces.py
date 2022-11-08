@@ -287,20 +287,33 @@ class omm:
         self.runfilesDir = runfilesDir
         self.structureName = structurePDB.split('.')[0]  # e.g., structurePDB: relaxedAptamer_0_amb_processed.pdb or complex_1_2_processed.pdb        
         self.chkFile = params['chk_file']  # if not resuming the simulation, it is Python None; otherwise, basename of the .chk file, no directory info
-
+        self.implicitSolvent = implicitSolvent
+        
         if implicitSolvent is False:
             self.pdb = PDBFile(structurePDB)
-            self.forceFieldFilename = params['force_field']
-            self.waterModelFilename = params['water_model']
-            if self.waterModelFilename == 'no standalone water model': # for example, amoeba2018.xml doesn't need another water model file
-                self.forcefield = ForceField(self.forceFieldFilename + '.xml')
+
+            # self.forceFieldFilename = params['force_field']
+            self.aptamerForceFieldFile = params['aptamer_force_field'] # amber14/DNA.OL15.xml
+            self.ligandForceFieldFile = params['ligand_force_field']  # eg, /home/taoliu/RNA.OL3_AMP_option1.xml or RNA.OL3_AMP_option2.xml
+            self.waterModelFile = params['water_model']
+
+            if self.waterModelFile == 'no standalone water model': # for example, amoeba2018.xml doesn't need another water model file
+                if self.ligandForceFieldFile is None: # no ligand to be simulated
+                    self.forcefield = ForceField(self.aptamerForceFieldFile)
+                else: 
+                    self.forcefield = ForceField(self.aptamerForceFieldFile, self.ligandForceFieldFile)
+                    # # To simulate ligand in the DNA-ligand complex
             else:
-                self.forcefield = ForceField(self.forceFieldFilename + '.xml', self.waterModelFilename + '.xml')
+                if self.ligandForceFieldFile is None: # no ligand to be simulated
+                    self.forcefield = ForceField(self.aptamerForceFieldFile, self.waterModelFile)
+                else:
+                    self.forcefield = ForceField(self.aptamerForceFieldFile, self.ligandForceFieldFile, self.waterModelFile)
+                    # # To simulate ligand in the DNA-ligand complex
 
         # System configuration
         self.nonbondedMethod = params['nonbonded_method']  # Currently PME!!! It's used with periodic boundary condition applied
         self.nonbondedCutoff = params['nonbonded_cutoff'] * unit.nanometer
-        self.ewaldErrorTolerance = params['ewald_error_tolerance']
+        self.ewaldErrorTolerance = params['ewald_error_tolerance'] # could be Python None
         self.constraints = params['constraints']
         self.rigidWater = params['rigid_water']
         self.constraintTolerance = params['constraint_tolerance']
@@ -337,6 +350,9 @@ class omm:
         # self.dcdReporter = DCDReporter(self.structureName + '_trajectory.dcd', self.reportSteps)
         dcdTrajFileName = os.path.join(self.runfilesDir, self.structureName+'_trajectory.dcd')
         self.dcdReporter = DCDReporter(dcdTrajFileName, self.reportSteps)
+        # also save equilibration trajectory
+        dcdTrajFileName_equil = os.path.join(self.runfilesDir, self.structureName+'_equil_trajectory.dcd')
+        self.dcdReporter_equil = DCDReporter(dcdTrajFileName_equil, self.reportSteps)
         # self.pdbReporter = PDBReporter(os.path.join(self.runfilesDir, self.structureName+'_trajectory.pdb'), self.reportSteps)  # huge file
 
         if params['smoothing_time'] is None:
@@ -346,8 +362,11 @@ class omm:
                 mdLogFileName = os.path.join(self.runfilesDir, 'MDlog_freeAptamerSampling.txt')
         else:
             mdLogFileName = os.path.join(self.runfilesDir, 'MDlog_freeAptamerSmoothing.txt')
-        self.dataReporter = StateDataReporter(mdLogFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')        
-                
+        self.dataReporter = StateDataReporter(mdLogFileName, self.reportSteps, totalSteps=self.steps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')
+        # also save equilibration state data
+        mdLogFileName_equil = mdLogFileName[:-4] + '_equil.txt'
+        self.dataReporter_equil = StateDataReporter(mdLogFileName_equil, self.reportSteps, totalSteps=self.equilibrationSteps, step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True,separator='\t')
+
         if (params['pickup_from_freeAptamerChk'] is False) and (params['pickup_from_complexChk'] is False):
             self.newChkFileName = os.path.join(self.runfilesDir, self.structureName+'_state.chk')
             self.checkpointReporter = CheckpointReporter(self.newChkFileName, 10000)
@@ -363,9 +382,26 @@ class omm:
         if implicitSolvent is False:
             self.topology = self.pdb.topology
             self.positions = self.pdb.positions
-            printRecord('Creating a simulation system using force field bundled with OpenMM: {} and {}'.format(self.forceFieldFilename, self.waterModelFilename))
+            if self.waterModelFile == 'no standalone water model':
+                if self.ligandForceFieldFile is None:
+                    printRecord('Creating a simulation system using force field: {} (contains water models)'.format(self.aptamerForceFieldFile)
+                else:
+                    printRecord('Creating a simulation system using force field: {} (contains water models) and {}'.format(self.aptamerForceFieldFile, self.ligandForceFieldFile)
+            else:
+                if self.ligandForceFieldFile is None:
+                    printRecord('Creating a simulation system using force field: {} and {}'.format(self.aptamerForceFieldFile, self.waterModelFile))
+                else:
+                    printRecord('Creating a simulation system using force field: {}, {} and {}'.format(self.aptamerForceFieldFile, self.ligandForceFieldFile, self.waterModelFile))
 
-            self.system = self.forcefield.createSystem(self.topology, nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, constraints=self.constraints, rigidWater=self.rigidWater, hydrogenMass=self.hydrogenMass, ewaldErrorTolerance=self.ewaldErrorTolerance)
+            if self.ewaldErrorTolerance is None:
+                self.system = self.forcefield.createSystem(self.topology, 
+                    nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, 
+                    constraints=self.constraints, rigidWater=self.rigidWater, hydrogenMass=self.hydrogenMass)
+            else:
+                self.system = self.forcefield.createSystem(self.topology, 
+                    nonbondedMethod=self.nonbondedMethod, nonbondedCutoff=self.nonbondedCutoff, 
+                    constraints=self.constraints, rigidWater=self.rigidWater, hydrogenMass=self.hydrogenMass, 
+                    ewaldErrorTolerance=self.ewaldErrorTolerance)
             # ewaldErrorTolerance: as "**args": Arbitrary additional keyword arguments may also be specified. This allows extra parameters to be specified that are specific to particular force fields.
 
         else:  # create a system using prmtop file and use implicit solvent
@@ -416,8 +452,8 @@ class omm:
                 If the switchDistance is 0 or evaluates to boolean False, no switching function will be used. 
                 Values greater than nonbondedCutoff or less than 0 raise ValueError
             '''
-            if self.inpcrd.boxVectors is not None:
-                self.simulation.context.setPeriodicBoxVectors(*self.inpcrd.boxVectors)
+            # if self.inpcrd.boxVectors is not None:
+            #     self.simulation.context.setPeriodicBoxVectors(*self.inpcrd.boxVectors)
 
         # # Need to create a Simulation class, even to load checkpoint file
         # self.integrator = LangevinMiddleIntegrator(self.temperature, self.friction, self.dt)  # another object
@@ -441,6 +477,10 @@ class omm:
             printRecord("When resuming a run: initial positions come from the .chk file.")
 
     def doMD(self):  # no need to be aware of the implicitSolvent        
+        if self.implicitSolvent is True:
+            if self.inpcrd.boxVectors is not None:
+                self.simulation.context.setPeriodicBoxVectors(*self.inpcrd.boxVectors)
+
         # if not os.path.exists(self.structureName + '_state.chk'):
         if self.chkFile is None:
             # User did not specify a .chk_file ==> we are doing a fresh sampling, not resuming.
@@ -450,9 +490,16 @@ class omm:
                 self.simulation.minimizeEnergy(tolerance=20, maxIterations=100)  # default is 10 kJ/mol - also set a max number of iterations
             else:
                 self.simulation.minimizeEnergy()  # (tolerance = 1 * unit.kilojoules / unit.mole)
+            # save the minimized structure:
+            self.extractLastFrame(os.path.join(self.runfilesDir, self.structureName+'_minimized.pdb'))
+
             printRecord('Equilibrating({} steps, time step={} fs)...'.format(self.equilibrationSteps, self.timeStep))            
             self.simulation.context.setVelocitiesToTemperature(self.temperature)
+            self.simulation.reporters.append(self.dcdReporter_equil)
+            self.simulation.reporters.append(self.dataReporter_equil)
             self.simulation.step(self.equilibrationSteps)
+            # save the equilibrated structure:
+            self.extractLastFrame(os.path.join(self.runfilesDir, self.structureName+'_equil.pdb'))
         else:
             # Resume a sampling: no need to minimize and equilibrate
             printRecord("Loading checkpoint file: " + self.chkFile_in_runfilesDir + " to resume sampling")            
@@ -460,6 +507,10 @@ class omm:
 
         # Simulation
         printRecord('Simulating({} steps, time step={} fs, simTime={} ns)...'.format(self.steps, self.timeStep, self.simTime))
+        # remove the reporters used for the equilibration step. simulation.reporters is an ordinary Python list.
+        self.simulation.reporters.remove(self.dcdReporter_equil)
+        self.simulation.reporters.remove(self.dataReporter_equil)
+
         self.simulation.reporters.append(self.dcdReporter)
         # self.simulation.reporters.append(self.pdbReporter)
         self.simulation.reporters.append(self.dataReporter)
