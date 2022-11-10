@@ -384,9 +384,9 @@ class omm:
             self.positions = self.pdb.positions
             if self.waterModelFile == 'no standalone water model':
                 if self.ligandForceFieldFile is None:
-                    printRecord('Creating a simulation system using force field: {} (contains water models)'.format(self.aptamerForceFieldFile)
+                    printRecord('Creating a simulation system using force field: {} (contains water models)'.format(self.aptamerForceFieldFile))
                 else:
-                    printRecord('Creating a simulation system using force field: {} (contains water models) and {}'.format(self.aptamerForceFieldFile, self.ligandForceFieldFile)
+                    printRecord('Creating a simulation system using force field: {} (contains water models) and {}'.format(self.aptamerForceFieldFile, self.ligandForceFieldFile))
             else:
                 if self.ligandForceFieldFile is None:
                     printRecord('Creating a simulation system using force field: {} and {}'.format(self.aptamerForceFieldFile, self.waterModelFile))
