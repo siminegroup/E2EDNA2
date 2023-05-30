@@ -581,12 +581,12 @@ if params['quick_check_mode'] is True:
 
 if params['device'] in ['local', 'cluster']:
     if params['operating_system'] in ['macos', 'linux', 'WSL']:
-        if params['platform'] in ['CPU', 'CUDA']:
-            if params['platform'] == 'CUDA':
-                if not params['CUDA_precision'] in ['single', 'double']:
-                    parser.error(f"Invalid value: --CUDA_precision={params['CUDA_precision']}. Must be from [single, double].")
+        if params['platform'] in ['CPU', 'CUDA', 'OpenCL']:
+            if params['platform'] == 'CUDA' or params['platform'] == 'OpenCL':
+                if not params['CUDA_precision'] in ['single', 'double', 'mixed']:
+                    parser.error(f"Invalid value: --CUDA_precision={params['CUDA_precision']}. Must be from [single, double, mixed].")
         else:
-            parser.error(f"Invalid value: --platform={params['platform']}. Must be from [CPU, CUDA].")
+            parser.error(f"Invalid value: --platform={params['platform']}. Must be from [CPU, CUDA, OpenCL].")
     else:
         parser.error(f"Invalid value: --operating_system={params['operating_system']}. Must be from [macos, linux, WSL].")
 else:
