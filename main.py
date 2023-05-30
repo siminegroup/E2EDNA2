@@ -77,13 +77,13 @@ compute_info.add_argument('-p',
                          type=str,
                          default='CPU',
                          help='Processing platform',
-                         choices=['CPU', 'CUDA'])
+                         choices=['CPU', 'CUDA', 'OpenCL'])
 compute_info.add_argument('--CUDA_precision', 
                          metavar='\b',
                          type=str,
                          default='single',
-                         help='Precision of CUDA, if used',
-                         choices=['single', 'double'])
+                         help='Precision of CUDA or OpenCL, if used',
+                         choices=['single', 'double', 'mixed'])
 
 # =========================== Directory information ===========================
 paths.add_argument('-w',

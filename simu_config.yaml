@@ -3,8 +3,8 @@
 # Compute platform info: device, OS, procssing platform, CUDA_precision
 device          : local # local or cluster
 operating_system: macos # macos or linux or WSL. Not supporting pure Windows OS (due to NUPACK)
-platform        : CPU   # CPU or CUDA
-CUDA_precision:         # single or double. only meaningful if CUDA
+platform        : CPU   # CPU or CUDA or OpenCL
+CUDA_precision:         # single or double or mixed. only meaningful if CUDA or OpenCL
 
 # Work directory and automate output directory "run{--run_num}". If not exist, will be automatically created
 workdir: <path to your work directory>  
