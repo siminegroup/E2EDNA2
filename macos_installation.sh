@@ -21,7 +21,7 @@ echo -e "	To find the path above, list all conda environments and their paths on
 echo -e "               $ conda info -e\n"
 
 echo -e "\nNote2: If you wish to start E2EDNA pipeline from DNA aptamer sequence rather than its 3D structure,"
-echo -e "	please download MMB from https://simtk.org/projects/rnatoolbox, respectively.\n"
+echo -e "	please download MMB from https://simtk.org/projects/rnatoolbox.\n"
 echo -e "	Then copy or move the downloaded MMB folder to the codebase directory (containing scripts like main.py), 
 	and fill 'MMB-related paths' in the yaml configuration file.\n"
 
