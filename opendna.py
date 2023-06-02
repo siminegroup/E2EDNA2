@@ -361,8 +361,8 @@ class opendna:
                 self.actionDict['do smoothing'] = False
                 if self.params['mode'] != '2d structure':
                     printRecord('\nNo relaxation (smoothing) of the folded aptamer.')
-                # self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'foldedAptamer_0.pdb'
-                self.pdbDict['relaxed aptamer {}'.format(self.i)] = self.pdbDict['folded aptamer {}'.format(self.i)]
+                    # self.pdbDict['relaxed aptamer {}'.format(self.i)] = 'foldedAptamer_0.pdb'
+                    self.pdbDict['relaxed aptamer {}'.format(self.i)] = self.pdbDict['folded aptamer {}'.format(self.i)]
             elif self.actionDict['do smoothing']:  # just to double check
                 aptamer_smooth_dir = 'md_aptamer_relaxation_runfiles_%d' % self.i
                 os.mkdir(aptamer_smooth_dir)
