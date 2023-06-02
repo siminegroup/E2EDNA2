@@ -1,4 +1,4 @@
-name: e2edna_conda_env
+name: e2edna
 channels:
   - conda-forge
   - defaults
@@ -6,7 +6,7 @@ dependencies:
   - python=3.8.10
   - openmm=7.7.0
   - openmmforcefields=0.11.2
-  - cudatoolkit=11.7         # double check the cuda version of the Nvidia driver on your GPU. If no GPU, it doesn't matter here.
+  - cudatoolkit=11.7         # double check the cuda version of the Nvidia driver on your GPU. If no GPU, should comment out this line.
   - pdbfixer=1.8.1
   - mdanalysis=2.1.0
   - ambertools=22.0
@@ -17,4 +17,4 @@ dependencies:
     - lightdock==0.9.2
     - seqfold==0.7.7
     - peptidebuilder==1.1.0
-prefix: /home/taoliu/miniconda3/envs/e2edna_conda_env  # this line is optional: where the conda environment will be created
+prefix: /home/taoliu/miniconda3/envs/e2edna  # this line is optional: where the conda environment will be created
