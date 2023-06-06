@@ -336,14 +336,9 @@ class omm:
             self.simTime = simTime
         
         # Platform
-        if params['platform'] == 'CUDA':  # 'CUDA' or 'cpu'
-            self.platform = Platform.getPlatformByName('CUDA')
-            if params['CUDA_precision'] == 'single':
-                self.platformProperties = {'Precision': 'single'}
-            elif params['CUDA_precision'] == 'double':
-                self.platformProperties = {'Precision': 'double'}
-        else:
-            self.platform = Platform.getPlatformByName('CPU')
+        self.platform = Platform.getPlatformByName(self.params['platform'])
+        if (params['platform'] == 'CUDA') or (params['platform'] == 'OpenCL'):  # 'CUDA' or 'CPU' or 'OpenCL'
+            platformProperties = {'Precision': self.params['CUDA_precision']}
 
         # Can resumed run append the old log.txt or .dcd file?
         self.reportSteps = int(params['print_step'] * 1000 / params['time_step'])  # report steps in ps, time step in fs
@@ -464,7 +459,7 @@ class omm:
         
         self.integrator.setConstraintTolerance(self.constraintTolerance)
         
-        if params['platform'] == 'CUDA':
+        if (params['platform'] == 'CUDA') or (params['platform'] == 'OpenCL'):
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform, self.platformProperties)
         elif params['platform'] == 'CPU':
             self.simulation = Simulation(self.topology, self.system, self.integrator, self.platform)
