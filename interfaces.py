@@ -338,7 +338,7 @@ class omm:
         # Platform
         self.platform = Platform.getPlatformByName(params['platform'])
         if (params['platform'] == 'CUDA') or (params['platform'] == 'OpenCL'):  # 'CUDA' or 'CPU' or 'OpenCL'
-            platformProperties = {'Precision': params['CUDA_precision']}
+            self.platformProperties = {'Precision': params['CUDA_precision']}
 
         # Can resumed run append the old log.txt or .dcd file?
         self.reportSteps = int(params['print_step'] * 1000 / params['time_step'])  # report steps in ps, time step in fs
