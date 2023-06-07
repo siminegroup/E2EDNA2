@@ -194,7 +194,7 @@ class opendna:
         :return:
         """
         # Make a new directory
-        if self.params['run_num'] == 0:  # auto-increment the max run_num folder
+        if self.params['run_num'] == '0':  # auto-increment the max run_num folder
             self.autoMakeNewWorkDir()
         else:  # create a working directory defined by the user
             self.workDir = os.path.join(self.params['workdir'], 'run' + str(self.params['run_num'])) #{workdir}/run{run_num}
