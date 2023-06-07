@@ -19,8 +19,8 @@ quick_check_mode: 'No' # 'Yes' or 'No'. Yes': To run a certain mode for quick ch
                        # Will overwrite "Pipeline modules" settings with simplistic default values (seen below at the bottom)
 
 # Output directory: {workdir}/run{run_num}
-run_num: 1 # integer or string, eg '1_NaCl_140mM'
-# if set as number 0, it will assume all previous run-numbers are digit (if any) and increment the largest run-number in the {workdir}
+run_num: 1 # considered as string, so it can be e.g. '1_NaCl_140mM'
+# if set as 0, it will assume all previous run-numbers are integers (if any) and increment the largest run-number in the {workdir}
 
 # Pipeline mode:
 mode: '2d structure'
