@@ -598,7 +598,7 @@ class opendna:
                     # # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
                     prepPDB(aptamerPDB, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
                     printRecord('Done preparing files with waterbox. Start OpenMM.')                
-                else:
+                elif self.params['process_pdb'] == 'No':
                     # make sure the input PDB file ends up "_processed.pdb"
                     printRecord('Input PDB file was prepapred with ions and solvent. Start OpenMM.')
 
