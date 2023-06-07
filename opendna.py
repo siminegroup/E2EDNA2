@@ -601,6 +601,8 @@ class opendna:
                 elif self.params['process_pdb'] == 'No':
                     # make sure the input PDB file ends up "_processed.pdb"
                     printRecord('Input PDB file was prepapred with ions and solvent. Start OpenMM.')
+                else:
+                    printRecord("ERROR: Please specify the {process_pdb} in the configuration. Options are 'Yes' or 'No'.")
 
             else:  # prepare prmtop and crd file using LEap in ambertools
                 printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for aptamer...')
