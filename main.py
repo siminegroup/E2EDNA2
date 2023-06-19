@@ -118,12 +118,12 @@ run_info.add_argument('--quick_check_mode',
                          help='Rapidly run a certain mode for quick check using default test parameters',
                          choices=['Yes','No'])
 # # comment this part out so that run_num can be strings
-# run_info.add_argument('-r',
-#                          '--run_num',
-#                          metavar='\b',
-#                          type=int,
-#                          default=1,
-#                          help='Run number. Output will be written to {--workdir}/run{--run_num}')
+run_info.add_argument('-r',
+                         '--run_num',
+                         metavar='\b',
+                         type=int,
+                         default=1,
+                         help='Run number. Output will be written to {--workdir}/run{--run_num}')
 
 # ================ DNA aptamer and ligand info ================
 run_info.add_argument('-m',
