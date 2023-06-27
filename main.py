@@ -117,12 +117,12 @@ run_info.add_argument('--quick_check_mode',
                          default='Yes',
                          help='Rapidly run a certain mode for quick check using default test parameters',
                          choices=['Yes','No'])
-# # comment this part out so that run_num can be strings
+# run_num is a string
 run_info.add_argument('-r',
                          '--run_num',
                          metavar='\b',
-                         type=int,
-                         default=1,
+                         type=str,
+                         default='1',
                          help='Run number. Output will be written to {--workdir}/run{--run_num}')
 
 # ================ DNA aptamer and ligand info ================
@@ -598,7 +598,7 @@ if not os.path.isdir(params['workdir']):
 
 # Check if output directory for run exists;
 # Either fail or force overwrite if so
-out_dir = os.path.join(params['workdir'], 'run' + str(params['run_num'])) #{workdir}/run{run_num}
+out_dir = os.path.join(params['workdir'], 'run' + params['run_num']) #{workdir}/run{run_num}
 if os.path.isdir(out_dir):
     if params['overwrite']:
         shutil.rmtree(out_dir) # Delete entire directory tree
