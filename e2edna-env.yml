@@ -12,7 +12,7 @@ dependencies:
   - ambertools=22.0
   - pyyaml=6.0
   - beliveau-lab::nupack=4
-  - pip
+  - pip=22.3.1
   - pip:                     # these packages are only distributed through PyPI
     - lightdock==0.9.2
     - seqfold==0.7.7
