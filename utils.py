@@ -26,7 +26,7 @@ from openmm.app import *
 import openmm.unit as unit
 
 import argparse
-import os
+import os, re
 import csv
 import numpy as np
 import time
@@ -40,7 +40,7 @@ from collections import Counter
 
 from PeptideBuilder import Geometry  # pip install PeptideBuilder
 import PeptideBuilder
-
+from shutil import copyfile, copytree
 
 # def recenterDCD(topology, trajectory):
 #     """
@@ -81,6 +81,161 @@ def printRecord(statement, filepath=""):
             file.write('\n' + statement)
 
 
+def prepPDB_with_Mg(file, boxOffset, MgCl2_molar, NaCl_molar, MMBCORRECTION=False, waterBox=True):
+    """
+    Soak pdb file in water box, and add Mg2+ ions
+    :param file: file to be processed
+    :param boxOffset: in unit of nanometer
+    :param NaCl_molar: in unit of molar
+    :param MgCl2_molar: in unit of molar
+    :param MMBCORRECTION: if the input pdb file is an MMB output, we need to apply a correction, since MMB is a little weird formatting-wise
+                           https://simtk.org/plugins/phpBB/viewtopicPhpbb.php?f=359&t=13397&p=0&start=0&view=&sid=bc6c1b9005122914ec7d572999ba945b
+    :param waterBox:
+    :return:
+    """
+
+    if MMBCORRECTION:
+        replaceText(file, '*', "'")  # due to a bug in this version of MMB - structures are encoded improperly - this fixes it
+
+    fixer = PDBFixer(filename=file)
+    padding, boxSize, boxVectors = None, None, None
+    boxMode = 'cubic'  # TODO toggle for box type - look at openmm-setup source code for other box types
+
+    if boxMode == 'cubic':
+        padding = float(boxOffset) * unit.nanometer  # for cubic box
+    elif boxMode == 'rectangular prism':
+        # or we can make a rectangular prism which (maybe) cuts off sides of the cube
+        u = mda.Universe(file)
+        coords = u.atoms.positions
+        xrange = np.ptp(coords[:, 0])  # get maximum dimension
+        yrange = np.ptp(coords[:, 1])
+        zrange = np.ptp(coords[:, 2])
+        maxsize = max([xrange, yrange, zrange])
+        # minimum dimension is half the longest TODO why?
+        # also convert to nanometer
+        xrange = max([xrange, maxsize / 2]) / 10
+        yrange = max([yrange, maxsize / 2]) / 10
+        zrange = max([zrange, maxsize / 2]) / 10
+
+        # TODO may also need an EWALD offset
+        xrange = xrange + 2 * boxOffset
+        yrange = yrange + 2 * boxOffset
+        zrange = zrange + 2 * boxOffset
+
+        boxSize = [xrange, yrange, zrange] * unit.nanometer  # for rectangular prism
+
+    # fixer.findMissingResidues()
+    # fixer.findMissingAtoms()
+    # fixer.addMissingAtoms()  # may need to optimize bonding here
+    # fixer.addMissingHydrogens(pH=pH)  # add missing hydrogens, but not really working for theophylline or DNA though even at pH 1.0 lol
+    
+    # save the CONECT records, if any, as they will be removed once solvent is added
+    my_file = open(file, 'r')
+    my_file_lines = my_file.readlines()
+    my_file.close()
+    conect_records = []
+    for line in my_file_lines:
+        if line.find('CONECT') == 0: conect_records.append(line) # if finding 'CONECT' as the beginning of the line
+
+    has_conect_records = True if len(conect_records) > 0 else False
+    if has_conect_records:
+        conect_records_string = ''.join(conect_records)
+        if conect_records_string[-1] == '\n': # if any, remove the last '\n' because need to append an 'End' 
+            conect_records_string = conect_records_string[:-1]
+        # with open('CONECT_records.txt', 'w') as conect_records_file:
+        #     conect_records_file.write(conect_records_string)
+        # Q: when there is a ligand and a "TER" between DNA and ligand residues, does it offset CONECT records by 1??
+        # Good news: MDAnalysis removes all the TER records, so we will add CONECT after using MDAnalysis to center the system
+
+
+    if waterBox == True:
+        MgCl2_concentration = float(MgCl2_molar) * unit.molar
+        NaCl_concentration = float(NaCl_molar) * unit.molar
+        positiveIon = 'Na+'  # params['positiveion']+'+'
+        negativeIon = 'Cl-'  # params['negativeion']+'-'
+
+        # fixer.addSolvent(boxSize, padding, boxVectors, positiveIon, negativeIon, ionicStrength)
+            # ''' PDBFixer actually calls openmm.app.modeller.Modeller class: https://github.com/openmm/pdbfixer/blob/master/pdbfixer/pdbfixer.py#L1061
+            # Modeller.addSolvent() needs a forcefield to determine van der Waals radii and atomic charges. The default forcefield used in PDBfixer is amber14 and amber14/tip3p
+            # If using another water model, could choose to use Modeller.addSolvent() directly;
+            # Or, if the water model is similar to tip3p, then the downstream local energy minimization can correct for the small differences between the models. 
+            # This is how they explained in the Modeller API why they picked tip3p as the default water forcefield
+            # '''
+        # Add NaCl to the same [MgCl2], so that later we can replace all Na+ with Mg2+
+        # here, add ions without neutralizing the solute!
+        modeller = Modeller(fixer.topology, fixer.positions)
+        fixer_forcefield = fixer._createForceField(fixer.topology, water=True) # default: using amber14-all and amber14/tip3p models
+        # if system contains ligand, maybe add GAFFTemplateGenerator to the forcefield as usual, then ligand can be recognized as well.
+        modeller.addSolvent(fixer_forcefield, padding=padding, positiveIon=positiveIon, negativeIon=negativeIon, ionicStrength=MgCl2_concentration, neutralize=False)
+        chains = list(modeller.topology.chains())
+        if len(chains) == 1:
+            chains[0].id = 'A'
+        else:
+            chains[-1].id = chr(ord(chains[-2].id)+1)
+        # fixer.topology = modeller.topology
+        # fixer.positions = modeller.positions
+
+        modeller.deleteWater() # remove all water
+        modeller.delete(atom for atom in modeller.topology.atoms() if atom.name == 'Cl') # remove all Cl-
+        # Now the only ions left are Na+, same concentraion as desired Mg2+:
+        system_Na_dry_pdb = file.split('.pdb')[0] + '_Na_dry.pdb'
+        PDBFile.writeFile(modeller.topology, modeller.positions, open(system_Na_dry_pdb, 'w'))
+        # Replace all Na+ with Mg2+ in pdb file: here assuming "Na" and "NA" only occur to sodium records. 
+        # A possible exception may be the ligand residue name: it may contain "NA", then need to replace the whole word
+        # But, still need to be mindful of this step
+        replaceText(system_Na_dry_pdb, 'Na', 'Mg', swap_whole_word=False)
+        replaceText(system_Na_dry_pdb, 'NA', 'MG', swap_whole_word=True)
+        # change the pdb filename 
+        system_Mg_dry_pdb = file.split('.pdb')[0] + '_Mg_dry.pdb'
+        os.rename(system_Na_dry_pdb, system_Mg_dry_pdb)
+
+        if has_conect_records:
+            # Add back the CONECT records
+            f = open(system_Mg_dry_pdb, 'r')
+            string = f.read()
+            f.close()
+            # remove 'END'
+            end_loc = string.find('END') # find where the 'END' appears
+            # replace everything after END with the CONECT records
+            new_string = string[:end_loc] + conect_records_string + '\nEND\n'
+            with open(system_Mg_dry_pdb, 'w') as new_file:
+                new_file.write(new_string)
+
+        # add NaCl
+        fixer = PDBFixer(system_Mg_dry_pdb) # recall the system now carries several Mg2+
+        fixer.addSolvent(positiveIon=positiveIon, negativeIon=negativeIon, ionicStrength=NaCl_concentration)
+        # here we do not specify box size at all, in order to use the existing topology's box vectors, so that the box size does not change
+        # Some Na+ and/or Cl- will be added first to neutralize the system including Mg2+, then (Na+, Cl-) pairs will be added to give the requested [NaCl]
+
+    solvated_file = file.split('.pdb')[0] + '_processed_not_centered.pdb'
+    PDBFile.writeFile(fixer.topology, fixer.positions, open(solvated_file, 'w'))
+
+    # center the solvated molecule in the simulation box
+    u = mda.Universe(solvated_file)
+    dim = u.dimensions[:3] # retrieve the box dimension (the last three are the box angles)
+    box_center = dim / 2
+    all_atoms = u.select_atoms("all")
+    # print(all_atoms.center_of_mass(pbc=True)) # translate the molecules so that their centers are within the same periodic box
+    # print(all_atoms.center_of_mass(pbc=False))
+    COM = all_atoms.center_of_mass(pbc=False)
+    u.atoms.translate(box_center - COM)
+    centered_file = file.split('.pdb')[0] + '_processed.pdb'
+    all_atoms.write(centered_file)
+
+    # Good news: MDAnalysis removes all the TER records, so we will add CONECT after using MDAnalysis to center the system
+    if has_conect_records:
+        # Add back the CONECT records
+        f = open(centered_file, 'r')
+        string = f.read()
+        f.close()
+        # remove 'END'
+        end_loc = string.find('END') # find where the 'END' appears
+        # replace everything after END with the CONECT records
+        new_string = string[:end_loc] + conect_records_string + '\nEND\n'
+        with open(centered_file, 'w') as new_file:
+            new_file.write(new_string)
+
+    
 def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=True):
     """
     Soak pdb file in water box
@@ -130,13 +285,19 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
     # fixer.findMissingAtoms()
     # fixer.addMissingAtoms()  # may need to optimize bonding here
 
-    fixer.addMissingHydrogens(pH=pH)  # add missing hydrogens
+    # fixer.addMissingHydrogens(pH=pH)  # add missing hydrogens, but not really working for theophylline or DNA though even at pH 1.0 lol
     
     if waterBox == True:
         ionicStrength = float(ionicStrength) * unit.molar
         positiveIon = 'Na+'  # params['positiveion']+'+'
         negativeIon = 'Cl-'  # params['negativeion']+'-'
         fixer.addSolvent(boxSize, padding, boxVectors, positiveIon, negativeIon, ionicStrength)
+        ''' PDBFixer actually calls openmm.app.modeller.Modeller class: https://github.com/openmm/pdbfixer/blob/master/pdbfixer/pdbfixer.py#L1061
+        Modeller.addSolvent() needs a forcefield to determine van der Waals radii and atomic charges. The default forcefield used in PDBfixer is amber14 and amber14/tip3p
+        If using another water model, could choose to use Modeller.addSolvent() directly;
+        Or, if the water model is similar to tip3p, then the downstream local energy minimization can correct for the small differences between the models. 
+        This is how they explained in the Modeller API why they picked tip3p as the default water forcefield
+        '''
     
     solvated_file = file.split('.pdb')[0] + '_processed_not_centered.pdb'
     PDBFile.writeFile(fixer.topology, fixer.positions, open(solvated_file, 'w'))
@@ -154,12 +315,16 @@ def prepPDB(file, boxOffset, pH, ionicStrength, MMBCORRECTION=False, waterBox=Tr
     all_atoms.write(centered_file)
     
 
-def replaceText(file, old_string, new_string):
+def replaceText(file, old_string, new_string, swap_whole_word=False):
     # search and replace string in a text file, then save the new version
     f = open(file, 'r')
-    text = f.read()
+    text = f.read() # as string
     f.close()
-    text = text.replace(old_string, new_string)
+    if swap_whole_word:
+        text = re.sub(r"\b%s\b" % old_string, new_string, text)
+    else:
+        text = text.replace(old_string, new_string)
+        # text = re.sub(old_string, new_string, text)  # another way
     f = open(file, 'w')
     f.write(text)
     f.close()

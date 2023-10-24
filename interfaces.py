@@ -43,10 +43,10 @@ from analysisTools import *
 
 
 class nupack:
-    def __init__(self, aptamerSeq, temperature, ionicStrength, mgConc=0, ensemble='nostacking'):
+    def __init__(self, aptamerSeq, temperature, naConc, mgConc=0, ensemble='nostacking'):
         self.aptamerSeq = aptamerSeq
         self.temperature = temperature
-        self.naConc = ionicStrength
+        self.naConc = naConc
         self.mgConc = mgConc
         self.ensemble = ensemble
         self.R = 0.0019872  # ideal gas constant in kcal/mol/K
@@ -60,7 +60,7 @@ class nupack:
         """
         aptamerSeq is in FASTA format
         temperature in C or K
-        ionicStrength in Molar
+        naConc in Molar
         Ouput a lot of analysis results in self.output
         :return:
         """

@@ -295,7 +295,7 @@ run_info.add_argument('--temperature',
                          type=float,
                          default=298.0,
                          help='Temperature in Kelvin')
-run_info.add_argument('--ionicStrength',
+run_info.add_argument('--NaCl_molar',
                          metavar='\b',
                          type=float,
                          default=0.1,
@@ -458,7 +458,7 @@ run_info.add_argument('--implicit_solvent_Kappa',
                          metavar='\b',
                          type=float,
                          default=None,
-                         help='Debye screening parameter; If specified by user, OpenMM will ignore {--ionicStrength} in implicit solvent.')
+                         help='Debye screening parameter; If specified by user, OpenMM will ignore {--NaCl_molar} in implicit solvent.')
 run_info.add_argument('--leap_template',
                          metavar='\b',
                          type=str,
@@ -799,7 +799,7 @@ if params['mode'] in ['3d smooth','smooth dock','free aptamer','full dock','full
                 "Choose from [Ewald, PME, LJPME, CutoffPeriodic, CutoffNonPeriodic, NoCutoff] for explicit solvent.")
     # implicit solvent is used
     else:
-        params['implicit_solvent_salt_conc'] = params['ionicStrength']  
+        params['implicit_solvent_salt_conc'] = params['NaCl_molar']  
         '''Salt conc in solvent: converted to debye length (kappa) using the provided temperature and solventDielectric 
         (see interfaces.py for detailed walk-through)'''
 

@@ -22,7 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import sys
 import glob
 import shutil
-from shutil import copyfile, copytree
+# from shutil import copyfile, copytree
 
 import interfaces
 from utils import *
@@ -440,7 +440,7 @@ class opendna:
             # print('seqfold ssAnalysis: ',self.ssAnalysis)
             return pairList
         elif self.params['secondary_structure_engine'] == 'NUPACK':
-            nup = interfaces.nupack(aptamerSeq=aptamerSeq, temperature=self.params['temperature'], ionicStrength=self.params['ionicStrength'], mgConc=self.params['Mg_conc'], ensemble=self.params['ensemble'])  # initialize nupack            
+            nup = interfaces.nupack(aptamerSeq=aptamerSeq, temperature=self.params['temperature'], naConc=self.params['NaCl_molar'], mgConc=self.params['Mg_conc'], ensemble=self.params['ensemble'])  # initialize nupack            
             self.ssAnalysis = nup.run()  # run nupack analysis of possible 2D structures.
 
             distances = getSecondaryStructureDistance(self.ssAnalysis['config'])            
@@ -518,7 +518,8 @@ class opendna:
         printRecord('\nRunning Short Relaxation (Smoothing) of Free Aptamer')
         if implicitSolvent is False:
             # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
-            prepPDB(structure, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
+            prepPDB_with_Mg(structure, self.params['box_offset'], self.params['MgCl2_molar'], self.params['NaCl_molar'], MMBCORRECTION=True, waterBox=True)
+            # prepPDB(structure, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
             printRecord('Done preparing files with waterbox. Start OpenMM.')
         else:  # prepare prmtop and crd file using LEap in ambertools
             printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for folded aptamer...')
@@ -596,7 +597,8 @@ class opendna:
             if implicitSolvent is False:
                 if self.params['process_pdb'] == 'Yes':
                     # # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
-                    prepPDB(aptamerPDB, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
+                    prepPDB_with_Mg(aptamerPDB, self.params['box_offset'], self.params['MgCl2_molar'], self.params['NaCl_molar'], MMBCORRECTION=True, waterBox=True)
+                    # prepPDB(aptamerPDB, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
                     printRecord('Done preparing files with waterbox. Start OpenMM.')                
                 elif self.params['process_pdb'] == 'No':
                     # make sure the input PDB file ends up "_processed.pdb"
@@ -711,7 +713,8 @@ class opendna:
             printRecord('\nRunning Fresh Dynamics of Aptamer-Ligand Complex')
             if implicitSolvent is False:
                 # set up periodic box and condition: pH and ionic strength => protons, ions and their concentrations
-                prepPDB(complexPDB, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
+                prepPDB_with_Mg(complexPDB, self.params['box_offset'], self.params['MgCl2_molar'], self.params['NaCl_molar'], MMBCORRECTION=True, waterBox=True)
+                # prepPDB(complexPDB, self.params['box_offset'], self.params['pH'], self.params['ionicStrength'], MMBCORRECTION=True, waterBox=True)
                 printRecord('Done preparing files with waterbox. Start OpenMM.')
             else:  # prepare prmtop and crd file using LEap in ambertools
                 printRecord('Implicit solvent: running LEap to generate .prmtop and .crd for aptamer-ligand complex...')
