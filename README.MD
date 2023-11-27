@@ -11,6 +11,8 @@
 
 * Interested in contributing to developing E2EDNA? Check out how to contribute [here](https://github.com/siminegroup/E2EDNA2/blob/JOSS/CONTRIBUTING.md).
 
+* Please download the most recent release v2.0.0 [here](https://github.com/siminegroup/E2EDNA2/releases/tag/v2.0.0) or [here](https://github.com/siminegroup/E2EDNA2/tree/v2.0.0)
+
 ## Reference
 If you use this code in any future publications, please cite our work using `Kilgour et al., (2022). E2EDNA 2.0: Python Pipeline for Simulating DNA Aptamers with Ligands. Journal of Open Source Software, 7(73), 4182`
 
