@@ -7,7 +7,9 @@
 
 ### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
 
-* To view the original version of E2EDNA, refer to its [GitHub repo](https://github.com/InfluenceFunctional/E2EDNA) and [DOI](https://doi.org/10.1021/acs.jcim.1c00696). <!-- J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 -->
+* Please note that the main branch is in ongoing development and tests may or may not work. For a fully working version use the [released code](https://github.com/siminegroup/E2EDNA2/tree/v2.0.0) v2.0.0
+
+* To view Tinker-based version of E2EDNA, refer to its [GitHub repo](https://github.com/InfluenceFunctional/E2EDNA) and [DOI](https://doi.org/10.1021/acs.jcim.1c00696). <!-- J. Chem. Inf. Model. 2021, 61, 9, 4139–4144 -->
 
 * Interested in contributing to developing E2EDNA? Check out how to contribute [here](https://github.com/siminegroup/E2EDNA2/blob/JOSS/CONTRIBUTING.md).
 
