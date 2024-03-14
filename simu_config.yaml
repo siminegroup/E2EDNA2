@@ -23,7 +23,7 @@ run_num: 1 # considered as string, so it can be e.g. '1_NaCl_140mM'
 # if set as 0, it will assume all previous run-numbers are integers (if any) and increment the largest run-number in the {workdir}
 
 # Pipeline mode:
-mode: '2d structure'
+mode: 'DeltaGzip'
 # '2d structure': NUPACK
 # '3d coarse': NUPACK + MMB
 # '3d smooth': NUPACK + MMB + short MD relaxation (smoothing)
@@ -32,11 +32,16 @@ mode: '2d structure'
 # 'free aptamer': NUPACK + MMB + MD sampling (aptamer)
 # 'full dock': NUPACK + MMB + MD sampling (aptamer) + docking
 # 'full binding': NUPACK + MMB + MD sampling (aptamer) + docking + MD sampling (aptamer-ligand complex)
+# 'DeltaGzip': run 2 equilibrium simulations to collect configurations of bound state and free state 
+#              (1) Need bound state structure: can be obtained by running 'coarse dock' or 'smooth dock' or 'full dock' or 'full binding' -- difference is fidelity level
+#              (2) For now, assuming the bound-state structure is provided as the starting point for DeltaGzip mode.
 # # `skip_MMB` can be used to skip MMB and NUPACK together, but no effecct if mode is '2d structure'.
 
 # Information on DNA aptamer and target ligand if applicable
 # 5'->3' DNA sequence
 aptamer_seq: 'TAATGTTAATTG'
+# or N->C peptide sequence
+peptide_aptamer_seq: 
 ligand:
 ligand_type:
 ligand_seq:
@@ -107,7 +112,7 @@ pickup_pdb:
 # # Environmental parameters of the simulation system
 pressure: 1.0             # atm
 temperature: 298.15       # Kevin: used to predict secondary structure and for MD thermostat
-ionicStrength: 0.150      # Sodium concentration used by NUPACK and OpenMM. [Na] in [50M, 1100M] for NUPACK. Could be used in implicit solvent as well.
+ionicStrength: 0.150      # NaCl molar concentration used by NUPACK and OpenMM. [Na] in [50M, 1100M] for NUPACK. Could be used in implicit solvent as well.
 pH: 7.4                   # Used to decide protonation states of aptamer and/or target ligand in OpenMM explicit waterbox
 
 
@@ -122,7 +127,7 @@ equilibration_time: 0.0005
 smoothing_time:
 aptamer_sampling_time: 0.001
 complex_sampling_time:
-time_step: 2.0           
+time_step: 1.0    # also used by DeltaGzip module specified below       
 print_step: 0.05         
 # # The meanings of 6 arguments about MD time:
 # ns. Initial equilibration time in nanoseconds
@@ -137,19 +142,18 @@ print_step: 0.05
 # For more check out: http://docs.openmm.org/latest/userguide/application/02_running_sims.html#force-fields
 # The force field is specified in __init__ of interfaces.py
 aptamer_force_field: amber14-all.xml # amber14/protein.ff14SB.xml, amber14/DNA.OL15.xml, amber14/RNA.OL3.xml, amber14/lipid17.xml, etc.
-ligand_force_field: 
-# /home/taoliu/RNA.OL3_AMP_hf_RESP.xml
-# modified RNA.OL3 is stored on CC home directory
-hydrogen_mass: 1.5       # amu. Heavier hydrogen allows us to sample for longer time
+ligand_force_field: openmmff_gaff_2-11
+
+hydrogen_mass: 1.0       # amu. Heavier hydrogen allows us to sample for longer time
                          # This applies only to hydrogens that are bonded to heavy atoms, 
                          # and any mass added to the hydrogen is subtracted from the heavy atom. 
                          # This keeps their total mass constant while slowing down the fast motions of hydrogens
 
 # # Default is to use explicit solvent
-water_model: amber14/tip3p  # amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc; Not used if implicit solvent
+water_model: amber14/tip3p.xml  # amber14/tip3pfb.xml, amber14/tip4pew.xml, amber14/spce.xml, etc; Not used if implicit solvent
 box_offset: 1.0       # nanometers
-constraints: HBonds   # HBonds, AllBonds, HAngles, None (Python string)
-constraint_tolerance: 1.0e-6 # constraintTolerance of integrator
+constraints: 'None'   # HBonds, AllBonds, HAngles, None (Python string)
+integrator_constraint_tol: 1.0e-6 # constraintTolerance of integrator
 rigid_water: 'Yes'    # 'Yes' or 'No'. 
                       # Regardless of "constraints", OpenMM makes water molecules completely rigid, constraining both their bond lengths and angles; 
                       # But by default OpenMM makes AMOEBA water flexible. If 'No', better to reduce integration step size to 0.5 fs
@@ -182,3 +186,56 @@ DNA_force_field:         # DNA.OL15 or DNA.bsc1. For free aptamer MD sampling, a
 # Docking
 docking_steps: 5      # number of steps for docking simulations
 N_docked_structures: 1  # 2 # number of docked structures to output from the docker. If running binding, it will go this time (at linear cost) # TODO: "it will go this time"?
+
+
+# =========================== Additional module: DeltaGzip ===========================
+# required: a bound-state structure to initialize 2 MD simulations for generating a canonical distribution of configurations in bound state and free state, respectively
+input_file_for_DeltaGzip_simu: <path to the bound-state structure PDB file> # example: '/home/username/initial_pdbs/DNA_NAME_LIGAND_NAME.pdb. 
+# Make sure the input file can be parsed in by OpenMM: either contains the complete CONECT records or the atoms are named while compliant with openmm convention
+ligand_chain_index: 2 # zero-based index 
+process_bound_state_pdb: 'Yes'
+# 'No' => the file is pre-processed. But strongly not recommended because the ligand is removed to initilize free state simulation, which will leave a void in the water box.
+
+# # Specified the simulation conditions in OpenMM section above.
+# pressure: 1.0            # atm
+# temperature: 300.0       # Kevin: used to predict secondary structure and for MD thermostat
+# ionicStrength: 0.0       # NaCl molar concentration used by NUPACK and OpenMM. [Na] in [50M, 1100M] for NUPACK. Could be used in implicit solvent as well.
+# pH: 7.4                  # Used to decide protonation states of aptamer and/or target ligand in OpenMM explicit waterbox
+# box_offset: 1.0          # nanometers
+# # temperature, ionicStrength, pH and box_offset are used to solvate a molecule.
+# time_step: 1.0
+# # fs. MD time_step in fs
+# aptamer_force_field: amber14/protein.ff14SB.xml
+# ligand_force_field: openmmff_gaff_2-11
+# water_model: amber14/tip3p.xml  # amber14/tip3pfb, amber14/tip4pew, amber14/spce, etc
+# nonbonded_method: PME
+#                       # Ewald, PME, LJPME, CutoffPeriodic, CutoffNonPeriodic, NoCutoff (Python string)
+#                       # Particle Mesh Ewald: efficient full electrostatics method in periodic boundary conditions to calculate long-range interactions
+# # nonbonded_cutoff: 1.0 # nanometers
+# ewald_error_tolerance: 5.0e-4 
+# constraints: 'None'   # HBonds, AllBonds, HAngles, None (Python string)
+# rigid_water: 'Yes'    # 'Yes' or 'No'. 
+#                       # Regardless of "constraints", OpenMM makes water molecules completely rigid, constraining both their bond lengths and angles; 
+#                       # But by default OpenMM makes AMOEBA water flexible. If 'No', better to reduce integration step size to 0.5 fs
+# hydrogen_mass: 1.0    # amu. Heavier hydrogen allows us to sample for longer time
+#                       # This applies only to hydrogens that are bonded to heavy atoms, 
+#                       # and any mass added to the hydrogen is subtracted from the heavy atom. 
+#                       # This keeps their total mass constant while slowing down the fast motions of hydrogens
+# integrator_constraint_tol: 1.0e-6 # constraintTolerance of integrator
+# friction: 1.0 # Langevin friction coefficient. Unit: 1/ps. Determines how strongly the system is coupled to the heat bath
+
+
+ligand_topology_file:  # example: /home/username/ligands_sdf/LIGAND_NAME_model.sdf
+# Required and must be sdf file.
+
+equil_config_duration: 1   # ns
+sample_config_duration: 20 # ns
+num_config: 5000
+
+# Optionally: apply an external force on the center of mass of the whole ligand
+apply_force_on_ligand_COM: 'Yes' 
+k0: 20000 # kJ/mol/nm^2. 100 kJ/mol/nm^2 => 166 pN/nm or mN/m => 16.6 pN/Ang. 1 pN/A = 6.022 kJ/mole/nm^2
+
+# selection command for MDA to select biopolymer and/or ligand:
+mda_sele_biopolymer: "(chainID A) or (chainID B)"
+mda_sele_ligand: "chainID C"

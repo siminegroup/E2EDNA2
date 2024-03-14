@@ -37,7 +37,9 @@ from openmm.app import *
 import openmm.unit as unit
 # In OpenMM/7.7.0: the prefix of "simtk" has been removed.
 # In OpenMM/7.5.0: package simtk is created with packages "openmm" and "unit" inside but literally import the stand-alone openmm.
-
+from openff.toolkit.topology import Molecule
+from openmmforcefields.generators import GAFFTemplateGenerator
+import MDAnalysis as mda
 from utils import *
 from analysisTools import *
 
@@ -276,6 +278,197 @@ class mmb:  # MacroMolecule Builder (MMB)
         self.MMBfoldFidelity = np.amax(scores)  # the score would increase with more and more stages
 
 
+# Run openmm simulation to sample configurations for DeltaGzip
+class omm_DeltaGzip():
+    def __init__(self, runfilesDir, input_file, params, ligand_sdf_file=None, complex_structure=False, **kwargs):
+        
+        self.runfilesDir = runfilesDir
+        self.complex_structure = complex_structure
+
+        ## Set up the force field so that the input pdb can be recognized.
+        if complex_structure is True:
+            if params['ligand_force_field'] == 'openmmff_gaff_2-11': # parameterize the ligand in the pdb
+                assert ligand_sdf_file is not None
+                ligand_molecule = Molecule.from_file(ligand_sdf_file)  # another option: Molecule.from_smiles('SMILE_STRING')
+                # Create the GAFF template generator
+                gaff = GAFFTemplateGenerator(molecules=ligand_molecule, forcefield='gaff-2.11')
+                # Register the GAFF template generator
+                forcefield = ForceField(params['aptamer_force_field'], params['water_model'])
+                forcefield.registerTemplateGenerator(gaff.generator)
+                printRecord("GAFF template generator for ligand has been added to the Force object, by default, using gaff-2.11")
+                # We can now parameterize an OpenMM Topology object that contains the specified molecule.
+                # forcefield will load the appropriate GAFF parameters when needed, and antechamber
+                # will be used to generate small molecule parameters on the fly.
+            else:
+                forcefield = ForceField(params['aptamer_force_field'], params['ligand_force_field'], params['water_model'])
+        
+        else: # free state
+            forcefield = ForceField(params['aptamer_force_field'], params['water_model'])
+
+
+        fixer = PDBFixer(filename=input_file) # input_file can be parsed by openmm, eg, contains the complete CONECT records
+        if complex_structure is False: # need to delete the ligand chain to serve as free state configuration
+            fixer.removeChains([int(params['ligand_chain_index'])])
+
+        if params['process_bound_state_pdb'] == 'Yes':
+            # Directly do the solvation here:
+            fixer.addSolvent(boxSize=None, padding=float(params['box_offset'])*unit.nanometer, boxVectors=None, positiveIon='Na+', negativeIon='Cl-', ionicStrength=params['ionicStrength']*unit.molar) # neutralize is True by default
+            
+            if complex_structure is True:
+                self.solvated_file = 'bound_state_initial_config_processed.pdb'
+            else: 
+                self.solvated_file = 'free_state_initial_config_processed.pdb'
+            PDBFile.writeFile(fixer.topology, fixer.positions, open(os.path.join(self.runfilesDir,self.solvated_file), 'w'))
+
+        else:
+            self.solvated_file = input_file
+
+        # center the molecule in the simulation box. So that nothing gets replaced by its mirror image
+        u = mda.Universe(os.path.join(self.runfilesDir,self.solvated_file))
+        dim = u.dimensions[:3] # retrieve the box dimension (the last three are the box angles)
+        box_center = dim / 2
+        # if (complex_structure is False) and (params['process_bound_state_pdb'] != 'Yes'):
+        #     all_atoms = u.select_atoms('not ({})'.format(params['mda_sele_ligand']))
+        # else:
+        all_atoms = u.select_atoms("all")
+        COM = all_atoms.center_of_mass(pbc=False) # technically could just look at water molecules' center of mass
+        
+        # Use this to update positions
+        xyz_shift = box_center - COM # angstrom. numpy array
+
+        u.atoms.translate(xyz_shift)
+        # if complex_structure is True:
+        #     centered_file = 'centered_bound_state_initial_config.pdb' # output just for visualization
+        # else:
+        #     centered_file = 'centered_free_state_initial_config.pdb'
+        # all_atoms.write(centered_file)
+
+        # Update the PDB object's coordinate:
+        new_positions = fixer.positions + xyz_shift*unit.angstrom
+        fixer.positions = new_positions
+
+        # pdb = PDBFile(centered_file)
+        self.pdb = fixer # directly use fixer object, because its stored topology is intact!
+        # coords = self.pdb.getPositions(asNumpy=True)
+
+        ## Use force field to createSystem
+        if params['ewald_error_tolerance'] is None: # if ewald error tolerance is not specified, then not use this keyword
+            system = forcefield.createSystem(self.pdb.topology, 
+                nonbondedMethod=params['nonbonded_method'], nonbondedCutoff=params['nonbonded_cutoff']*unit.nanometer,
+                constraints=params['constraints'], rigidWater=params['rigid_water'], hydrogenMass=params['hydrogen_mass']*unit.amu)
+        else:
+            system = forcefield.createSystem(self.pdb.topology, 
+                nonbondedMethod=params['nonbonded_method'], nonbondedCutoff=params['nonbonded_cutoff']*unit.nanometer, ewaldErrorTolerance=params['ewald_error_tolerance'],
+                constraints=params['constraints'], rigidWater=params['rigid_water'], hydrogenMass=params['hydrogen_mass']*unit.amu)
+
+        if (complex_structure is True) and (params['apply_force_on_ligand_COM'] == 'Yes'):
+            # Apply force at the center of mass of the ligand
+            ## u_centered = mda.Universe(centered_file) # No need to load centered file to get center of mass.
+            ## ligand = u_centered.select_atoms('chainID B')
+            ligand = u.select_atoms(params['mda_sele_ligand'])
+            com_t0 = ligand.atoms.center_of_mass()*0.1 # nanometer
+            # Indices of ligand atoms: in the order of the atoms in the PDB file. "TER" records do not matter at all
+            ligand_index_min = ligand.atoms[0].index
+            ligand_index_max = ligand.atoms[-1].index
+            ligand_indices = np.arange(ligand_index_min, ligand_index_max+1)
+
+            force = CustomCentroidBondForce(1, "0.5*k*((x1-com_x0)^2+(y1-com_y0)^2+(z1-com_z0)^2)")
+            # Set up the initial condition of the external parameter:
+            force.addGlobalParameter("k", params['k0'])
+            force.addGlobalParameter("com_x0", com_t0[0])
+            force.addGlobalParameter("com_y0", com_t0[1])
+            force.addGlobalParameter("com_z0", com_t0[2])
+
+            force.addGroup(ligand_indices) # by default, the weights used to calculate the center position are the particle masses -- exactly what we want
+            force.setForceGroup(31) # to distinguish from the Forces in the forcefield (group 0 by default)
+            # The following line is necessary:
+            force.addBond([0]) # we only have 1 group involved in the "centroid bond" and no per-particle parameters
+            system.addForce(force) # force is a pointer to the Force object to be added
+
+
+        ## Set up simulation:
+        integrator = LangevinIntegrator(params['temperature']*unit.kelvin, params['friction']/unit.picosecond, params['time_step']*unit.femtosecond)
+        integrator.setConstraintTolerance(params['integrator_constraint_tol'])
+
+        platform = Platform.getPlatformByName(params['platform']) # 'CUDA' or 'CPU' or 'OpenCL'
+        if params['platform'] == 'CUDA':
+            platformProperties = {'Precision': params['CUDA_precision']}
+            self.simulation = Simulation(self.pdb.topology, system, integrator, platform, platformProperties)
+        else:
+            self.simulation = Simulation(self.pdb.topology, system, integrator, platform)
+
+        self.simulation.context.setPositions(self.pdb.positions) # initial positions. Or pdb.getPositions(asNumpy=False)
+        printRecord("Initial positions set.")
+
+
+    def doMD(self, params, complex_structure):
+
+        # Minimize energy
+        self.simulation.minimizeEnergy(tolerance=20, maxIterations=100)
+        lastpositions = self.simulation.context.getState(getPositions=True, enforcePeriodicBox=True).getPositions()
+        PDBFile.writeFile(self.pdb.topology, lastpositions, open(os.path.join(self.runfilesDir,'energy_minimized_structure.pdb'), 'w'))
+        
+        ## Simulate:
+        self.simulation.context.setVelocitiesToTemperature(params['temperature']*unit.kelvin) # temperature in the unit of kelvin
+        
+        # Equilibration records:
+        equil_steps = int(params['equil_config_duration'] * 1e6 // params['time_step'])
+        report_interval_equil = equil_steps // 100  # generate 100 frames during equilibration
+        dcdReporter_equil = DCDReporter(os.path.join(self.runfilesDir,'equil_initial_config_trajectory.dcd'), report_interval_equil, enforcePeriodicBox=True)
+        dataReporter_equil = StateDataReporter(os.path.join(self.runfilesDir,'equil_initial_config_MD_log.txt'), report_interval_equil, totalSteps=equil_steps, 
+            step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, 
+            temperature=True, volume=True, density=True,separator='\t')
+    
+        # Sampling records
+        total_steps = int(params['sample_config_duration'] * 1e6 // params['time_step'])
+        report_interval = total_steps // params['num_config']
+        dcd_traj = os.path.join(self.runfilesDir,'sample_initial_config_trajectory.dcd')
+        dcdReporter = DCDReporter(dcd_traj, report_interval, enforcePeriodicBox=True) # so that each frame of the direct output has everything within the box dimension
+        dataReporter = StateDataReporter(os.path.join(self.runfilesDir,'sample_initial_config_MD_log.txt'), report_interval, totalSteps=total_steps, 
+            step=True, speed=True, progress=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, 
+            temperature=True, volume=True, density=True,separator='\t')
+        
+        # Add equilibration
+        self.simulation.reporters.append(dcdReporter_equil)
+        self.simulation.reporters.append(dataReporter_equil)
+        self.simulation.step(equil_steps)
+        lastpositions = self.simulation.context.getState(getPositions=True, enforcePeriodicBox=True).getPositions()
+        PDBFile.writeFile(self.pdb.topology, lastpositions, open(os.path.join(self.runfilesDir,'equilibrated_structure.pdb'), 'w'))
+        self.simulation.reporters.remove(dcdReporter_equil)
+        self.simulation.reporters.remove(dataReporter_equil)
+
+        # Sample
+        # generate specified samples:
+        self.simulation.reporters.append(dataReporter)
+        self.simulation.reporters.append(dcdReporter)
+        self.simulation.currentStep = 0
+        with Timer() as md_time:
+            self.simulation.step(total_steps)
+        
+        ns_per_day = (params['sample_config_duration'] * unit.nanosecond) / (md_time.interval * unit.second) / (unit.nanosecond / unit.day)
+        
+        # clean up the trajectory by removing waters
+        u_traj = mda.Universe(self.solvated_file, dcd_traj)
+        u_traj.trajectory[0]
+        if complex_structure is True:
+            printRecord("Bound-state simulation took {} seconds, ie, speed is {} ns/day.".format(md_time.interval, ns_per_day))
+            dna_ligand_ions = u_traj.select_atoms("({}) or ({})".format(params['mda_sele_biopolymer'],params['mda_sele_ligand'])).atoms # select biopolymer (could be multiple chains) and ligand
+            dna_ligand_ions.write(os.path.join(self.runfilesDir, 'clean_first_frame_of_bound_state_trajectory.pdb'))
+            clean_dcd_traj = os.path.join(self.runfilesDir, 'clean_bound_state_trajectory.dcd')
+        else:
+            printRecord("Free-state simulation took {} seconds, ie, speed is {} ns/day.".format(md_time.interval, ns_per_day))
+            dna_ligand_ions = u_traj.select_atoms("{}".format(params['mda_sele_biopolymer'])).atoms # select biopolymer (could be multiple chains)
+            dna_ligand_ions.write(os.path.join(self.runfilesDir, 'clean_first_frame_of_free_state_trajectory.pdb'))
+            clean_dcd_traj = os.path.join(self.runfilesDir, 'clean_free_state_trajectory.dcd')
+
+        # Clean the trajectory
+        with mda.Writer(clean_dcd_traj, dna_ligand_ions.n_atoms) as W:
+            for ts in u_traj.trajectory:
+                W.write(dna_ligand_ions)
+        
+        # return ns_per_day
+
+
 # openmm
 class omm:
     def __init__(self, runfilesDir, structurePDB, params, simTime=None, binding=False, implicitSolvent=False):
@@ -316,7 +509,7 @@ class omm:
         self.ewaldErrorTolerance = params['ewald_error_tolerance'] # could be Python None
         self.constraints = params['constraints']
         self.rigidWater = params['rigid_water']
-        self.constraintTolerance = params['constraint_tolerance']
+        self.constraintTolerance = params['integrator_constraint_tol']
         self.hydrogenMass = params['hydrogen_mass'] * unit.amu
         self.temperature = params['temperature'] * unit.kelvin
 

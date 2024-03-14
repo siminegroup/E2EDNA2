@@ -167,6 +167,15 @@ class opendna:
             self.actionDict['get equil repStructure'] = True
             self.actionDict['do docking'] = True
             self.actionDict['do binding'] = True        
+        
+        elif self.params['mode'] == 'DeltaGzip': # for now, run DeltaGzip simulations separately
+            self.actionDict['make workdir'] = True
+            self.actionDict['do 2d analysis'] = False
+            self.actionDict['do MMB'] = False
+            self.actionDict['do smoothing'] = False
+            self.actionDict['get equil repStructure'] = False
+            self.actionDict['do docking'] = False
+            self.actionDict['do binding'] = False
 
     def autoMakeNewWorkDir(self):
         """
@@ -203,66 +212,77 @@ class opendna:
 
         # copy relevant files to the workDir
         os.mkdir(os.path.join(self.workDir, 'outfiles_of_pipeline_modules'))
-                
-        # If we skip_MMB because we have a folded structure to start with
-        if self.params['skip_MMB'] is True:            
-            printRecord('Skipping 2D analysis and MMB folding. Starting with a folded structure.', self.workDir+'/')            
-            if not os.path.isfile(self.params['init_structure']):
-            # if not os.path.exists(self.params['init_structure']):
-                printRecord('Designated folded structure does not exist! Terminating the pipeline.', self.workDir+'/')
-                self.terminateRun()  # maybe: do it via "raise an error"
-            else:
-                printRecord('Copying the folded structure: {} to run folder: {}.'.format(self.params['init_structure'],self.workDir), self.workDir+'/')
-                init_structure_in_workDir = os.path.basename(self.params['init_structure']) # remove the direcotry info
-                copyfile(self.params['init_structure'], os.path.join(self.workDir, init_structure_in_workDir)) # copy to workDir
-                self.params['init_structure'] = init_structure_in_workDir
-        elif (self.params['mode'] != '2d structure') and (self.params['pickup'] is False):
-            # copy MMB params and command script
-            copyfile(self.params['mmb_params'], os.path.join(self.workDir, 'parameters.csv'))
-            copyfile(self.params['mmb_normal_template'], os.path.join(self.workDir, 'commands.template.dat'))
-            copyfile(self.params['mmb_quick_template'], os.path.join(self.workDir, 'commands.template_quick.dat'))
-            copyfile(self.params['mmb_slow_template'], os.path.join(self.workDir, 'commands.template_long.dat'))
         
-        # if do docking, need targetPDB
-        if (self.actionDict['do docking'] is True):  
-            if self.targetPDB is None:  # if user does not provide a target ligand pdb, use our provided example target ligand: a peptide.
-                printRecord('Use the peptide ligand in examples/...', self.workDir+'/')
-                self.targetPDB = 'example_peptide_ligand.pdb' # give it a name
-                copyfile(self.params['example_target_pdb'], os.path.join(self.workDir, self.targetPDB))  # ie, target of the aptamer
-                self.targetSeq = self.params['example_peptide_seq']  # self.targetSeq is not empty because we are dealing with a peptide.
-            else:  # user provides a targetPDB stored at self.targetPDB (ie, params['ligand'])
-                copyfile(self.targetPDB, os.path.join(self.workDir, os.path.basename(self.targetPDB)))
-                # get its filename:
-                self.targetPDB = os.path.basename(self.targetPDB)
-                self.params['ligand'] = self.targetPDB
-            # From now on, "self.targetPDB is None" is equivalent to "'do docking' is False".
+        if self.params['mode'] == 'DeltaGzip':
+            printRecord('Run equilibrium simulations to sample configurations for DeltaGzip.', self.workDir+'/')
+            # copy the files to workDir
+            self.input_file_for_DeltaGzip_simu = os.path.join(self.workDir, os.path.basename(self.params['input_file_for_DeltaGzip_simu']))
+            self.ligand_topology_file = os.path.basename(self.params['ligand_topology_file'])
+            copyfile(self.params['input_file_for_DeltaGzip_simu'], self.input_file_for_DeltaGzip_simu) # input_file_for_DeltaGzip_simu can be parsed by openmm, eg, contains the complete CONECT records
+            copyfile(self.params['ligand_topology_file'], os.path.join(self.workDir, self.ligand_topology_file))
 
-        if self.params['implicit_solvent'] is True:
-            copyfile(self.params['leap_template'], self.workDir + '/leap_template.in')
+        else:
+            # If we skip_MMB because we have a folded structure to start with
+            if self.params['skip_MMB'] is True:            
+                printRecord('Skipping 2D analysis and MMB folding. Starting with a folded structure.', self.workDir+'/')
+                if not os.path.isfile(self.params['init_structure']):
+                # if not os.path.exists(self.params['init_structure']):
+                    printRecord('Designated folded structure does not exist! Terminating the pipeline.', self.workDir+'/')
+                    self.terminateRun()  # maybe: do it via "raise an error"
+                else:
+                    printRecord('Copying the folded structure: {} to run folder: {}.'.format(self.params['init_structure'],self.workDir), self.workDir+'/')
+                    init_structure_in_workDir = os.path.basename(self.params['init_structure']) # remove the direcotry info
+                    copyfile(self.params['init_structure'], os.path.join(self.workDir, init_structure_in_workDir)) # copy to workDir
+                    self.params['init_structure'] = init_structure_in_workDir
+            elif (self.params['mode'] != '2d structure') and (self.params['pickup'] is False):
+                # copy MMB params and command script
+                copyfile(self.params['mmb_params'], os.path.join(self.workDir, 'parameters.csv'))
+                copyfile(self.params['mmb_normal_template'], os.path.join(self.workDir, 'commands.template.dat'))
+                copyfile(self.params['mmb_quick_template'], os.path.join(self.workDir, 'commands.template_quick.dat'))
+                copyfile(self.params['mmb_slow_template'], os.path.join(self.workDir, 'commands.template_long.dat'))
+            
+            # if do docking, need targetPDB
+            if (self.actionDict['do docking'] is True):  
+                if self.targetPDB is None:  # if user does not provide a target ligand pdb, use our provided example target ligand: a peptide.
+                    printRecord('Use the peptide ligand in examples/...', self.workDir+'/')
+                    self.targetPDB = 'example_peptide_ligand.pdb' # give it a name
+                    copyfile(self.params['example_target_pdb'], os.path.join(self.workDir, self.targetPDB))  # ie, target of the aptamer
+                    self.targetSeq = self.params['example_peptide_seq']  # self.targetSeq is not empty because we are dealing with a peptide.
+                else:  # user provides a targetPDB stored at self.targetPDB (ie, params['ligand'])
+                    copyfile(self.targetPDB, os.path.join(self.workDir, os.path.basename(self.targetPDB)))
+                    # get its filename:
+                    self.targetPDB = os.path.basename(self.targetPDB)
+                    self.params['ligand'] = self.targetPDB
+                # From now on, "self.targetPDB is None" is equivalent to "'do docking' is False".
+
+            if self.params['implicit_solvent'] is True:
+                copyfile(self.params['leap_template'], self.workDir + '/leap_template.in')
+
+            # specify the DNA_force_field for free aptamer MD sampling if implicit solvent. Assume only dealing with a DNA aptamer.
+            if self.params['implicit_solvent'] is True:
+                replaceText('leap_template.in', 'DNA_FF', self.params['DNA_force_field'])
 
         # move to working dir
         os.chdir(self.workDir)
-        
-        # specify the DNA_force_field for free aptamer MD sampling if implicit solvent. Assume only dealing with a DNA aptamer.
-        if self.params['implicit_solvent'] is True:
-            replaceText('leap_template.in', 'DNA_FF', self.params['DNA_force_field'])
-        
+                
         # Print prompt: free aptamer or aptamer + target ligand
         printRecord('Simulation mode: {}'.format(self.params['mode']))
-        if (self.actionDict['do docking'] is False):  # no given target ligand, nor do docking
-            printRecord('Simulating free aptamer: {}'.format(self.aptamerSeq))
-        else:
-            printRecord('Simulating {} with {}'.format(self.aptamerSeq, self.targetPDB))
 
-        if (self.params['skip_MMB'] is False) and (self.params['device'] == 'local'):
-            if (self.params['operating_system'] == 'linux') or (self.params['operating_system'] == 'WSL'):
-                os.environ["LD_LIBRARY_PATH"] = self.params['mmb_dir']  # Add MMB library's path to environment variable
-                # When running MMB on 'local':
-                    # Windows: no action needed. But this pipeline does not support Windows OS, due to NUPACK.
-                    # WSL or linux: explicitly add MMB library path.
-                    # macos: no action needed here.                                
-                # warning: do NOT use os.environ["DYLD_LIBRARY_PATH"] for macos! It does not help MMB locate the library AND it confuses OpenMM.
-                # tip: refer to 'mmb' class in interfaces.py on how to run MMB on macos machine.
+        if self.params['mode'] != 'DeltaGzip':
+            if (self.actionDict['do docking'] is False):  # no given target ligand, nor do docking
+                printRecord('Simulating free aptamer: {}'.format(self.aptamerSeq))
+            else:
+                printRecord('Simulating {} with {}'.format(self.aptamerSeq, self.targetPDB))
+
+            if (self.params['skip_MMB'] is False) and (self.params['device'] == 'local'):
+                if (self.params['operating_system'] == 'linux') or (self.params['operating_system'] == 'WSL'):
+                    os.environ["LD_LIBRARY_PATH"] = self.params['mmb_dir']  # Add MMB library's path to environment variable
+                    # When running MMB on 'local':
+                        # Windows: no action needed. But this pipeline does not support Windows OS, due to NUPACK.
+                        # WSL or linux: explicitly add MMB library path.
+                        # macos: no action needed here.                                
+                    # warning: do NOT use os.environ["DYLD_LIBRARY_PATH"] for macos! It does not help MMB locate the library AND it confuses OpenMM.
+                    # tip: refer to 'mmb' class in interfaces.py on how to run MMB on macos machine.
 
 
     def run(self):
@@ -335,7 +355,7 @@ class opendna:
                     printRecord('Using a user-input simplistic 2D structure, ie, make two termini in contact.')
                 num_2dSS = len(self.pairLists)
         
-        else:  # there are three cases where 2d analysis is not carried out.
+        elif self.params['mode'] != 'DeltaGzip':  # there are three cases where 2d analysis is not carried out.
             if self.params['pickup_from_complexChk'] is True:
                 printRecord('Resume a sampling of aptamer-ligand complex from .chk_file, therefore skip all the steps before it.')
             elif self.params['pickup_from_freeAptamerChk'] is True:  
@@ -343,6 +363,24 @@ class opendna:
             else:
                 printRecord('Starting with an existing folded strcuture, therefore skip 2d analysis and MMB folding.')
             num_2dSS = 1  # quick and dirty
+
+        if self.params['mode'] == 'DeltaGzip':
+            num_2dSS = 0 # skip the regular pipeline modules
+
+            bound_state_config_dir = 'MD_bound_state_configs'
+            free_state_config_dir = 'MD_free_state_configs'
+            os.mkdir(bound_state_config_dir)
+            os.mkdir(free_state_config_dir)
+
+            # input_file_for_DeltaGzip_simu can be parsed by openmm, eg, contains the complete CONECT records
+            # Bound state simulation:
+            omm_deltaG_bound_state = interfaces.omm_DeltaGzip(runfilesDir=bound_state_config_dir, ligand_sdf_file=self.ligand_topology_file, complex_structure=True, input_file=self.input_file_for_DeltaGzip_simu, params=self.params)
+            omm_deltaG_bound_state.doMD(params=self.params, complex_structure=True)
+            
+            # Free state simulation:
+            omm_deltaG_free_state = interfaces.omm_DeltaGzip(runfilesDir=free_state_config_dir, ligand_sdf_file=None, complex_structure=False, input_file=self.input_file_for_DeltaGzip_simu, params=self.params)
+            omm_deltaG_free_state.doMD(params=self.params, complex_structure=False)
+
 
         for self.i in range(num_2dSS):  # loop over all possible secondary structures
             if self.actionDict['do 2d analysis'] is True:  # self.ssAnalysis only exists if we "do 2d analysis"
@@ -413,6 +451,9 @@ class opendna:
                         else:
                             outputDict['binding results {} {}'.format(self.i, self.j)] = self.complexDynamics(runfilesDir=complex_sampling_dir, complexPDB=self.params['pickup_pdb'], simTime=self.params['complex_sampling_time'], implicitSolvent=self.params['implicit_solvent'])
                     np.save('final_output_dict', outputDict)
+
+
+
             
         printRecord('\nAll results are saved to output folder: ' + self.workDir + ', including:')
         printRecord('       a log file: run_output_log.txt')

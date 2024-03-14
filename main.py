@@ -397,7 +397,7 @@ run_info.add_argument('--constraints',
                          default='None',
                          help="Specify which bond angles and/or lengths should be implemented with constraints",
                          choices=['None','HBonds','AllBonds','HAngles'])
-run_info.add_argument('--constraint_tolerance',
+run_info.add_argument('--integrator_constraint_tol',
                          metavar='\b',
                          type=float,
                          default=1.0e-6,
@@ -559,7 +559,7 @@ if params['quick_check_mode'] is True:
     params['water_model'] = 'amber14/tip3p'
     params['box_offset'] = 1.0
     params['constraints'] = 'HBonds'
-    params['constraint_tolerance'] = 1.0e-6
+    params['integrator_constraint_tol'] = 1.0e-6
     params['rigid_water'] = True
     params['nonbonded_method'] = 'PME'
     params['nonbonded_cutoff'] = 1.0
