@@ -31,7 +31,14 @@ from sklearn.decomposition import PCA
 from MDAnalysis.analysis.base import AnalysisBase
 from MDAnalysis.lib.distances import calc_bonds
 from MDAnalysis.analysis.dihedrals import Dihedral
+from MDAnalysis.analysis.bat import BAT
 from seqfold import dg, fold
+from openmm import *
+from openmm.app import *
+import openmm.unit as unit
+from openff.toolkit.topology import Molecule
+from openmmforcefields.generators import GAFFTemplateGenerator
+import gzip
 
 
 
@@ -740,3 +747,156 @@ def checkTrajPCASlope(topology, trajectory, printStep):
     printRecord('PCA slope average is %.4f' % combinedSlope)
 
     return combinedSlope
+
+# Add DeltaGzip analysis:
+def round_to_first_dec_multi_10(arr):
+    return (np.round(arr, decimals=1)*10).astype(np.int8) # round to the first decimal point
+
+
+def get_internal_coords(top_file, traj_file):
+    u_configs_stateA = mda.Universe(top_file, traj_file, guess_bonds=False)
+
+    protein_backbone_atoms = u_configs_stateA.select_atoms("chainID A and backbone")
+    assert len(protein_backbone_atoms.fragments) == 1
+    # print(f'Selected atoms are:{np.unique(protein_backbone_atoms.names)}')
+    # print(protein_backbone_atoms.n_atoms,'atoms')
+
+    # Pick an atom's Cartesian coordinates to define the translation of the molecule. It has to be a terminal atom: carbonyl oxygen of residue 1
+    indx = protein_backbone_atoms.select_atoms('resid 1 and name O').ix[0]
+    # print(u_configs_stateA.atoms[indx]) # the returned index is a refernce in the whole universe
+
+    R_backbone_atoms = BAT(ag=protein_backbone_atoms, initial_atom=u_configs_stateA.atoms[indx])
+    R_backbone_atoms.run(start=0, stop=5000, verbose=True) # Calculate BAT coordinates
+    # print(R_backbone_atoms.results.bat.shape)
+    return R_backbone_atoms.results.bat[:,6:] # remove the first 6 DOF, the rest is internal DOF
+
+
+def compress_each_dof(integer_IC): # (num_frames, num_dof)
+    return np.array([len(gzip.compress(np.ndarray.flatten(integer_IC[:,j]), compresslevel=9)) for j in range(integer_IC.shape[1])])
+
+
+def compress_each_sample(integer_IC, responsive_dof_indx=None): # (num_frames, num_dof)
+    if responsive_dof_indx is None:
+        return np.array([len(gzip.compress(np.ndarray.flatten(integer_IC[i,:]), compresslevel=9)) for i in range(integer_IC.shape[0])])
+    else:
+        return np.array([len(gzip.compress(np.ndarray.flatten(integer_IC[i,responsive_dof_indx]), compresslevel=9)) for i in range(integer_IC.shape[0])])
+
+
+def entropy_DeltaGzip(top_file_bound_state, traj_file_bound_state, top_file_free_state, traj_file_free_state, T):
+    # get bound-state internal coords
+    internal_coords_bound_state = get_internal_coords(top_file_bound_state, traj_file_bound_state)
+    # get free-state internal coords
+    internal_coords_free_state = get_internal_coords(top_file_free_state, traj_file_free_state)
+
+    integer_IC_bound_state = round_to_first_dec_multi_10(internal_coords_bound_state)
+    integer_IC_free_state = round_to_first_dec_multi_10(internal_coords_free_state)
+
+    # find responsive DOF
+    C_each_dof_bound_state = compress_each_dof(integer_IC_bound_state)
+    C_each_dof_free_state = compress_each_dof(integer_IC_free_state)
+    variable_dof_index = np.where(np.abs(C_each_dof_bound_state - C_each_dof_free_state) > 125)[0] # cutoff = 125 bytes
+
+    # compress the responsive dof
+    if len(variable_dof_index) == 0: variable_dof_index = None
+    C_dof_each_frame_bound_state = compress_each_sample(integer_IC_bound_state, variable_dof_index) # (num_frames,)
+    C_dof_each_frame_free_state = compress_each_sample(integer_IC_free_state, variable_dof_index) # (num_frames,)
+
+    C_responsive_dof_bound_state = np.mean(C_dof_each_frame_bound_state)
+    C_responsive_dof_bound_state_err = np.std(C_dof_each_frame_bound_state)
+    C_responsive_dof_free_state = np.mean(C_dof_each_frame_free_state) 
+    C_responsive_dof_free_state_err = np.std(C_dof_each_frame_free_state)
+
+    kB = 8.314e-3 # kJ/mole/K
+
+    # for a binding process:
+    DeltaS_G = kB * np.log(2) * (C_responsive_dof_bound_state - C_responsive_dof_free_state)
+    
+    return DeltaS_G
+
+
+def enthalpy_DeltaGzip(top_file, traj_file, lig_sdf_file, r_cutoff=1.0):
+    '''
+    r_cutoff: nanometer
+    '''
+    u_traj = mda.Universe(top_file, traj_file) # To retrieve the atomic Cartesian coordinates:
+    pdb = PDBFile(top_file)
+    ligand_molecule = Molecule.from_file(lig_sdf_file)    
+
+    forcefield = ForceField('amber14/protein.ff14SB.xml') # if water and ions 'amber14/tip3p.xml'
+    gaff = GAFFTemplateGenerator(molecules=ligand_molecule, forcefield='gaff-2.11')    
+    forcefield.registerTemplateGenerator(gaff.generator) # Register the GAFF template generator to the forcefield object
+    system = forcefield.createSystem(pdb.topology, nonbondedMethod=NoCutoff, constraints=None)
+    # system = forcefield.createSystem(pdb.topology, nonbondedMethod=PME, nonbondedCutoff=1.0*nanometer, ewaldErrorTolerance=5.0e-4, constraints=None, rigidWater=True, hydrogenMass=1.0*amu) # no difference bcuz we only extract the parameters, not run MD
+    nonBondedForce = [f for f in system.getForces() if isinstance(f, NonbondedForce)][0]
+
+    # find the indices of protein and ligand: 0-indexing
+    num_atoms = nonBondedForce.getNumParticles()
+    num_protein_atoms = u_traj.select_atoms('(chainID A) or (chainID B)').n_atoms
+    num_lig_atoms = u_traj.select_atoms('chainID C').n_atoms
+    assert num_atoms == num_protein_atoms + num_lig_atoms
+    group_protein = np.arange(num_protein_atoms) # my pdb file lists protein atoms prior to ligand atoms
+    group_lig = np.arange(num_lig_atoms) + num_protein_atoms
+
+    #ONE_4PI_EPS0 = 138.935456 # this value is used in OpenMM source code as 1/(4*pi*epsilon0).Unit: (kJ/mole * nm)/e^2
+    ## 1eV = 96.487 kJ/mole
+    ## epsilon0 = 55.26349406 e^2/(eV * um) from Wikipedia = 0.05526349406 e^2/(eV * nm) = 0.00057276 e^2/(kJ/mole * nm)
+    ## 1/(4*np.pi*0.00057276) = 138.9368523394575 (kJ/mole * nm)/e^2
+    # consider dielectric constant of water at 30C and 0M NaCl 
+    # t=300-273.15; print(87.740 - 0.40008*t+ 9.398*1e-4*t**2 - 1.410*1e-6*t**3)
+    ONE_4PI_EPS0 = 138.935456/77.6481
+    
+
+    epsilon_pair = np.zeros((len(group_protein), len(group_lig)))
+    sigma_pair = np.zeros((len(group_protein), len(group_lig)))
+    chargeprod = np.zeros((len(group_protein), len(group_lig)))
+    for i, index1 in enumerate(group_protein):
+        charge_protein, sigma_protein, epsilon_protein = nonBondedForce.getParticleParameters(index1)
+        for j, index2 in enumerate(group_lig):
+            charge_lig, sigma_lig, epsilon_lig = nonBondedForce.getParticleParameters(index2)
+            
+            epsilon_pair[i,j] = np.sqrt(epsilon_protein*epsilon_lig).value_in_unit(kilojoule_per_mole)
+            sigma_pair[i,j] = 0.5*(sigma_protein+sigma_lig).value_in_unit(nanometer)
+            chargeprod[i,j] = (charge_protein*charge_lig).value_in_unit(elementary_charge**2)
+    # Epsilon_pair, sigma_pairm, and chargeprod only need to be calculated once. Next just need to iterate all configurations and compute their pEnergy
+
+    u_traj.trajectory[0]
+    sele = u_traj.select_atoms('chainID A or chainID B or chainID C')
+    enthalpy_binding = np.zeros(u_traj.trajectory.n_frames)
+    for indx, frame in enumerate(tqdm(u_traj.trajectory)):
+
+        for i, index1 in enumerate(group_protein):
+            # charge_protein[index1], sigma_protein[index1], epsilon_protein[index1] = nonBondedForce.getParticleParameters(index1)
+            # position1 = pdb.getPositions(asNumpy=True)[index1].value_in_unit(nanometer)
+            position1 = sele.positions[index1] * 0.1 # nanometer
+
+            for j, index2 in enumerate(group_lig):
+                # charge2, sigma2, epsilon2 = nonBondedForce.getParticleParameters(index2)
+                # position2 = pdb.getPositions(asNumpy=True)[index2].value_in_unit(nanometer)
+                position2 = sele.positions[index2] * 0.1 # nanometer
+
+                # r = Quantity(value=np.linalg.norm(position1-position2), unit=nanometer)
+                r = np.linalg.norm(position1-position2) # nanometer
+                if r <= r_cutoff: # this is not a great idea because electrostatics decay slowly, need to set much larger cutoff distance than 2.0 nm
+                
+                # # if index1 in nonBondedForce.getExceptionParameters() and index2 in nonBondedForce.getExceptionParameters():
+                # #     p1, p2, chargeProd, sigma_pair, epsilon_pair = nonBondedForce.getExceptionParameters(index1)
+                # #     assert p1 == index1
+                # #     assert p2 == index2
+                # # else:
+                # epsilon_pair = np.sqrt(epsilon1*epsilon2).value_in_unit(kilojoule_per_mole)
+                # sigma_pair = 0.5*(sigma1+sigma2).value_in_unit(nanometer)
+                # chargeprod = (charge1*charge2).value_in_unit(elementary_charge**2)
+
+                    enthalpy_binding[indx] = enthalpy_binding[indx] + 4*epsilon_pair[i,j]*((sigma_pair[i,j]/r)**12 - (sigma_pair[i,j]/r)**6) + ONE_4PI_EPS0*chargeprod[i,j]/r
+
+    return enthalpy_binding #kJ/mole
+
+
+def dG_DeltaGzip():
+    dH_binding = enthalpy_DeltaGzip(top_file_bound_state, traj_file_bound_state, lig_sdf_file, 1.0):
+    dS_binding = entropy_DeltaGzip(top_file_bound_state, traj_file_bound_state, top_file_free_state, traj_file_free_state)
+
+    T = 300.0 # Kelvin
+    deltaGzip = dH_binding - T*dS_binding
+
+    return deltaGzip
