@@ -893,7 +893,7 @@ def enthalpy_DeltaGzip(top_file, traj_file, lig_sdf_file, r_cutoff=1.0):
 
 
 def dG_DeltaGzip():
-    dH_binding = enthalpy_DeltaGzip(top_file_bound_state, traj_file_bound_state, lig_sdf_file, 1.0):
+    dH_binding = enthalpy_DeltaGzip(top_file_bound_state, traj_file_bound_state, lig_sdf_file, 1.0)
     dS_binding = entropy_DeltaGzip(top_file_bound_state, traj_file_bound_state, top_file_free_state, traj_file_free_state)
 
     T = 300.0 # Kelvin
