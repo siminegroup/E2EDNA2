@@ -5,6 +5,8 @@
 
 ## E2EDNA 2.0 - OpenMM Implementation of E2EDNA !
 
+**New feature: DeltaGzip** [[JCIM paper](https://doi.org/10.1021/acs.jcim.4c00461)][[code](https://github.com/siminegroup/E2EDNA2/tree/DeltaGzip)]
+
 ### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
 
 * Please note that the main branch is in ongoing development and tests may or may not work. For a fully working version use the [released code](https://github.com/siminegroup/E2EDNA2/tree/v2.0.0) v2.0.0
