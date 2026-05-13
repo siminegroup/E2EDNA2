@@ -38,7 +38,8 @@ from openmm.app import *
 import openmm.unit as unit
 from openff.toolkit.topology import Molecule
 from openmmforcefields.generators import GAFFTemplateGenerator
-import gzip
+import gzip, os, shutil, json, yaml, argparse
+from tqdm import tqdm
 
 
 
@@ -766,7 +767,7 @@ def get_internal_coords(top_file, traj_file):
     # print(u_configs_stateA.atoms[indx]) # the returned index is a refernce in the whole universe
 
     R_backbone_atoms = BAT(ag=protein_backbone_atoms, initial_atom=u_configs_stateA.atoms[indx])
-    R_backbone_atoms.run(start=0, stop=5000, verbose=True) # Calculate BAT coordinates
+    R_backbone_atoms.run(start=0, stop=3000, verbose=True) # Calculate BAT coordinates
     # print(R_backbone_atoms.results.bat.shape)
     return R_backbone_atoms.results.bat[:,6:] # remove the first 6 DOF, the rest is internal DOF
 
@@ -777,12 +778,12 @@ def compress_each_dof(integer_IC): # (num_frames, num_dof)
 
 def compress_each_sample(integer_IC, responsive_dof_indx=None): # (num_frames, num_dof)
     if responsive_dof_indx is None:
-        return np.array([len(gzip.compress(np.ndarray.flatten(integer_IC[i,:]), compresslevel=9)) for i in range(integer_IC.shape[0])])
+        return 8*np.array([len(gzip.compress(np.ndarray.flatten(integer_IC[i,:]), compresslevel=9)) for i in range(integer_IC.shape[0])])
     else:
-        return np.array([len(gzip.compress(np.ndarray.flatten(integer_IC[i,responsive_dof_indx]), compresslevel=9)) for i in range(integer_IC.shape[0])])
+        return 8*np.array([len(gzip.compress(np.ndarray.flatten(integer_IC[i,responsive_dof_indx]), compresslevel=9)) for i in range(integer_IC.shape[0])])
 
 
-def entropy_DeltaGzip(top_file_bound_state, traj_file_bound_state, top_file_free_state, traj_file_free_state, T):
+def entropy_DeltaGzip(params, top_file_bound_state, traj_file_bound_state, top_file_free_state, traj_file_free_state, return_std=False):
     # get bound-state internal coords
     internal_coords_bound_state = get_internal_coords(top_file_bound_state, traj_file_bound_state)
     # get free-state internal coords
@@ -791,51 +792,138 @@ def entropy_DeltaGzip(top_file_bound_state, traj_file_bound_state, top_file_free
     integer_IC_bound_state = round_to_first_dec_multi_10(internal_coords_bound_state)
     integer_IC_free_state = round_to_first_dec_multi_10(internal_coords_free_state)
 
-    # find responsive DOF
-    C_each_dof_bound_state = compress_each_dof(integer_IC_bound_state)
-    C_each_dof_free_state = compress_each_dof(integer_IC_free_state)
-    variable_dof_index = np.where(np.abs(C_each_dof_bound_state - C_each_dof_free_state) > 125)[0] # cutoff = 125 bytes
+    # # find responsive DOF
+    # C_each_dof_bound_state = compress_each_dof(integer_IC_bound_state)
+    # C_each_dof_free_state = compress_each_dof(integer_IC_free_state)
+    # variable_dof_index = np.where(np.abs(C_each_dof_bound_state - C_each_dof_free_state) > 125)[0] # cutoff = 125 bytes
 
-    # compress the responsive dof
-    if len(variable_dof_index) == 0: variable_dof_index = None
-    C_dof_each_frame_bound_state = compress_each_sample(integer_IC_bound_state, variable_dof_index) # (num_frames,)
-    C_dof_each_frame_free_state = compress_each_sample(integer_IC_free_state, variable_dof_index) # (num_frames,)
+    # # compress the responsive dof
+    # if len(variable_dof_index) == 0: variable_dof_index = None
+    # C_dof_each_frame_bound_state = compress_each_sample(integer_IC_bound_state, variable_dof_index) # (num_frames,)
+    # C_dof_each_frame_free_state = compress_each_sample(integer_IC_free_state, variable_dof_index) # (num_frames,)
 
-    C_responsive_dof_bound_state = np.mean(C_dof_each_frame_bound_state)
-    C_responsive_dof_bound_state_err = np.std(C_dof_each_frame_bound_state)
-    C_responsive_dof_free_state = np.mean(C_dof_each_frame_free_state) 
-    C_responsive_dof_free_state_err = np.std(C_dof_each_frame_free_state)
+    # C_responsive_dof_bound_state = np.mean(C_dof_each_frame_bound_state)
+    # C_responsive_dof_bound_state_err = np.std(C_dof_each_frame_bound_state)
+    # C_responsive_dof_free_state = np.mean(C_dof_each_frame_free_state) 
+    # C_responsive_dof_free_state_err = np.std(C_dof_each_frame_free_state)
+
+
+    # load the representation of DNA to be Gzip-compressed
+    dof_mask = np.load(params['dof_mask_file'], allow_pickle=False)
+    if dof_mask.dtype != bool: # covnert {0,1} array to boolean array!
+        dof_mask = dof_mask.astype(bool)
+
+    # compression size in bit
+    C_dof_each_frame_bound_state = compress_each_sample(integer_IC_bound_state, dof_mask) # (num_frames,)
+    C_dof_each_frame_free_state = compress_each_sample(integer_IC_free_state, dof_mask) # (num_frames,)
+
+    C_bound_state = np.mean(C_dof_each_frame_bound_state)
+    std_C_bound_state = np.std(C_dof_each_frame_bound_state)
+    C_free_state = np.mean(C_dof_each_frame_free_state) 
+    std_C_free_state = np.std(C_dof_each_frame_free_state)
 
     kB = 8.314e-3 # kJ/mole/K
 
     # for a binding process:
-    DeltaS_G = kB * np.log(2) * (C_responsive_dof_bound_state - C_responsive_dof_free_state)
+    DeltaS_G = kB * np.log(2) * (C_bound_state - C_free_state)
+    std_DeltaS_G = np.sqrt(std_C_bound_state**2 + std_C_free_state**2)/np.sqrt(len(C_dof_each_frame_bound_state))
     
-    return DeltaS_G
+    if return_std:
+        return DeltaS_G, std_DeltaS_G
+    else:
+        return DeltaS_G
 
 
-def enthalpy_DeltaGzip(top_file, traj_file, lig_sdf_file, r_cutoff=1.0):
+def iterate_pairwise_terms(nonBondedForce, u_traj, group_A_atom_indx, group_B_atom_indx, flag_groupA_atom_vary, flag_groupB_atom_vary, index_init_config, index_final_config, ONE_4PI_EPS, LJ_output_npy_file, Coulomb_output_npy_file):
+    # r_cutoff becomes useless once search radius is used. All the found nearby atoms are used for nonbonding energy (LJ and Coulomb) calculation
+
+    # Create two temporary files to store the latest result. If the temp file is intact (can be np.loaded successfully), copy it as the formal output files which are ensured to always be intact
+    temp_LJ_output_npy_file = os.path.join(os.path.dirname(LJ_output_npy_file), 'temp_'+os.path.basename(LJ_output_npy_file))
+    temp_Coulomb_output_npy_file = os.path.join(os.path.dirname(Coulomb_output_npy_file), 'temp_'+os.path.basename(Coulomb_output_npy_file))
+
+    u_traj.trajectory[0]
+    sele = u_traj.select_atoms('all')
+    
+    num_config = index_final_config - index_init_config
+    LJ_energy_terms = np.zeros(num_config) # may use fewer configs than `u_traj.trajectory.n_frames`
+    Coulomb_energy_terms = np.zeros(num_config)
+
+    # in some cases, either group_A or group_B or both refer to a fixed set of atoms. Thus, xxx_current_frame stays the same 
+    if not flag_groupA_atom_vary: group_A_atom_indx_current_frame = group_A_atom_indx
+    if not flag_groupB_atom_vary: group_B_atom_indx_current_frame = group_B_atom_indx
+    # if both group_A and group_B have fixed set of atoms, the nested for loop to get parameters (epsilon_pair, sigma_pair, chargeprod) can be avoided
+    # the 3 parameters only need to be calculated once, then just iterate all configurations and compute the LJ and Coulomb terms. But it is not implemented here. Not a big time saver.
+
+    for indx, frame in enumerate(tqdm(u_traj.trajectory[index_init_config:index_final_config])):
+        ## indx always starts with 0
+
+        current_frame_indx = indx + index_init_config
+        if flag_groupA_atom_vary: group_A_atom_indx_current_frame = group_A_atom_indx[current_frame_indx]
+        if flag_groupB_atom_vary: group_B_atom_indx_current_frame = group_B_atom_indx[current_frame_indx]
+
+        epsilon_pair = np.zeros((len(group_A_atom_indx_current_frame), len(group_B_atom_indx_current_frame)))
+        sigma_pair = np.zeros((len(group_A_atom_indx_current_frame), len(group_B_atom_indx_current_frame)))
+        chargeprod = np.zeros((len(group_A_atom_indx_current_frame), len(group_B_atom_indx_current_frame)))
+        
+        for i, index1 in enumerate(group_A_atom_indx_current_frame):
+            charge_A, sigma_A, epsilon_A = nonBondedForce.getParticleParameters(index1)
+            for j, index2 in enumerate(group_B_atom_indx_current_frame):
+                charge_B, sigma_B, epsilon_B = nonBondedForce.getParticleParameters(index2)
+
+                epsilon_pair[i,j] = np.sqrt(epsilon_A*epsilon_B).value_in_unit(kilojoule_per_mole)
+                sigma_pair[i,j] = 0.5*(sigma_A+sigma_B).value_in_unit(nanometer)
+                chargeprod[i,j] = (charge_A*charge_B).value_in_unit(elementary_charge**2)
+    
+        for i, index1 in enumerate(group_A_atom_indx_current_frame): # This nested for loop can be merged into the previous one actually.
+            position1 = sele.positions[index1] * 0.1 # becomes nanometer. Maybe also by: # position1 = pdb.getPositions(asNumpy=True)[index1].value_in_unit(nanometer)
+            for j, index2 in enumerate(group_B_atom_indx_current_frame):
+                position2 = sele.positions[index2] * 0.1 # becomes nanometer. Maybe also by: # position2 = pdb.getPositions(asNumpy=True)[index2].value_in_unit(nanometer)
+
+                r = np.linalg.norm(position1-position2) # nanometer. Maybe also by: # r = Quantity(value=np.linalg.norm(position1-position2), unit=nanometer)
+                # if r <= r_cutoff: # this is not a great idea because electrostatics decay slowly, need to set much larger cutoff distance than 2.0 nm
+                # the searching was done at the beginning, only nearby atoms (DNA or water or ions) around ligand atoms are selected for evaluating energetics                
+                
+                # maybe this can be done by matrix multiplication, but low priority
+                LJ_energy_terms[indx] = LJ_energy_terms[indx] + 4*epsilon_pair[i,j]*((sigma_pair[i,j]/r)**12 - (sigma_pair[i,j]/r)**6)
+                Coulomb_energy_terms[indx] = Coulomb_energy_terms[indx] + ONE_4PI_EPS*chargeprod[i,j]/r
+
+        if (indx % 10 == 0) or (indx == num_config-1): # make a save after every 10 frames. If save after each frame, sometimes it occurred when the job got killed
+            # also save the arrays when the iteration is done! Don't forget that!
+            np.save(temp_LJ_output_npy_file, LJ_energy_terms, allow_pickle=False)
+            np.save(temp_Coulomb_output_npy_file, Coulomb_energy_terms, allow_pickle=False)
+
+            try:
+                # try to load the saved temp files. Sometimes the job got killed during the saving step and it corrupted the saved file
+                a = np.load(temp_LJ_output_npy_file, allow_pickle=False)
+                shutil.copy(temp_LJ_output_npy_file, LJ_output_npy_file)
+            except ValueError:
+                print('The LJ temp file  is somehow pickled.') # if this error is raised, the copy command didn't get executed
+
+            try:
+                b = np.load(temp_Coulomb_output_npy_file, allow_pickle=False)
+                shutil.copy(temp_Coulomb_output_npy_file, Coulomb_output_npy_file)
+            except ValueError:
+                print('The Coulomb temp file  is somehow pickled.') # if this error is raised, the copy command didn't get executed
+            # Let the iteration continue and hopefully the next file saving is executed successfully.
+            # The formal outfile npy files are always intact
+
+def enthalpy_DeltaGzip(params, top_file, traj_file, lig_sdf_file, flag_bound_state_energy=True, epsilon_medium=1.0):
     '''
-    r_cutoff: nanometer
+    flag_bound_state_energy: flag if the system constains biopolymer or not: True => calculate enthalpy of bound state
     '''
     u_traj = mda.Universe(top_file, traj_file) # To retrieve the atomic Cartesian coordinates:
     pdb = PDBFile(top_file)
     ligand_molecule = Molecule.from_file(lig_sdf_file)    
 
-    forcefield = ForceField('amber14/protein.ff14SB.xml') # if water and ions 'amber14/tip3p.xml'
+    forcefield = ForceField(params['bio_FF'], params['solvant_FF']) # if water and ions 'amber14/tip3p.xml'
     gaff = GAFFTemplateGenerator(molecules=ligand_molecule, forcefield='gaff-2.11')    
     forcefield.registerTemplateGenerator(gaff.generator) # Register the GAFF template generator to the forcefield object
     system = forcefield.createSystem(pdb.topology, nonbondedMethod=NoCutoff, constraints=None)
     # system = forcefield.createSystem(pdb.topology, nonbondedMethod=PME, nonbondedCutoff=1.0*nanometer, ewaldErrorTolerance=5.0e-4, constraints=None, rigidWater=True, hydrogenMass=1.0*amu) # no difference bcuz we only extract the parameters, not run MD
     nonBondedForce = [f for f in system.getForces() if isinstance(f, NonbondedForce)][0]
 
-    # find the indices of protein and ligand: 0-indexing
-    num_atoms = nonBondedForce.getNumParticles()
-    num_protein_atoms = u_traj.select_atoms('(chainID A) or (chainID B)').n_atoms
-    num_lig_atoms = u_traj.select_atoms('chainID C').n_atoms
-    assert num_atoms == num_protein_atoms + num_lig_atoms
-    group_protein = np.arange(num_protein_atoms) # my pdb file lists protein atoms prior to ligand atoms
-    group_lig = np.arange(num_lig_atoms) + num_protein_atoms
+    ligand_atoms = u_traj.select_atoms(params['mda_sele_lig'])
+    ligand_atoms_indx = ligand_atoms.indices # atom indices: 0-based indices. confirmed.
 
     #ONE_4PI_EPS0 = 138.935456 # this value is used in OpenMM source code as 1/(4*pi*epsilon0).Unit: (kJ/mole * nm)/e^2
     ## 1eV = 96.487 kJ/mole
@@ -845,56 +933,174 @@ def enthalpy_DeltaGzip(top_file, traj_file, lig_sdf_file, r_cutoff=1.0):
     # t=300-273.15; print(87.740 - 0.40008*t+ 9.398*1e-4*t**2 - 1.410*1e-6*t**3)
     ONE_4PI_EPS0 = 138.935456/77.6481
     
-
-    epsilon_pair = np.zeros((len(group_protein), len(group_lig)))
-    sigma_pair = np.zeros((len(group_protein), len(group_lig)))
-    chargeprod = np.zeros((len(group_protein), len(group_lig)))
-    for i, index1 in enumerate(group_protein):
-        charge_protein, sigma_protein, epsilon_protein = nonBondedForce.getParticleParameters(index1)
-        for j, index2 in enumerate(group_lig):
-            charge_lig, sigma_lig, epsilon_lig = nonBondedForce.getParticleParameters(index2)
-            
-            epsilon_pair[i,j] = np.sqrt(epsilon_protein*epsilon_lig).value_in_unit(kilojoule_per_mole)
-            sigma_pair[i,j] = 0.5*(sigma_protein+sigma_lig).value_in_unit(nanometer)
-            chargeprod[i,j] = (charge_protein*charge_lig).value_in_unit(elementary_charge**2)
-    # Epsilon_pair, sigma_pairm, and chargeprod only need to be calculated once. Next just need to iterate all configurations and compute their pEnergy
-
     u_traj.trajectory[0]
-    sele = u_traj.select_atoms('chainID A or chainID B or chainID C')
-    enthalpy_binding = np.zeros(u_traj.trajectory.n_frames)
-    for indx, frame in enumerate(tqdm(u_traj.trajectory)):
+    # find the nearby atoms (DNA, water, ions) of ligand at the faster runs (anything but calc DNA-water pairs)
+    # Searcher: neighbor water molecules (complete water molecules) near ligand in each frame:
+    water_searcher = mda.lib.NeighborSearch.AtomNeighborSearch(u_traj.select_atoms(params['mda_sele_water']))
+    # Searcher: neighbor ion near ligand in each frame:
+    ion_searcher = mda.lib.NeighborSearch.AtomNeighborSearch(u_traj.select_atoms(params['mda_sele_ion']))
+    # Searcher: neighbor DNA atoms near ligand in each frame: only needed in bound state. In free state, no DNA near ligand
+    if flag_bound_state_energy: 
+        dna_atom_searcher = mda.lib.NeighborSearch.AtomNeighborSearch(u_traj.select_atoms(params['mda_sele_bio']))
 
-        for i, index1 in enumerate(group_protein):
-            # charge_protein[index1], sigma_protein[index1], epsilon_protein[index1] = nonBondedForce.getParticleParameters(index1)
-            # position1 = pdb.getPositions(asNumpy=True)[index1].value_in_unit(nanometer)
-            position1 = sele.positions[index1] * 0.1 # nanometer
+    '''
+    "search_radius" is in Angstrom!
+    MDA neighbor search: find the nearby atoms, then return the atomgroups/residuegroups/segmentgroups that contain these atoms. 
+    When level='A', AtomGroup is being returned; When level='R', ResidueGroup is returned, the returned ResidueGroup likely contain more than the found "nearby atoms"
+    '''
+    # search for nearby water molecules: complete water molecules, thus level='R'; and find the corresponding atoms' indices
+    neighbor_water_atoms_indx = [water_searcher.search(ligand_atoms, radius=params['search_radius'], level='R').atoms.indices.tolist()  for ts in u_traj.trajectory[init_frame:final_frame]]
+    # Use 0-based indices, continuous and no gap
+    ## Do not use residue indices: neighbor_water_residues_indx = [u_traj.atoms[atom_indices].residues.resindices for atom_indices in neighbor_water_atoms_indx]
+    # save
+    with open(params['output_ligand_neighbor_water_atoms_indx_json_file'], "w") as file:
+        json.dump(neighbor_water_atoms_indx, file)
 
-            for j, index2 in enumerate(group_lig):
-                # charge2, sigma2, epsilon2 = nonBondedForce.getParticleParameters(index2)
-                # position2 = pdb.getPositions(asNumpy=True)[index2].value_in_unit(nanometer)
-                position2 = sele.positions[index2] * 0.1 # nanometer
-
-                # r = Quantity(value=np.linalg.norm(position1-position2), unit=nanometer)
-                r = np.linalg.norm(position1-position2) # nanometer
-                if r <= r_cutoff: # this is not a great idea because electrostatics decay slowly, need to set much larger cutoff distance than 2.0 nm
-                
-                # # if index1 in nonBondedForce.getExceptionParameters() and index2 in nonBondedForce.getExceptionParameters():
-                # #     p1, p2, chargeProd, sigma_pair, epsilon_pair = nonBondedForce.getExceptionParameters(index1)
-                # #     assert p1 == index1
-                # #     assert p2 == index2
-                # # else:
-                # epsilon_pair = np.sqrt(epsilon1*epsilon2).value_in_unit(kilojoule_per_mole)
-                # sigma_pair = 0.5*(sigma1+sigma2).value_in_unit(nanometer)
-                # chargeprod = (charge1*charge2).value_in_unit(elementary_charge**2)
-
-                    enthalpy_binding[indx] = enthalpy_binding[indx] + 4*epsilon_pair[i,j]*((sigma_pair[i,j]/r)**12 - (sigma_pair[i,j]/r)**6) + ONE_4PI_EPS0*chargeprod[i,j]/r
-
-    return enthalpy_binding #kJ/mole
+    # search for nearby ions
+    neighbor_ion_atoms_indx = [ion_searcher.search(ligand_atoms, radius=params['search_radius'], level='A').indices.tolist()  for ts in u_traj.trajectory[init_frame:final_frame]]
+    # save
+    with open(params['output_ligand_neighbor_ion_atoms_indx_json_file'], "w") as file:
+        json.dump(neighbor_ion_atoms_indx, file)
 
 
-def dG_DeltaGzip():
-    dH_binding = enthalpy_DeltaGzip(top_file_bound_state, traj_file_bound_state, lig_sdf_file, 1.0)
-    dS_binding = entropy_DeltaGzip(top_file_bound_state, traj_file_bound_state, top_file_free_state, traj_file_free_state)
+    # search for nearby DNA atoms: 
+    if flag_bound_state_energy:
+        # do not extend an atom to the entire DNA residue, only select DNA atoms that are at proximity. So, level='A'
+        neighbor_dna_atoms_indx = [dna_atom_searcher.search(ligand_atoms, radius=params['search_radius'], level='A').indices.tolist()  for ts in u_traj.trajectory[init_frame:final_frame]]
+        # keep in mind that at different frames, the list of nearby DNA atoms could be different. This is same as the old way of calculating DNA-ligand with a cutoff value placed in the nested for loops.
+        # save
+        with open(params['output_ligand_neighbor_dna_atoms_indx_json_file'], "w") as file:
+            json.dump(neighbor_dna_atoms_indx, file)
+    else:
+        neighbor_dna_atoms_indx = [] # empty list
+        # currently, don't know how to select nearby DNA since there's no ligand for DNA to be near to.
+
+    # # If the neighbor lists are already created, read the already generated json files
+    # with open(params['output_ligand_neighbor_water_atoms_indx_json_file'], "r") as file:
+    #     neighbor_water_atoms_indx = json.load(file)
+    # with open(params['output_ligand_neighbor_ion_atoms_indx_json_file'], "r") as file:
+    #     neighbor_ion_atoms_indx = json.load(file)
+    # with open(params['output_ligand_neighbor_dna_atoms_indx_json_file'], "r") as file:
+    #     neighbor_dna_atoms_indx = json.load(file)
+
+    
+    if flag_bound_state_energy:
+        # Calculate DNA - water pairwise interactions: neighbor_dna_atoms_indx, neighbor_water_atoms_indx
+        # May take a long time at large search radius cutoff: radius=10A, 400 DNA atoms x 600 water atoms. 1 iteration takes 3min. 3000 iterations would need 6.5 days
+        LJ_output_npy_file_dna_water = os.path.join(os.path.dirname(params['LJ_output_npy_file']), 'dna_water_'+os.path.basename(params['LJ_output_npy_file']))
+        Coulomb_output_npy_file_dna_water = os.path.join(os.path.dirname(params['Coulomb_output_npy_file']), 'dna_water_'+os.path.basename(params['Coulomb_output_npy_file']))
+        iterate_pairwise_terms(nonBondedForce=nonBondedForce, u_traj=u_traj, 
+                                group_A_atom_indx=neighbor_dna_atoms_indx, group_B_atom_indx=neighbor_water_atoms_indx, 
+                                flag_groupA_atom_vary=True, flag_groupB_atom_vary=True,
+                                index_init_config=params['index_init_config'], index_final_config=params['index_final_config'], 
+                                ONE_4PI_EPS=ONE_4PI_EPS, 
+                                LJ_output_npy_file=LJ_output_npy_file_dna_water, 
+                                Coulomb_output_npy_file=Coulomb_output_npy_file_dna_water)
+
+        # Calculate DNA - ligand pairwise interactions: neighbor_dna_atoms_indx, ligand_atoms_indx
+        LJ_output_npy_file_dna_lig = os.path.join(os.path.dirname(params['LJ_output_npy_file']), 'dna_lig_'+os.path.basename(params['LJ_output_npy_file']))
+        Coulomb_output_npy_file_dna_lig = os.path.join(os.path.dirname(params['Coulomb_output_npy_file']), 'dna_lig_'+os.path.basename(params['Coulomb_output_npy_file']))
+        iterate_pairwise_terms(nonBondedForce=nonBondedForce, u_traj=u_traj, 
+                            group_A_atom_indx=neighbor_dna_atoms_indx, group_B_atom_indx=ligand_atoms_indx, 
+                            flag_groupA_atom_vary=True, flag_groupB_atom_vary=False,
+                            index_init_config=params['index_init_config'], index_final_config=params['index_final_config'], 
+                            ONE_4PI_EPS=ONE_4PI_EPS, 
+                            LJ_output_npy_file=LJ_output_npy_file_dna_lig, 
+                            Coulomb_output_npy_file=Coulomb_output_npy_file_dna_lig)
+        
+        
+        # Calculate DNA - ion pairwise interactions: neighbor_dna_atoms_indx, neighbor_ion_atoms_indx
+        LJ_output_npy_file_dna_ion = os.path.join(os.path.dirname(params['LJ_output_npy_file']), 'dna_ion_'+os.path.basename(params['LJ_output_npy_file']))
+        Coulomb_output_npy_file_dna_ion = os.path.join(os.path.dirname(params['Coulomb_output_npy_file']), 'dna_ion_'+os.path.basename(params['Coulomb_output_npy_file']))
+        iterate_pairwise_terms(nonBondedForce=nonBondedForce, u_traj=u_traj, 
+                                group_A_atom_indx=neighbor_dna_atoms_indx, group_B_atom_indx=neighbor_ion_atoms_indx, 
+                                flag_groupA_atom_vary=True, flag_groupB_atom_vary=True,
+                                index_init_config=params['index_init_config'], index_final_config=params['index_final_config'], 
+                                ONE_4PI_EPS=ONE_4PI_EPS, 
+                                LJ_output_npy_file=LJ_output_npy_file_dna_ion, 
+                                Coulomb_output_npy_file=Coulomb_output_npy_file_dna_ion)
+        
+    # Calculate ligand - water pairwise interactions: ligand_atoms_indx, neighbor_water_atoms_indx
+    LJ_output_npy_file_lig_water = os.path.join(os.path.dirname(params['LJ_output_npy_file']), 'lig_water_'+os.path.basename(params['LJ_output_npy_file']))
+    Coulomb_output_npy_file_lig_water = os.path.join(os.path.dirname(params['Coulomb_output_npy_file']), 'lig_water_'+os.path.basename(params['Coulomb_output_npy_file']))
+    iterate_pairwise_terms(nonBondedForce=nonBondedForce, u_traj=u_traj, 
+                            group_A_atom_indx=ligand_atoms_indx, group_B_atom_indx=neighbor_water_atoms_indx, 
+                            flag_groupA_atom_vary=False, flag_groupB_atom_vary=True,
+                            index_init_config=params['index_init_config'], index_final_config=params['index_final_config'], 
+                            ONE_4PI_EPS=ONE_4PI_EPS, 
+                            LJ_output_npy_file=LJ_output_npy_file_lig_water, 
+                            Coulomb_output_npy_file=Coulomb_output_npy_file_lig_water)
+
+    # Calculate ligand - ion pairwise interactions: ligand_atoms_indx, neighbor_ion_atoms_indx
+    LJ_output_npy_file_lig_ion = os.path.join(os.path.dirname(params['LJ_output_npy_file']), 'lig_ion_'+os.path.basename(params['LJ_output_npy_file']))
+    Coulomb_output_npy_file_lig_ion = os.path.join(os.path.dirname(params['Coulomb_output_npy_file']), 'lig_ion_'+os.path.basename(params['Coulomb_output_npy_file']))
+    iterate_pairwise_terms(nonBondedForce=nonBondedForce, u_traj=u_traj, 
+                            group_A_atom_indx=ligand_atoms_indx, group_B_atom_indx=neighbor_ion_atoms_indx, 
+                            flag_groupA_atom_vary=False, flag_groupB_atom_vary=True,
+                            index_init_config=params['index_init_config'], index_final_config=params['index_final_config'], 
+                            ONE_4PI_EPS=ONE_4PI_EPS, 
+                            LJ_output_npy_file=LJ_output_npy_file_lig_ion, 
+                            Coulomb_output_npy_file=Coulomb_output_npy_file_lig_ion)
+
+    LJ_lig_water = np.load(LJ_output_npy_file_lig_water, allow_pickle=False)
+    Coulomb_lig_water = np.load(Coulomb_output_npy_file_lig_water, allow_pickle=False)
+
+    LJ_lig_ion = np.load(LJ_output_npy_file_lig_ion, allow_pickle=False)
+    Coulomb_lig_ion = np.load(Coulomb_output_npy_file_lig_ion, allow_pickle=False)
+
+    if flag_bound_state_energy:
+        LJ_dna_water = np.load(LJ_output_npy_file_dna_water, allow_pickle=False)
+        Coulomb_dna_water = np.load(Coulomb_output_npy_file_dna_water, allow_pickle=False)
+        
+        LJ_dna_lig = np.load(LJ_output_npy_file_dna_lig, allow_pickle=False)
+        Coulomb_dna_lig = np.load(Coulomb_output_npy_file_dna_lig, allow_pickle=False)
+
+        LJ_dna_ion = np.load(LJ_output_npy_file_dna_ion, allow_pickle=False)
+        Coulomb_dna_ion = np.load(Coulomb_output_npy_file_dna_ion, allow_pickle=False)
+
+        enthalpy_value = np.mean(LJ_dna_water) + np.mean(LJ_dna_lig) + np.mean(LJ_dna_ion) + np.mean(LJ_lig_water) + np.mean(LJ_lig_ion) + \
+                         (np.mean(Coulomb_dna_water) + np.mean(Coulomb_dna_lig) + np.mean(Coulomb_dna_ion) + np.mean(Coulomb_lig_water) + np.mean(Coulomb_lig_ion))/epsilon_medium
+
+    else:   
+        enthalpy_value = np.mean(LJ_lig_water) + np.mean(LJ_lig_ion) + \
+                         (np.mean(Coulomb_lig_water) + np.mean(Coulomb_lig_ion))/epsilon_medium
+
+    return enthalpy_value #kJ/mole
+
+
+# prepare a yaml file containing the parameters used in DeltaGzip after having generated conformations in the bound and free states:
+# # file "config_DeltaGzip.yaml" contains:
+# search_radius: 5.0
+# bio_FF: 'amber14/DNA.OL15.xml'
+# solvant_FF: 'amber14/tip3p.xml'
+# # select which configurations to calculate the LJ and Coulomb energy: 0-based index
+# index_init_config: 0 
+# index_final_config: 3000 
+# # pythonic: [index_init_config, index_final_config)
+# # epilson_r: 1.0 # this parameter is always set as unity in the calculation of Coulomb energy, regardless of the value specified here
+# # selection command for biopolymer and ligand
+# mda_sele_bio: "chainID A"
+# mda_sele_lig: "chainID B"
+# mda_sele_water: "chainID C"
+# mda_sele_ion: "chainID D"
+# # Create `params` for bound and free state separately to correctly select a given molecular component
+# output_ligand_neighbor_water_atoms_indx_json_file: <filename.json>
+# output_ligand_neighbor_ion_atoms_indx_json_file:   <filename.json>
+# output_ligand_neighbor_dna_atoms_indx_json_file:   <filename.json>
+# LJ_output_npy_file: <filename.npy>
+# Coulomb_output_npy_file: <filename.npy>
+# Run AL_RandomForest/run_ALRF_2000iter_k100.py to obtain the training result: train_dof_mask.npy, which contains
+# the dof_mask which represents the optimal representation of DNA to be Gzip-compressed.
+# dof_mask_file = <filename.npy>
+with open("config_DeltaGzip.yaml", "r") as f:
+    params = yaml.safe_load(f)
+
+def dG_DeltaGzip(params):
+    H_bound = enthalpy_DeltaGzip(params, top_file_bound_state, traj_file_bound_state, lig_sdf_file, flag_bound_state_energy=True, epsilon_medium=8.3)
+    H_free = enthalpy_DeltaGzip(params, top_file_ligand_free_state, traj_file_ligand_free_state, lig_sdf_file, flag_bound_state_energy=False, epsilon_medium=78)
+    dH_binding = H_bound - H_free
+
+    dS_binding = entropy_DeltaGzip(params, top_file_bound_state, traj_file_bound_state, top_file_dna_free_state, traj_file_dna_free_state)
 
     T = 300.0 # Kelvin
     deltaGzip = dH_binding - T*dS_binding
