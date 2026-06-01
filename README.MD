@@ -8,6 +8,10 @@
 **New feature: DeltaGzip** 
 - First version: [[JCIM paper](https://doi.org/10.1021/acs.jcim.4c00461)][[code](https://github.com/siminegroup/E2EDNA2/tree/DeltaGzip)]
 - New version tailored for DNA aptamer system: [ChemRxiv](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15003815/v1)
+  - Prior to running DeltaGzip analysis, three MD trajectories are needed, for DNA-ligand, free DNA, free ligand, respectively. The MD trajectories can be run using E2EDNA or outside of it.
+  - To run DeltaGzip analysis of calculating binding enthalpy and binding entropy, use `dG_DeltaGzip` function in `analysisTools.py`.
+    - A parameter file `config_DeltaGzip.yaml` should be prepared by users baed on their own studied system. Instructions have been provided at `dG_DeltaGzip` function in `analysisTools.py` as well.
+
 
 ### An automated pipeline for simulating DNA aptamers complexed with target ligands (peptide, DNA, RNA or small molecules).
 
