@@ -757,17 +757,31 @@ def round_to_first_dec_multi_10(arr):
 def get_internal_coords(top_file, traj_file):
     u_configs_stateA = mda.Universe(top_file, traj_file, guess_bonds=False)
 
-    protein_backbone_atoms = u_configs_stateA.select_atoms("chainID A and backbone")
-    assert len(protein_backbone_atoms.fragments) == 1
-    # print(f'Selected atoms are:{np.unique(protein_backbone_atoms.names)}')
-    # print(protein_backbone_atoms.n_atoms,'atoms')
+    # To user: adjust the MDA selection command based your own system to select the biopolymer
+    #protein_backbone_atoms = u_configs_stateA.select_atoms("chainID A and backbone")
+    biopoly_backbone_atoms = u_configs_stateA.select_atoms("chainID A and backbone")
 
-    # Pick an atom's Cartesian coordinates to define the translation of the molecule. It has to be a terminal atom: carbonyl oxygen of residue 1
-    indx = protein_backbone_atoms.select_atoms('resid 1 and name O').ix[0]
+    assert len(biopoly_backbone_atoms.fragments) == 1
+    # print(f'Selected atoms are:{np.unique(biopoly_backbone_atoms.names)}')
+    # print(biopoly_backbone_atoms.n_atoms,'atoms')
+
+    # Pick an atom's Cartesian coordinates to define the translation of the molecule. 
+    # To user: adjust the MDA selection command based your own system. It has to be a terminal heavy (non-Hydrogen) atom
+    # Example 1: carbonyl oxygen of residue 1.
+    indx = biopoly_backbone_atoms.select_atoms('resid 1 and name O').ix[0]
     # print(u_configs_stateA.atoms[indx]) # the returned index is a refernce in the whole universe
 
-    R_backbone_atoms = BAT(ag=protein_backbone_atoms, initial_atom=u_configs_stateA.atoms[indx])
-    R_backbone_atoms.run(start=0, stop=3000, verbose=True) # Calculate BAT coordinates
+    # Example 2: the oxygen atom of first phosphate group on the 5'-end of DNA
+    if 'OP1' in biopoly_backbone_atoms.select_atoms('resid 2').names:
+        indx = biopoly_backbone_atoms.select_atoms('resid 2 and name OP1').ix[0]
+    elif 'O1P' in biopoly_backbone_atoms.select_atoms('resid 2').names:
+        indx = biopoly_backbone_atoms.select_atoms('resid 2 and name O1P').ix[0]
+    else:
+        print(f"Backbone atoms in residue2 are: {biopoly_backbone_atoms.select_atoms('resid 2').names}")
+        raise ValueError('Use the specified atom name of the phosphate oxygen in the PDB file to select residue2.')
+
+    R_backbone_atoms = BAT(ag=biopoly_backbone_atoms, initial_atom=u_configs_stateA.atoms[indx])
+    R_backbone_atoms.run(start=0, stop=3000, verbose=True) # Calculate BAT coordinates for 3000 MD frames
     # print(R_backbone_atoms.results.bat.shape)
     return R_backbone_atoms.results.bat[:,6:] # remove the first 6 DOF, the rest is internal DOF
 
