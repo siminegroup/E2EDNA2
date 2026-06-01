@@ -11,7 +11,7 @@
   - Prior to running DeltaGzip analysis, three equilibrium MD trajectories are needed, for DNA-ligand, free DNA, free ligand, respectively. The MD trajectories can be obtained using E2EDNA or somewhere else as a user wishes.
     - MD trajectory of DNA-ligand is needed for both binding enthalpy and binding entropy calculations; MD trajectory of free ligand is used in binding enthalpy calculation only (free ligand's entropic contribution is ignored, as explained in the ChemRxiv preprint); MD trajectory of free DNA is used in binding entropy calculation only (see details explained in the preprint).
   - To run DeltaGzip analysis of calculating binding enthalpy and binding entropy, use `dG_DeltaGzip` function in `analysisTools.py`.
-    - A parameter file `config_DeltaGzip.yaml` should be prepared by users baed on their own studied system. Instructions have been provided at `dG_DeltaGzip` function as well.
+    - A parameter file `config_DeltaGzip.yaml` should be prepared by users based on their own studied system. Instructions have been provided at `dG_DeltaGzip` function as well.
   - The pre-screening step of filtering out non-binder ligands, i.e., "stress-test MD simulation" in the ChemRxiv preprint, is an equilibrium MD simulation performed at a higher temperature and lower ionic strength (e.g., 470K and 30mM NaCl, see details in the preprint).
 
 
