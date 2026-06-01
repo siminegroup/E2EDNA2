@@ -515,6 +515,7 @@ params['auto_sampling']              = params['auto_sampling']=='Yes'
 params['skip_smoothing']             = params['skip_smoothing']=='Yes'
 params['rigid_water']                = params['rigid_water']=='Yes'
 params['implicit_solvent']           = params['implicit_solvent']=='Yes'
+params['neutralizing_solvation']     = params['neutralizing_solvation']=='Yes'
 
 # Check if the mode explicitly needs MD_smoothing:
 if params['mode'] in ['3d smooth', 'smooth dock']: 

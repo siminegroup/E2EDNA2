@@ -306,22 +306,75 @@ class omm_DeltaGzip():
             forcefield = ForceField(params['aptamer_force_field'], params['water_model'])
 
 
-        fixer = PDBFixer(filename=input_file) # input_file can be parsed by openmm, eg, contains the complete CONECT records
+        # fixer = PDBFixer(filename=input_file) # input_file can be parsed by openmm, eg, contains the complete CONECT records
         if complex_structure is False: # need to delete the ligand chain to serve as free state configuration
             fixer.removeChains([int(params['ligand_chain_index'])])
 
         if params['process_bound_state_pdb'] == 'Yes':
             # Directly do the solvation here:
-            fixer.addSolvent(boxSize=None, padding=float(params['box_offset'])*unit.nanometer, boxVectors=None, positiveIon='Na+', negativeIon='Cl-', ionicStrength=params['ionicStrength']*unit.molar) # neutralize is True by default
+            # fixer = PDBFixer(filename=input_file)
+            nacl_conc = float(params['ionicStrength'])
+            mgcl2_conc = float(params['MgCl2_conc'])
+            total_conc = nacl_conc + mgcl2_conc*2 # imgaine it's K2Cl2, then replace half of the K as Mg and delete the other half
+            # fixer.addSolvent(boxSize=None, padding=float(params['box_offset'])*nanometer, boxVectors=None, positiveIon='Na+', negativeIon='Cl-', ionicStrength=total_conc*molar) # neutralize is True by default
+
+            # better: use Modeller.addSolvent() + forcefield object above. Modeller.addSolvent() allows "neutralize" to be specified.
+            # modeller = Modeller(fixer.topology, fixer.positions)
+            pdb_file = PDBFile(input_file)
+            modeller = Modeller(pdb_file.topology, pdb_file.positions)
+            # problem: if forcefield uses water model like "tip4p" or "opc", model needs to be updated too. 
+            # Supported values are 'tip3p', 'spce', 'tip4pew', 'tip5p', and 'swm4ndp' (polarizable) in openmm8.1.0
+            # For 4-point models: use "tip4pew"
+            # For 3-point models: tip3p, tip3pfb, spce, opc3. 'tip3p' works.
+            if ('tip4p' in params['water_model']) or ('opc.xml' in params['water_model']):
+                water_model_addSolvent = 'tip4pew'
+            elif 'spce' in params['water_model']:
+                water_model_addSolvent = 'spce'
+            else:
+                water_model_addSolvent = 'tip3p'
+            modeller.addSolvent(forcefield=forcefield, model=water_model_addSolvent, boxSize=None, padding=float(params['box_offset'])*unit.nanometer, boxVectors=None, 
+                                positiveIon='Na+', negativeIon='Cl-', ionicStrength=total_conc*unit.molar, neutralize=params['neutralizing_solvation'])
             
+            # modeller = Modeller(fixer.topology, fixer.positions) # to use the modeller.delete()
+            if mgcl2_conc > 0.0:
+                # add MgCl2: transform some of Na to Mg
+                na_and_mg = [r for r in modeller.topology.residues() if r.name == 'NA'] # Part of Na is used to neutralize DNA
+                num_na_and_cl = len([r for r in modeller.topology.residues() if r.name == 'CL']) # number of Cl ions, this corresponds to the total ionic strength
+                num_mg = math.ceil(num_na_and_cl * mgcl2_conc * 2 / total_conc)
+                mg_residues = na_and_mg[:num_mg] # select which Na to be replaced by Mg
+
+                for residue in mg_residues[:num_mg]: # be careful not to use residue somewhere else
+                    # print(next(residue.atoms()))
+                    residue.name = 'MG'
+                    atom = next(residue.atoms())
+                    atom.name = 'Mg'
+                    atom.element = element.magnesium
+
+                # delete the half of the Mg: extra
+                # toDelete = [r for r in modeller.topology.residues() if r.name == 'MG'] # all the added Mg
+                modeller.delete(mg_residues[num_mg//2:]) # if num_mg is odd number like 3, it'll delete more than half, such as 2 out of 3
+                # modeller topology has been changed. Can directly use it. Update the code below: replace fixer with modeller
+
             if complex_structure is True:
                 self.solvated_file = 'bound_state_initial_config_processed.pdb'
             else: 
                 self.solvated_file = 'free_state_initial_config_processed.pdb'
-            PDBFile.writeFile(fixer.topology, fixer.positions, open(os.path.join(self.runfilesDir,self.solvated_file), 'w'))
+            # Only use this for visualization and mdanalysis, not as input for simulation because CONECT records aren't complete after PDBFile.writeFile: 
+            # DNA CONECT will be removed. But sometimes they are needed: when H were added by PyMOL instead of by fixer, so the H atoms' names cannot be used by OpenMM to determine topology
+            PDBFile.writeFile(modeller.topology, modeller.positions, open(os.path.join(self.runfilesDir,self.solvated_file), 'w'))
 
         else:
             self.solvated_file = input_file
+            pdb_file = PDBFile(self.solvated_file)
+            modeller = Modeller(pdb_file.topology, pdb_file.positions)
+
+        if ('tip4p' in params['water_model']) or ('opc.xml' in params['water_model']):
+            # Add virtual particles for TIP4P water model
+            # 4-point water model uses 3 real atoms (O, H, H) & 1 virtual site (M-site) for the negative charge, located near the oxygen.
+            modeller.addExtraParticles(forcefield) # for 4-particle water model: amber14/tip4pew.xml, amber14/tip4pfb.xml and amber14/opc.xml
+            # amber14/opc3.xml is a 3-point model!
+            solvated_file_with_added_extra_atoms = 'added_extra_atoms_'+self.solvated_file
+            PDBFile.writeFile(modeller.topology, modeller.positions, open(os.path.join(self.runfilesDir, solvated_file_with_added_extra_atoms), 'w'))
 
         # center the molecule in the simulation box. So that nothing gets replaced by its mirror image
         u = mda.Universe(os.path.join(self.runfilesDir,self.solvated_file))
@@ -344,11 +397,11 @@ class omm_DeltaGzip():
         # all_atoms.write(centered_file)
 
         # Update the PDB object's coordinate:
-        new_positions = fixer.positions + xyz_shift*unit.angstrom
-        fixer.positions = new_positions
+        new_positions = modeller.positions + xyz_shift*unit.angstrom
+        modeller.positions = new_positions
 
         # pdb = PDBFile(centered_file)
-        self.pdb = fixer # directly use fixer object, because its stored topology is intact!
+        self.pdb = modeller # directly use modeller object, because its stored topology is intact!
         # coords = self.pdb.getPositions(asNumpy=True)
 
         ## Use force field to createSystem
@@ -466,6 +519,42 @@ class omm_DeltaGzip():
             for ts in u_traj.trajectory:
                 W.write(dna_ligand_ions)
         
+        # Clean up the trajectory by removing waters
+        # >> use : "energy_minimized_structure.pdb" certainly works
+        u = mda.Universe(open(os.path.join(self.runfilesDir,'energy_minimized_structure.pdb'), 'r'), dcd_traj)
+        # u = mda.Universe(solvated_file, dcd_traj)
+        u.trajectory[0]
+        if complex_structure is True:
+            printRecord("Bound-state simulation took {} seconds, ie, speed is {} ns/day.".format(md_time.interval, ns_per_day))
+            dna_ligand_ions = u_traj.select_atoms("({}) or ({})".format(params['mda_sele_biopolymer'],params['mda_sele_ligand'])).atoms # select biopolymer (could be multiple chains) and ligand
+            clean_first_frame_pdb_file = os.path.join(self.runfilesDir, 'clean_first_frame_of_bound_state_trajectory.pdb')
+            clean_dcd_traj = os.path.join(self.runfilesDir, 'clean_bound_state_trajectory.dcd')
+        else:
+            printRecord("Free-state simulation took {} seconds, ie, speed is {} ns/day.".format(md_time.interval, ns_per_day))
+            dna_ligand_ions = u_traj.select_atoms("{}".format(params['mda_sele_biopolymer'])).atoms # select biopolymer (could be multiple chains)
+            clean_first_frame_pdb_file = os.path.join(self.runfilesDir, 'clean_first_frame_of_free_state_trajectory.pdb')
+            clean_dcd_traj = os.path.join(self.runfilesDir, 'clean_free_state_trajectory.dcd')
+
+        # Clean the trajectory
+        dna_ligand_ions.write(clean_first_frame_pdb_file)
+        with mda.Writer(clean_dcd_traj, dna_ligand_ions.n_atoms) as W:
+            for ts in u_traj.trajectory:
+                W.write(dna_ligand_ions)
+
+        if params['translate_clean_traj_to_box_center'] == 'Yes':
+            # translate the free-state molecule (DNA or ligand) to the box center
+            u_clean = mda.Universe(clean_first_frame_pdb_file, clean_dcd_traj)
+            all_atoms = u_clean.select_atoms("all")
+            with mda.Writer('centered_'+clean_dcd_traj, all_atoms.n_atoms) as W:
+                for ts in u_clean.trajectory:
+                    box_center = u_clean.dimensions[:3]/2 # retrieve the box dimension (the last three are the box angles)
+                    COM = all_atoms.center_of_mass(wrap=False) # angstrom. numpy array
+
+                    # translate the molecules to the box center
+                    all_atoms.translate(box_center - COM)
+                    W.write(all_atoms)
+
+
         # return ns_per_day
 
 

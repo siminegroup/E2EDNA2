@@ -123,12 +123,12 @@ max_aptamer_sampling_iter: 20 # number of allowable iterations before giving up 
 max_walltime: 24.0      # hours
 
 skip_smoothing: 'Yes'   # 'Yes' or 'No'. 'Yes': no short MD relaxation before MD sampling. Will be changed to 'No' if mode involves MD relaxation (3d smooth, smooth dock)
-equilibration_time: 0.0005  
-smoothing_time:
-aptamer_sampling_time: 0.001
-complex_sampling_time:
+equilibration_time: 0.0  
+smoothing_time: 0.0
+aptamer_sampling_time: 0.0
+complex_sampling_time: 5.0
 time_step: 1.0    # also used by DeltaGzip module specified below       
-print_step: 0.05         
+print_step: 4 
 # # The meanings of 6 arguments about MD time:
 # ns. Initial equilibration time in nanoseconds
 # ns. MD relax after getting the initial 3D structure from user or MMB before MD sampling. Set as Python None because no smoothing by default
@@ -195,11 +195,13 @@ input_file_for_DeltaGzip_simu: <path to the bound-state structure PDB file> # ex
 ligand_chain_index: 2 # zero-based index 
 process_bound_state_pdb: 'Yes'
 # 'No' => the file is pre-processed. But strongly not recommended because the ligand is removed to initilize free state simulation, which will leave a void in the water box.
+neutralizing_solvation: 'No' # neutralize the solute first, then add salt to the desired ionic strength
 
 # # Specified the simulation conditions in OpenMM section above.
 # pressure: 1.0            # atm
 # temperature: 300.0       # Kevin: used to predict secondary structure and for MD thermostat
 # ionicStrength: 0.0       # NaCl molar concentration used by NUPACK and OpenMM. [Na] in [50M, 1100M] for NUPACK. Could be used in implicit solvent as well.
+MgCl2_conc: 0.000        # molar [MgCl2]
 # pH: 7.4                  # Used to decide protonation states of aptamer and/or target ligand in OpenMM explicit waterbox
 # box_offset: 1.0          # nanometers
 # # temperature, ionicStrength, pH and box_offset are used to solvate a molecule.
@@ -225,12 +227,13 @@ process_bound_state_pdb: 'Yes'
 # friction: 1.0 # Langevin friction coefficient. Unit: 1/ps. Determines how strongly the system is coupled to the heat bath
 
 
-ligand_topology_file:  # example: /home/username/ligands_sdf/LIGAND_NAME_model.sdf
+ligand_topology_file: <path to the ligand's sdf file> # example: /home/username/ligands_sdf/LIGAND_NAME_model.sdf
 # Required and must be sdf file.
 
+# MD simulation time duration setting in DeltaGzip:
 equil_config_duration: 1   # ns
-sample_config_duration: 20 # ns
-num_config: 5000
+sample_config_duration: 12 # ns
+num_config: 3000  # 4ps apart
 
 # Optionally: apply an external force on the center of mass of the whole ligand
 apply_force_on_ligand_COM: 'Yes' 
@@ -239,3 +242,4 @@ k0: 20000 # kJ/mol/nm^2. 100 kJ/mol/nm^2 => 166 pN/nm or mN/m => 16.6 pN/Ang. 1 
 # selection command for MDA to select biopolymer and/or ligand:
 mda_sele_biopolymer: "(chainID A) or (chainID B)"
 mda_sele_ligand: "chainID C"
+translate_clean_traj_to_box_center: 'Yes'  # whether to move the simulated object back to box center, useful for free-biopolymer simulation
