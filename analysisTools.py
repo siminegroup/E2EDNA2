@@ -1110,6 +1110,11 @@ with open("config_DeltaGzip.yaml", "r") as f:
     params = yaml.safe_load(f)
 
 def dG_DeltaGzip(params):
+    '''
+    - The dG_DeltaGzip function only takes care of calculating deltaH and deltaS, given the input parameters in `config_DeltaGzip.yaml` explained above.
+    - A pre-screening step may be performed to filter out non-binding ligands: it's an equilibrium MD simulation performed at a higher tempearature (such as 470K).
+    '''
+    
     H_bound = enthalpy_DeltaGzip(params, top_file_bound_state, traj_file_bound_state, lig_sdf_file, flag_bound_state_energy=True, epsilon_medium=8.3)
     H_free = enthalpy_DeltaGzip(params, top_file_ligand_free_state, traj_file_ligand_free_state, lig_sdf_file, flag_bound_state_energy=False, epsilon_medium=78)
     dH_binding = H_bound - H_free
